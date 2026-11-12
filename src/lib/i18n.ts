@@ -185,6 +185,7 @@ const en = {
   'layer.cycleRoutes': 'Cycling routes',
   'layer.hikeRoutes': 'Hiking routes',
   'layer.passes': 'Mountain passes',
+  'layer.gpsHeat': 'GPS heatmap (OSM)',
   'help.guide': 'How routing works, line colours and pass grades',
   'layerGroup.satellite': 'Satellite',
   'layerGroup.yandex': 'Yandex',

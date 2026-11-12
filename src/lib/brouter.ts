@@ -170,12 +170,27 @@ function straightKm(a: LngLat, b: LngLat) {
   return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 
+/** The server lets one client run 3 legs at once; a route with many legs waits here instead of being refused. */
+const MAX_PARALLEL = 3;
+let running = 0;
+const waiting: (() => void)[] = [];
+async function slot<T>(fn: () => Promise<T>): Promise<T> {
+  if (running >= MAX_PARALLEL) await new Promise<void>((res) => waiting.push(res));
+  running++;
+  try {
+    return await fn();
+  } finally {
+    running--;
+    waiting.shift()?.();
+  }
+}
+
 async function requestLeg(url: string, attempt = 0): Promise<Leg> {
   const r = await fetch(url);
   const text = await r.text();
   if (r.ok) return parseBrouter(JSON.parse(text));
   // the server queues legs and limits each client: wait as long as it asks and try again
-  if ((r.status === 429 || r.status === 503) && attempt < 5) {
+  if ((r.status === 429 || r.status === 503) && attempt < 12) {
     const after = Math.min(10, Number(r.headers.get('Retry-After')) || 2);
     await new Promise((res) => setTimeout(res, after * 1000 + Math.random() * 500));
     return requestLeg(url, attempt + 1);
@@ -202,20 +217,45 @@ export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Param
       () => ({ points: [a, b].map((p) => ({ lng: p.lng, lat: p.lat, ele: null })), spans: [] }),
     );
   }
-  // profile parameters go as profile:<name>=<value>; booleans as 1/0
-  const extra = Object.entries(params)
-    .sort(([x], [y]) => x.localeCompare(y))
-    .map(([k, v]) => `&profile:${encodeURIComponent(k)}=${typeof v === 'boolean' ? (v ? 1 : 0) : encodeURIComponent(String(v))}`)
-    .join('');
+  const extra = paramString(params);
   const km = straightKm(a, b);
   if (km > MAX_LEG_KM) return Promise.reject(new Error(t('route.legTooLong', { max: MAX_LEG_KM })));
-  const key = `${profile}|${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}${extra}`;
+  const key = legKey(a, b, profile, extra);
   let p = cache.get(key);
   if (!p) {
     const url = `${API}?lonlats=${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=${profile}${extra}&alternativeidx=0&format=geojson`;
-    p = requestLeg(url);
+    p = slot(() => requestLeg(url));
     p.catch(() => cache.delete(key));
     cache.set(key, p);
   }
   return p;
+}
+
+// profile parameters go as profile:<name>=<value>; booleans as 1/0
+function paramString(params: Params) {
+  return Object.entries(params)
+    .sort(([x], [y]) => x.localeCompare(y))
+    .map(([k, v]) => `&profile:${encodeURIComponent(k)}=${typeof v === 'boolean' ? (v ? 1 : 0) : encodeURIComponent(String(v))}`)
+    .join('');
+}
+
+function legKey(a: LngLat, b: LngLat, profile: ProfileId, extra: string) {
+  return `${profile}|${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}${extra}`;
+}
+
+/** A leg computed earlier and stored with the route: later requests for it are answered without the router. */
+export function seedLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params, leg: Leg) {
+  if (profile !== 'straight') cache.set(legKey(a, b, profile, paramString(params)), Promise.resolve(leg));
+}
+
+/** Compact form of a leg for storage: [lng, lat, ele] with 6 and 1 decimals. */
+export type StoredLeg = { p: [number, number, number | null][]; s: WaySpan[] };
+export function packLeg(l: Leg): StoredLeg {
+  return {
+    p: l.points.map((q) => [Math.round(q.lng * 1e6) / 1e6, Math.round(q.lat * 1e6) / 1e6, q.ele == null ? null : Math.round(q.ele * 10) / 10]),
+    s: l.spans,
+  };
+}
+export function unpackLeg(l: StoredLeg): Leg {
+  return { points: l.p.map(([lng, lat, ele]) => ({ lng, lat, ele })), spans: l.s ?? [] };
 }

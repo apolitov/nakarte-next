@@ -1,6 +1,6 @@
 // Route being edited: waypoints, per-leg mode (road or straight), routing
 // profile, legs between waypoints, undo/redo.
-import { fetchLeg, normalizeProfile, optionsToParams, paramsToOptions, type Leg, type LegPoint, type ProfileId, type RouteOptions } from './brouter';
+import { fetchLeg, seedLeg, packLeg, unpackLeg, type StoredLeg, normalizeProfile, optionsToParams, paramsToOptions, type Leg, type LegPoint, type ProfileId, type RouteOptions } from './brouter';
 import { buildProfile, type Profile } from './profile';
 import { newId, type Checkpoint, type RouteDoc } from './store';
 import { t, LOCALE } from './i18n';
@@ -74,6 +74,9 @@ export class RouteState {
       params: { ...this.params },
       waypoints: this.waypoints.map(({ lng, lat, straight }) => (straight ? { lng, lat, straight } : { lng, lat })),
       checkpoints: this.checkpoints.map((c) => ({ ...c })),
+      legs: this.legs.length && this.legs.every((l) => l.status === 'ok')
+        ? this.legs.map((l) => packLeg((l as { leg: Leg }).leg))
+        : undefined,
       updated: Date.now(),
     };
   }
@@ -87,7 +90,7 @@ export class RouteState {
     this.undoStack = [];
     this.redoStack = [];
     this.syncHistoryFlags();
-    this.rebuild(doc.waypoints);
+    this.rebuild(doc.waypoints, doc.legs);
   }
 
   /** Starts a new empty route. */
@@ -145,10 +148,22 @@ export class RouteState {
 
   // ---- legs ----
 
-  private rebuild(pts: Omit<Waypoint, 'id'>[]) {
+  private rebuild(pts: Omit<Waypoint, 'id'>[], stored?: StoredLeg[]) {
     this.waypoints = pts.map((p) => ({ id: nextId++, lng: p.lng, lat: p.lat, straight: p.straight || undefined }));
     this.legs = [];
-    for (let i = 1; i < this.waypoints.length; i++) this.loadLeg(i - 1);
+    // legs saved with the route are put into the request cache: no router calls on open
+    if (stored?.length === this.waypoints.length - 1) {
+      stored.forEach((sl, i) => {
+        const a = this.waypoints[i];
+        try {
+          seedLeg(a, this.waypoints[i + 1], a.straight ? 'straight' : this.profile, this.params, unpackLeg(sl));
+          if (a.straight) this.legs[i] = { status: 'ok', leg: unpackLeg(sl) };
+        } catch {
+          /* a broken stored leg is simply computed again */
+        }
+      });
+    }
+    for (let i = 1; i < this.waypoints.length; i++) if (!this.legs[i - 1]) this.loadLeg(i - 1);
     this.changed();
   }
 

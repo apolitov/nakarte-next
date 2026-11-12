@@ -22,9 +22,9 @@ export async function whoami(): Promise<User | null> {
   }
 }
 
-/** Sign in with Google, then back to the same map view. */
-export function login() {
-  const to = `${import.meta.env.BASE_URL}${location.hash}`;
+/** Sign in with Google, then back to the same map view (or to `hash`, e.g. with the open route). */
+export function login(hash = location.hash) {
+  const to = `${import.meta.env.BASE_URL}${hash}`;
   location.href = `${API}/auth/google/start?to=${encodeURIComponent(to)}`;
 }
 
@@ -119,8 +119,14 @@ export async function sync(): Promise<boolean> {
 
 /** Short link: a full snapshot of the document on the server. */
 export async function shareShort(d: Doc): Promise<string> {
-  const { id } = await (await api('/share', { method: 'POST', body: JSON.stringify(d), headers: { 'Content-Type': 'application/json' } })).json();
-  return `${location.origin}${import.meta.env.BASE_URL}#s=${id}`;
+  return `${location.origin}${import.meta.env.BASE_URL}#s=${await snapshot(d)}`;
+}
+
+/** Stores a snapshot on the server (works without an account too) and returns its id. */
+export async function snapshot(d: Doc): Promise<string> {
+  const r = await fetch(`${API}/share`, { method: 'POST', credentials: 'same-origin', body: JSON.stringify(d), headers: { 'Content-Type': 'application/json' } });
+  if (!r.ok) throw new Error(`share: ${r.status}`);
+  return (await r.json()).id;
 }
 
 export async function loadShort(id: string): Promise<Doc | null> {

@@ -20,6 +20,8 @@ export interface RouteDoc {
   /** `straight` marks the leg that starts at this waypoint. */
   waypoints: { lng: number; lat: number; straight?: boolean }[];
   checkpoints: Checkpoint[];
+  /** Computed legs, so an opened route shows at once without asking the router again. */
+  legs?: import('./brouter').StoredLeg[];
   updated: number;
 }
 

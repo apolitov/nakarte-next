@@ -4,6 +4,7 @@
   import { onMount, untrack } from 'svelte';
   import { DEFAULT_BASE, layerById, type LayerDef } from './lib/layers';
   import { registerYandexProtocol } from './lib/yandex';
+  import { registerGpsHeatProtocol } from './lib/gpsheat';
   import { parseHash, formatHash } from './lib/hash';
   import { parseTrackFile, toGpx, trackToGeoJSON, bboxOf, type Track } from './lib/gpx';
   import { RouteState } from './lib/route.svelte';
@@ -13,7 +14,7 @@
   import { routeToParam, paramToRoute } from './lib/share';
   import { showPasses, hidePasses } from './lib/passes';
   import { CheckpointLayer, type CheckpointItem } from './lib/checkpoints';
-  import { whoami, login, logout, sync, remote, shareShort, loadShort, type User, loginAuthelia, deleteAccount } from './lib/account';
+  import { whoami, login, logout, sync, remote, shareShort, snapshot, loadShort, type User, loginAuthelia, deleteAccount } from './lib/account';
   import type { Doc } from './lib/store';
   import { encodeCourse } from './lib/fit';
   import { buildTimeline, nearestPoint, segmentClasses, type TimelineEvent } from './lib/timeline';
@@ -352,10 +353,16 @@
     const fromLink = shared ? paramToRoute(shared) : null;
     const short = hp.get('s') ? await loadShort(hp.get('s')!) : null;
     if (short?.kind === 'route') {
-      route.load({ ...short, id: newId('r'), updated: Date.now() });
-      say(t('toast.fromLink'));
+      // our own route (e.g. back from sign-in) opens as the saved copy; someone else's becomes a new one
+      const mine = savedRoutes.find((r) => r.id === short.id);
+      if (mine) route.load(mine);
+      else {
+        route.load({ ...short, id: newId('r'), updated: Date.now() });
+        say(t('toast.fromLink'));
+      }
       fitPoints(short.waypoints);
       fitWhenReady = true;
+      if (hp.get('g') === '1') garminOpen = true;
     } else if (short?.kind === 'track') {
       const trk = docToTrack({ ...short, id: newId('t') });
       tracks = [...tracks, trk];
@@ -437,15 +444,13 @@
     if (!route.waypoints.length) return;
     const doc = route.toDoc();
     const c = map!.getCenter();
-    // logged in: a short link with everything (checkpoints, notes); otherwise the points go into the URL
-    if (user) {
-      try {
-        const short = await shareShort(doc);
-        await copy(short, t('toast.shortCopied'));
-        return;
-      } catch {
-        /* fall back to the long link */
-      }
+    // a short link to a snapshot on the server, with the computed route; the long link is a fallback
+    try {
+      const short = await shareShort(doc);
+      await copy(short, t('toast.shortCopied'));
+      return;
+    } catch {
+      /* fall back to the long link */
     }
     const url =
       location.origin + location.pathname +
@@ -490,6 +495,22 @@
   }
 
   let garminOpen = $state(false);
+
+  /** Sign-in leaves the page: the open route goes to the server and comes back by its id. */
+  async function signIn(reopenGarmin = false) {
+    let hash = location.hash;
+    if (route.waypoints.length) {
+      saveRoute();
+      try {
+        const c = map!.getCenter();
+        hash = formatHash({ zoom: map!.getZoom(), lat: c.lat, lng: c.lng, layers: [base, ...overlays] }) +
+          `&s=${await snapshot(route.toDoc())}` + (reopenGarmin ? '&g=1' : '');
+      } catch {
+        /* sign in anyway; the route stays in My routes */
+      }
+    }
+    login(hash);
+  }
   function garminRoute() {
     if (route.points.length < 2) return null;
     const name = route.name || route.autoName();
@@ -788,6 +809,7 @@
 
   onMount(() => {
     registerYandexProtocol();
+    registerGpsHeatProtocol();
     cityView();
     map = new maplibregl.Map({
       container,
@@ -898,7 +920,7 @@
         <source srcset="{import.meta.env.BASE_URL}brand/symbol-colour-dark.svg" media="(prefers-color-scheme: dark)" />
         <img src="{import.meta.env.BASE_URL}brand/symbol-colour.svg" alt="Na Carta" width="81" height="28" />
       </picture>
-      {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={login} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
+      {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
     </div>
     <div class="titlerow">
     <input
@@ -914,7 +936,7 @@
       <button class="del" onclick={deleteCurrent} aria-label={t('route.delete')} data-tip={t('route.delete')}><Icon name="trash" size={18} /></button>
     {/if}
     <!-- on a phone the account button sits on the title row, the logo is hidden -->
-    {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={login} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
+    {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
     </div>
     <Segmented name="kind" label={t('route.typeLabel')} value={route.profile}
       items={PROFILES.map((p) => [p.id, p.title] as const)}
@@ -954,14 +976,17 @@
     {/if}
 
     <div class="acts">
-      <button class="garmin" disabled={!hasRoute} onclick={() => (garminOpen = true)}>
-        <Icon name="watch" size={22} /><span>{t('act.garmin')}</span><span class="beta">{t('act.beta')}</span>
-      </button>
-      <div class="sec3">
-        <button class="sbtn" disabled={!route.waypoints.length} onclick={shareRoute}>{t('act.share')}</button>
-        <button class="sbtn" disabled={!hasRoute} onclick={exportRoute} data-tip={t('act.gpxTip')}>GPX</button>
-        <button class="sbtn" disabled={!hasRoute} onclick={exportFit} data-tip={t('act.fitTip')}>FIT</button>
-      </div>
+      <!-- route actions appear only when there is a route -->
+      {#if hasRoute}
+        <button class="garmin" onclick={() => (garminOpen = true)}>
+          <Icon name="watch" size={22} /><span>{t('act.garmin')}</span><span class="beta">{t('act.beta')}</span>
+        </button>
+        <div class="sec3">
+          <button class="sbtn" onclick={shareRoute}>{t('act.share')}</button>
+          <button class="sbtn" onclick={exportRoute} data-tip={t('act.gpxTip')}>GPX</button>
+          <button class="sbtn" onclick={exportFit} data-tip={t('act.fitTip')}>FIT</button>
+        </div>
+      {/if}
       <Fold id="nk-mine" title={t('mine.title')} summary={t('mine.saved', { n: savedRoutes.length + tracks.length })} bind:open={mineOpen}>
         <div class="mine-scroll">
           <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
@@ -1011,7 +1036,7 @@
     {/if}
   </main>
 
-  <GarminDialog bind:open={garminOpen} loggedIn={!!user} getRoute={garminRoute} onlogin={login} />
+  <GarminDialog bind:open={garminOpen} loggedIn={!!user} getRoute={garminRoute} onlogin={() => signIn(true)} />
   <HelpDialog bind:open={helpOpen} {shortcuts} />
   <KeyTip />
 </div>

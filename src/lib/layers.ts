@@ -146,6 +146,16 @@ const ALL: LayerDef[] = [
     maxzoom: 18,
   },
   {
+    // public GPS traces uploaded to OpenStreetMap, drawn as a density map
+    id: 'H',
+    title: t('layer.gpsHeat'),
+    kind: 'overlay',
+    group: t('layerGroup.routes'),
+    tiles: ['gpsheat://{z}/{x}/{y}'],
+    attribution: 'GPS traces © <a href="https://www.openstreetmap.org/traces">OpenStreetMap contributors</a>',
+    maxzoom: 20,
+  },
+  {
     // vector layer from public/data/passes.geojson, drawn by lib/passes.ts
     id: 'P',
     title: t('layer.passes'),
