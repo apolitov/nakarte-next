@@ -203,7 +203,9 @@ export class RouteEditor {
       } else {
         m.setLngLat([w.lng, w.lat]);
         const el = m.getElement();
-        el.className = `wp wp-${kind}`;
+        // keep MapLibre's own marker classes: replacing className breaks positioning
+        el.classList.remove('wp-start', 'wp-via', 'wp-end');
+        el.classList.add('wp', `wp-${kind}`);
         el.textContent = label;
       }
       const active = this.editing && ((kind === 'start' && this.route.prepend) || (kind === 'end' && !this.route.prepend));
