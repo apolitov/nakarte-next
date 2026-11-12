@@ -2,7 +2,7 @@
 
 A route planner for hiking and cycling, rebuilt on a modern stack. Inspired by and partly ported from [nakarte.me](https://nakarte.me) ([source](https://github.com/wladich/nakarte)) by Sergey Orlov.
 
-**Status:** planning, no working code yet.
+**Status:** early prototype: base maps, URL state, GPX/KML import and export.
 
 ## Why
 
@@ -31,7 +31,15 @@ nakarte.me is one of the most convenient route planners around, but:
 
 ## Development
 
-Copy `.env.example` to `.env` and fill in the keys. Setup instructions will appear with the first code.
+```bash
+npm install
+cp .env.example .env   # optional keys: Google Map Tiles, mapy.com
+npm run dev            # http://localhost:5173/maps/
+npm test
+npm run check
+```
+
+Layers whose key is missing are hidden.
 
 ## License
 

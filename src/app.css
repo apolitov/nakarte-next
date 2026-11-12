@@ -1,0 +1,132 @@
+:root {
+  --bg: #fff;
+  --fg: #1d1d1f;
+  --muted: #6b6b70;
+  --line: #d9d9de;
+  --accent: #e0218a;
+  --panel-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  font: 14px/1.35 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1f22;
+    --fg: #ececf0;
+    --muted: #a0a0a8;
+    --line: #3a3a40;
+  }
+}
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+.app {
+  position: relative;
+  height: 100%;
+}
+.map {
+  position: absolute;
+  inset: 0;
+}
+.panel {
+  position: absolute;
+  z-index: 2;
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  max-width: calc(100vw - 24px);
+}
+.layers {
+  top: 10px;
+  right: 10px;
+}
+.layers .list {
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  padding: 4px 12px 10px;
+  min-width: 220px;
+}
+.layers .group {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.layers label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 3px 0;
+  cursor: pointer;
+}
+.toggle {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+.tracks {
+  bottom: 34px;
+  right: 10px;
+  padding: 8px;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tracks .open {
+  display: block;
+  text-align: center;
+  padding: 7px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tracks .open input {
+  display: none;
+}
+.track {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.track button {
+  border: 1px solid var(--line);
+  background: none;
+  color: inherit;
+  font: inherit;
+  border-radius: 6px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+.track .name {
+  flex: 1;
+  text-align: left;
+  border-color: transparent;
+  border-left: 4px solid var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.error {
+  color: #d1242f;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .tracks {
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+}
