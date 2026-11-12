@@ -13,6 +13,8 @@
   import { store, newId, type RouteDoc, type TrackDoc } from './lib/store';
   import { routeToParam, paramToRoute } from './lib/share';
   import { CheckpointLayer, type CheckpointItem } from './lib/checkpoints';
+  import { whoami, login, logout, sync, remote, shareShort, loadShort, type User } from './lib/account';
+  import type { Doc } from './lib/store';
 
   let container: HTMLDivElement;
   let map: MlMap | undefined;
@@ -36,6 +38,28 @@
   }
   let savedRoutes = $state<RouteDoc[]>([]);
   let toast = $state('');
+  let user = $state<User | null>(null);
+  let syncState = $state<'' | 'sync' | 'ok' | 'error'>('');
+
+  /** Local save plus, when logged in, the server copy. */
+  function saveDoc(d: Doc) {
+    store.put(d);
+    if (user) remote.put(d).then(() => (syncState = 'ok'), () => (syncState = 'error'));
+  }
+  function deleteDoc(id: string) {
+    store.delete(id);
+    if (user) remote.delete(id).catch(() => (syncState = 'error'));
+  }
+
+  async function runSync() {
+    syncState = 'sync';
+    try {
+      if (await sync()) await reloadLists();
+      syncState = 'ok';
+    } catch {
+      syncState = 'error';
+    }
+  }
   /** Next map click places a checkpoint on this owner ('route' or a track id). */
   let placing = $state<string | null>(null);
   let cpLayer: CheckpointLayer | undefined;
@@ -95,7 +119,7 @@
           : p,
       );
       const nt = { ...t, points };
-      store.put(trackToDoc(nt));
+      saveDoc(trackToDoc(nt));
       return nt;
     });
   }
@@ -104,7 +128,7 @@
     tracks = tracks.map((t) => {
       if (t.id !== item.owner) return t;
       const nt = { ...t, points: t.points.filter((p, i) => (p.id ?? `${t.id}:${i}`) !== item.id) };
-      store.put(trackToDoc(nt));
+      saveDoc(trackToDoc(nt));
       return nt;
     });
   }
@@ -121,7 +145,7 @@
       tracks = tracks.map((t) => {
         if (t.id !== owner) return t;
         const nt = { ...t, points: [...t.points, { id, name: '', coord: [lng, lat], kind: 'generic' }] };
-        store.put(trackToDoc(nt));
+        saveDoc(trackToDoc(nt));
         return nt;
       });
       queueMicrotask(() => cpLayer?.open({ id, lng, lat, kind: 'generic', name: '', owner, editable: true }));
@@ -142,7 +166,7 @@
   function saveRoute() {
     if (!route.waypoints.length) return;
     const doc = route.toDoc();
-    store.put(doc);
+    saveDoc(doc);
     savedRoutes = [doc, ...savedRoutes.filter((r) => r.id !== doc.id)];
   }
 
@@ -165,10 +189,15 @@
     };
   }
 
-  async function loadStored() {
+  async function reloadLists() {
     const docs = await store.all();
     tracks = docs.filter((d): d is TrackDoc => d.kind === 'track').map(docToTrack);
     savedRoutes = docs.filter((d): d is RouteDoc => d.kind === 'route').sort((a, b) => b.updated - a.updated);
+    refreshTracks();
+  }
+
+  async function loadStored() {
+    await reloadLists();
     // one-time migration from the first version (localStorage)
     try {
       const old = JSON.parse(localStorage.getItem('nk-route') ?? 'null');
@@ -179,9 +208,21 @@
     } catch {
       /* ignore */
     }
-    const shared = new URLSearchParams(location.hash.slice(1)).get('r');
+    const hp = new URLSearchParams(location.hash.slice(1));
+    const shared = hp.get('r');
     const fromLink = shared ? paramToRoute(shared) : null;
-    if (fromLink) {
+    const short = hp.get('s') ? await loadShort(hp.get('s')!) : null;
+    if (short?.kind === 'route') {
+      route.load({ ...short, id: newId('r'), updated: Date.now() });
+      toast = 'Маршрут из ссылки сохранён у вас';
+      fitRoute(short.waypoints);
+    } else if (short?.kind === 'track') {
+      const t = docToTrack({ ...short, id: newId('t') });
+      tracks = [...tracks, t];
+      saveDoc(trackToDoc(t));
+      zoomTo(t);
+      toast = 'Трек из ссылки сохранён у вас';
+    } else if (fromLink) {
       route.load({ id: newId('r'), kind: 'route', name: '', checkpoints: [], updated: Date.now(), ...fromLink });
       toast = 'Маршрут из ссылки сохранён у вас';
       fitRoute(fromLink.waypoints);
@@ -190,6 +231,10 @@
     }
     loaded = true;
     refreshTracks();
+    whoami().then((u) => {
+      user = u;
+      if (u) runSync();
+    });
   }
 
   function fitRoute(pts: { lng: number; lat: number }[]) {
@@ -209,7 +254,7 @@
 
   function deleteRoute(r: RouteDoc) {
     if (!confirm(`Удалить «${r.name}»?`)) return;
-    store.delete(r.id);
+    deleteDoc(r.id);
     savedRoutes = savedRoutes.filter((x) => x.id !== r.id);
     if (r.id === route.docId) route.reset();
   }
@@ -223,15 +268,29 @@
   async function shareRoute() {
     const doc = route.toDoc();
     const c = map!.getCenter();
+    // logged in: a short link with everything (checkpoints, notes); otherwise the points go into the URL
+    if (user) {
+      try {
+        const short = await shareShort(doc);
+        await copy(short, 'Короткая ссылка скопирована');
+        return;
+      } catch {
+        /* fall back to the long link */
+      }
+    }
     const url =
       location.origin + location.pathname +
       formatHash({ zoom: map!.getZoom(), lat: c.lat, lng: c.lng, layers: [base, ...overlays] }) +
       '&r=' + encodeURIComponent(routeToParam(doc));
+    await copy(url, `Ссылка скопирована (${url.length} символов)`);
+  }
+
+  async function copy(text: string, ok: string) {
     try {
-      await navigator.clipboard.writeText(url);
-      toast = `Ссылка скопирована (${url.length} символов)`;
+      await navigator.clipboard.writeText(text);
+      toast = ok;
     } catch {
-      prompt('Ссылка на маршрут', url);
+      prompt('Ссылка', text);
     }
   }
 
@@ -352,7 +411,7 @@
       try {
         const t = parseTrackFile(f.name, await f.text());
         tracks = [...tracks, t];
-        store.put(trackToDoc(t));
+        saveDoc(trackToDoc(t));
         refreshTracks();
         zoomTo(t);
       } catch (e) {
@@ -377,7 +436,7 @@
 
   function removeTrack(t: Track) {
     tracks = tracks.filter((x) => x.id !== t.id);
-    store.delete(t.id);
+    deleteDoc(t.id);
     refreshTracks();
   }
 
@@ -558,6 +617,18 @@
   {/if}
 
   <div class="panel tracks">
+    <div class="account">
+      {#if user}
+        <span class="who" title={user.user}>{user.name}</span>
+        <span class="sync" class:err={syncState === 'error'}>
+          {syncState === 'sync' ? 'синхронизация…' : syncState === 'error' ? 'не синхронизировано' : 'синхронизировано'}
+        </span>
+        <button onclick={logout}>Выйти</button>
+      {:else}
+        <span class="muted">Маршруты хранятся в этом браузере</span>
+        <button onclick={login}>Войти</button>
+      {/if}
+    </div>
     <label class="open">
       Открыть GPX/KML
       <input type="file" accept=".gpx,.kml" multiple onchange={(e) => addFiles((e.currentTarget as HTMLInputElement).files!)} />

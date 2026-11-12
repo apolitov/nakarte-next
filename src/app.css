@@ -377,3 +377,33 @@ body {
 .grade input {
   flex: 1;
 }
+.account {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.account .who {
+  font-weight: 600;
+}
+.account .sync {
+  color: #2b9a52;
+  flex: 1;
+}
+.account .sync.err {
+  color: #d1242f;
+}
+.account .muted {
+  color: var(--muted);
+  flex: 1;
+}
+.account button {
+  border: 1px solid var(--line);
+  background: none;
+  color: inherit;
+  font: inherit;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
