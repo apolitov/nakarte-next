@@ -146,6 +146,16 @@ const ALL: LayerDef[] = [
     maxzoom: 18,
   },
   {
+    // Ride with GPS global heatmap: public density tiles (yellow to red), cycling-heavy
+    id: 'Hr',
+    title: t('layer.rwgpsHeat'),
+    kind: 'overlay',
+    group: t('layerGroup.routes'),
+    tiles: ['https://heatmap.ridewithgps.com/normalized/{z}/{x}/{y}.png'],
+    attribution: 'Heatmap © <a href="https://ridewithgps.com">Ride with GPS</a>',
+    maxzoom: 18,
+  },
+  {
     // public GPS traces uploaded to OpenStreetMap, drawn as a density map
     id: 'H',
     title: t('layer.gpsHeat'),

@@ -8,6 +8,8 @@
     base,
     overlays,
     colorMode,
+    pinned,
+    onpin,
     onbase,
     onoverlay,
     oncolormode,
@@ -16,6 +18,8 @@
     base: string;
     overlays: string[];
     colorMode: ColorMode;
+    pinned: boolean;
+    onpin: () => void;
     onbase: (id: string) => void;
     onoverlay: (id: string) => void;
     oncolormode: (m: ColorMode) => void;
@@ -36,7 +40,10 @@
 <div class="lpop" id="nk-layers" role="dialog" aria-label={t('lay.title')}>
   <div class="top">
     <h3>{t('lay.title')}</h3>
-    <button class="x" aria-label={t('lay.close')} onclick={onclose}><Icon name="close" size={18} /></button>
+    <div class="btns">
+      <button class="x" aria-pressed={pinned} aria-label={pinned ? t('lay.unpin') : t('lay.pin')} title={pinned ? t('lay.unpin') : t('lay.pin')} onclick={onpin}><Icon name="pin" size={18} /></button>
+      <button class="x" aria-label={t('lay.close')} onclick={onclose}><Icon name="close" size={18} /></button>
+    </div>
   </div>
   {#if over.length}
     <div class="grp">
@@ -71,11 +78,12 @@
 <style>
   .lpop {
     position: absolute;
-    top: 66px;
-    left: 12px;
+    top: 64px;
+    right: 12px;
     z-index: 5;
     width: min(400px, calc(100% - 24px));
-    max-height: calc(100% - 90px - var(--prof-h, 0px));
+    /* stops above the zoom and location buttons in the bottom right corner */
+    max-height: calc(100% - 200px - var(--prof-h, 0px));
     overflow: auto;
     background: var(--paper);
     border-radius: 16px;
@@ -100,6 +108,14 @@
     display: grid;
     place-items: center;
     color: var(--soft);
+  }
+  .btns {
+    display: flex;
+    gap: 2px;
+  }
+  .x[aria-pressed='true'] {
+    background: var(--marker);
+    color: var(--marker-ink);
   }
   .x:hover {
     background: var(--tint);
@@ -153,7 +169,7 @@
   @media (max-width: 639px) {
     .lpop {
       top: 60px;
-      left: 10px;
+      right: 10px;
       max-height: calc(100% - 70px);
     }
   }

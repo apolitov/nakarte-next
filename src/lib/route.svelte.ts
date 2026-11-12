@@ -200,13 +200,19 @@ export class RouteState {
 
   // ---- edits ----
 
+  /** Drawing mode: new legs are straight lines instead of following roads. */
+  drawStraight = $state(false);
+
   add(lng: number, lat: number) {
     this.record();
+    const straight = this.drawStraight || undefined;
     if (this.prepend && this.waypoints.length) {
-      this.waypoints.unshift({ id: nextId++, lng, lat });
+      this.waypoints.unshift({ id: nextId++, lng, lat, straight });
       this.legs.unshift({ status: 'loading' });
       this.loadLeg(0);
     } else {
+      const n = this.waypoints.length;
+      if (n) this.waypoints[n - 1] = { ...this.waypoints[n - 1], straight };
       this.waypoints.push({ id: nextId++, lng, lat });
       if (this.waypoints.length > 1) {
         this.legs.push({ status: 'loading' });

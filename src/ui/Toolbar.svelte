@@ -76,15 +76,12 @@
       data-tip={t('tb.moreTip')} onclick={() => (menuOpen = !menuOpen)}><Icon name="chevron" size={14} stroke={2.4} /></button>
   </div>
   <i class="tsep"></i>
-  <button class="tb" aria-pressed={straightOn} aria-disabled={!canLoop} aria-label={t('tb.straight')}
+  <button class="tb" aria-pressed={straightOn} aria-label={t('tb.straight')}
     data-tip={straightOn ? t('tb.roads') : t('tb.straight')} data-keys={k('I')} onclick={onstraight}><Icon name="straight" /></button>
   <button class="tb" aria-pressed={placing} aria-label={t('tb.checkpoint')} data-tip={t('tb.checkpointTip')} data-keys={k('K')} onclick={oncheckpoint}>
     <Icon name="checkpoint" />
   </button>
   <i class="tsep"></i>
-  <button class="tb" aria-expanded={layersOpen} aria-controls="nk-layers" aria-label={t('tb.layers')} data-tip={t('tb.layersTip')} data-keys={k('G')} onclick={onlayers}>
-    <Icon name="layers" />
-  </button>
   <button class="tb" aria-disabled={!hasRoute} aria-label={t('tb.fit')} data-tip={t('tb.fitTip')} data-keys={k('0')} onclick={onfit}><Icon name="fit" /></button>
   <i class="tsep"></i>
   <button class="tb" aria-label={t('tb.help')} data-tip={t('tb.help')} data-keys={k('/')} onclick={onhelp}><Icon name="help" /></button>

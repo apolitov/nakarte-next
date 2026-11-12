@@ -1,4 +1,4 @@
-/* Na Carta: palette and type of alexe.pt. Yellow marker is for selection only. */
+/* No Mapa: palette and type of alexe.pt. Yellow marker is for selection only. */
 :root {
   --paper: #ffffff;
   --ink: #141414;
@@ -478,4 +478,34 @@ kbd {
   text-underline-offset: 3px;
   cursor: pointer;
   padding: 0;
+}
+
+/* ---- layers button: top right, as in nakarte ---- */
+.layersbtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+}
+.layersbtn:hover {
+  background: var(--tint);
+}
+.layersbtn[aria-expanded='true'] {
+  background: var(--marker);
+  color: var(--marker-ink);
+}
+@media (max-width: 639px) {
+  .layersbtn {
+    top: 10px;
+    right: 10px;
+  }
 }

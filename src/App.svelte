@@ -43,7 +43,24 @@
   let base = $state(initLayers.find((id) => layerById(id)?.kind === 'base') ?? DEFAULT_BASE);
   let overlays = $state<string[]>(initLayers.filter((id) => layerById(id)?.kind === 'overlay'));
   let tracks = $state<Track[]>([]);
-  let layersOpen = $state(false);
+  /** Pinned layers panel stays open (to flip between map and satellite) and is remembered. */
+  let layersPinned = $state(readFlag('nk-layers-pinned'));
+  let layersOpen = $state(readFlag('nk-layers-pinned'));
+  function readFlag(k: string) {
+    try {
+      return localStorage.getItem(k) === '1';
+    } catch {
+      return false;
+    }
+  }
+  function togglePin() {
+    layersPinned = !layersPinned;
+    try {
+      localStorage.setItem('nk-layers-pinned', layersPinned ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }
   let helpOpen = $state(false);
 
   const route = new RouteState();
@@ -555,10 +572,7 @@
     }
     return route.waypoints.length - 2;
   }
-  const straightOn = $derived.by(() => {
-    const l = targetLeg(false);
-    return l != null && !!route.waypoints[l]?.straight;
-  });
+  const straightOn = $derived(route.drawStraight);
 
   function toggleEdit() {
     editing = !editing;
@@ -587,12 +601,21 @@
     route.backToStart();
     say(t('toast.backToStart'));
   }
+  /**
+   * The toolbar button and Ctrl+I switch the drawing mode: new segments straight or along roads.
+   * Ctrl+I with the cursor over a segment switches that segment (as does its right-click menu).
+   */
   function toggleStraight(useCursor: boolean) {
-    const l = targetLeg(useCursor);
-    if (l == null) return;
-    const on = !route.waypoints[l]?.straight;
-    route.setLegStraight(l, on);
-    say(t(on ? 'toast.legStraight' : 'toast.legRoads', { n: l + 1 }));
+    if (useCursor && cursorLeg != null) {
+      const l = cursorLeg;
+      const on = !route.waypoints[l]?.straight;
+      route.setLegStraight(l, on);
+      say(t(on ? 'toast.legStraight' : 'toast.legRoads', { n: l + 1 }));
+      return;
+    }
+    route.drawStraight = !route.drawStraight;
+    if (route.drawStraight && !editing) toggleEdit();
+    say(t(route.drawStraight ? 'toast.drawStraight' : 'toast.drawRoads'));
   }
   function toggleCheckpoint() {
     placing = placing === 'route' ? null : 'route';
@@ -613,7 +636,7 @@
   ];
 
   function escape(): boolean {
-    if (layersOpen) return !(layersOpen = false);
+    if (layersOpen && !layersPinned) return !(layersOpen = false);
     if (accountMenu?.isOpen()) return (accountMenu.close(), true);
     if (placing) return !(placing = null);
     if (pinned) return !(pinned = null);
@@ -822,8 +845,9 @@
       dragRotate: false,
     });
     map.touchZoomRotate.disableRotation();
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'top-right');
+    // rarely used: bottom right, the top right corner is for layers
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'bottom-right');
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
     map.on('load', async () => {
@@ -886,7 +910,7 @@
   // close the layers popover on a click elsewhere
   let layersBox: HTMLDivElement | undefined = $state();
   $effect(() => {
-    if (!layersOpen) return;
+    if (!layersOpen || layersPinned) return;
     const down = (e: PointerEvent) => {
       const t = e.target as Element;
       if (layersBox?.contains(t) || t.closest?.('[aria-controls="nk-layers"]')) return;
@@ -918,7 +942,7 @@
     <div class="head">
       <picture class="logo">
         <source srcset="{import.meta.env.BASE_URL}brand/symbol-colour-dark.svg" media="(prefers-color-scheme: dark)" />
-        <img src="{import.meta.env.BASE_URL}brand/symbol-colour.svg" alt="Na Carta" width="81" height="28" />
+        <img src="{import.meta.env.BASE_URL}brand/symbol-colour.svg" alt="No Mapa" width="81" height="28" />
       </picture>
       {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
     </div>
@@ -1007,13 +1031,15 @@
       onedit={toggleEdit} onundo={undo} onredo={redo} onreverse={reverse} onoutback={outAndBack} onbacktostart={backToStart}
       onstraight={() => toggleStraight(false)} oncheckpoint={toggleCheckpoint} onlayers={() => (layersOpen = !layersOpen)}
       onfit={fitRoute} onhelp={() => (helpOpen = true)} />
+    <button class="layersbtn" aria-expanded={layersOpen} aria-controls="nk-layers" aria-label={t('tb.layers')}
+      title="{t('tb.layersTip')} ({MOD} G)" onclick={() => (layersOpen = !layersOpen)}><Icon name="layers" size={22} /></button>
     {#if layersOpen}
       <div bind:this={layersBox}>
-        <LayersPopover {base} {overlays} {colorMode} onbase={setBase} onoverlay={toggleOverlay}
-          oncolormode={(m) => (colorMode = m)} onclose={() => (layersOpen = false)} />
+        <LayersPopover {base} {overlays} {colorMode} pinned={layersPinned} onpin={togglePin} onbase={setBase} onoverlay={toggleOverlay}
+          oncolormode={(m) => (colorMode = m)} onclose={() => { layersOpen = false; if (layersPinned) togglePin(); }} />
       </div>
     {/if}
-    {#if editing && !layersOpen}
+    {#if editing && !(mobile && layersOpen)}
       <div class="ehint" role="note">
         {#if mobile}
           {t('hint.editTouch', { where: route.prepend ? t('hint.atStart') : '' })}

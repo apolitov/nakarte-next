@@ -34,7 +34,7 @@
 
   async function call(path: string, init?: RequestInit) {
     const r = await fetch(`${API}${path}`, { redirect: 'manual', credentials: 'same-origin', ...init });
-    if (r.type === 'opaqueredirect' || r.status === 401 && path === '/status') throw new Error(t('g.needNaCarta'));
+    if (r.type === 'opaqueredirect' || r.status === 401 && path === '/status') throw new Error(t('g.needNoMapa'));
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.detail || t('g.errorN', { n: r.status }));
     return j;

@@ -6,6 +6,7 @@ export const ICONS = {
   reverse: '<path d="M4 7h14l-3-3M20 17H6l3 3"/>',
   straight: '<circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M7 17l10-10" stroke-dasharray="2 3"/>',
   checkpoint: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  pin: '<path d="M9 4h6l-1 6 3 3H7l3-3-1-6Z"/><path d="M12 13v7"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5" opacity=".7"/>',
   fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/>',
