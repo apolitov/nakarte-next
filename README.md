@@ -1,6 +1,6 @@
-# nakarte-next
+# Na Carta
 
-A route planner for hiking and cycling, rebuilt on a modern stack. Inspired by and partly ported from [nakarte.me](https://nakarte.me) ([source](https://github.com/wladich/nakarte)) by Sergey Orlov.
+*Na carta* is Portuguese for “on the map”. A route planner for hiking and cycling, rebuilt on a modern stack. Inspired by and partly ported from [nakarte.me](https://nakarte.me) ([source](https://github.com/wladich/nakarte)) by Sergey Orlov.
 
 **Status:** early prototype: base maps, URL state, GPX/KML import and export.
 
