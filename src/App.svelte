@@ -10,6 +10,8 @@
   import { RouteEditor, type ColorMode } from './lib/routeEditor';
   import { PROFILES, type ProfileId } from './lib/brouter';
   import ElevationProfile from './ElevationProfile.svelte';
+  import { store, newId, type RouteDoc, type TrackDoc } from './lib/store';
+  import { routeToParam, paramToRoute } from './lib/share';
 
   let container: HTMLDivElement;
   let map: MlMap | undefined;
@@ -27,6 +29,115 @@
   let editing = $state(false);
   let colorMode = $state<ColorMode>('grade');
   let showProfile = $state(true);
+  let savedRoutes = $state<RouteDoc[]>([]);
+  let toast = $state('');
+
+  // ---- persistence: autosave the edited route, keep tracks ----
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    void route.version;
+    if (!loaded) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveRoute, 500);
+  });
+  let loaded = false;
+
+  function saveRoute() {
+    if (!route.waypoints.length) return;
+    const doc = route.toDoc();
+    store.put(doc);
+    savedRoutes = [doc, ...savedRoutes.filter((r) => r.id !== doc.id)];
+  }
+
+  function trackToDoc(t: Track): TrackDoc {
+    return {
+      id: t.id,
+      kind: 'track',
+      name: t.name,
+      lines: t.lines,
+      checkpoints: t.points.map((p) => ({ id: newId('c'), lng: p.coord[0], lat: p.coord[1], kind: 'generic', name: p.name })),
+      updated: Date.now(),
+    };
+  }
+  function docToTrack(d: TrackDoc): Track {
+    return { id: d.id, name: d.name, lines: d.lines, points: d.checkpoints.map((c) => ({ name: c.name, coord: [c.lng, c.lat] })) };
+  }
+
+  async function loadStored() {
+    const docs = await store.all();
+    tracks = docs.filter((d): d is TrackDoc => d.kind === 'track').map(docToTrack);
+    savedRoutes = docs.filter((d): d is RouteDoc => d.kind === 'route').sort((a, b) => b.updated - a.updated);
+    // one-time migration from the first version (localStorage)
+    try {
+      const old = JSON.parse(localStorage.getItem('nk-route') ?? 'null');
+      if (old?.waypoints?.length && !savedRoutes.length) {
+        route.load({ id: newId('r'), kind: 'route', name: '', profile: old.profile, waypoints: old.waypoints, checkpoints: [], updated: Date.now() });
+        localStorage.removeItem('nk-route');
+      }
+    } catch {
+      /* ignore */
+    }
+    const shared = new URLSearchParams(location.hash.slice(1)).get('r');
+    const fromLink = shared ? paramToRoute(shared) : null;
+    if (fromLink) {
+      route.load({ id: newId('r'), kind: 'route', name: '', checkpoints: [], updated: Date.now(), ...fromLink });
+      toast = 'Маршрут из ссылки сохранён у вас';
+      fitRoute(fromLink.waypoints);
+    } else if (!route.waypoints.length && savedRoutes[0]) {
+      route.load(savedRoutes[0]);
+    }
+    loaded = true;
+    refreshTracks();
+  }
+
+  function fitRoute(pts: { lng: number; lat: number }[]) {
+    if (!map || !pts.length) return;
+    const b = pts.reduce(
+      (b, p) => [Math.min(b[0], p.lng), Math.min(b[1], p.lat), Math.max(b[2], p.lng), Math.max(b[3], p.lat)],
+      [180, 90, -180, -90],
+    );
+    map.fitBounds(b as [number, number, number, number], { padding: 80, maxZoom: 15 });
+  }
+
+  function openRoute(r: RouteDoc) {
+    saveRoute();
+    route.load(r);
+    fitRoute(r.waypoints);
+  }
+
+  function deleteRoute(r: RouteDoc) {
+    if (!confirm(`Удалить «${r.name}»?`)) return;
+    store.delete(r.id);
+    savedRoutes = savedRoutes.filter((x) => x.id !== r.id);
+    if (r.id === route.docId) route.reset();
+  }
+
+  function newRoute() {
+    saveRoute();
+    route.reset();
+    editing = true;
+  }
+
+  async function shareRoute() {
+    const doc = route.toDoc();
+    const c = map!.getCenter();
+    const url =
+      location.origin + location.pathname +
+      formatHash({ zoom: map!.getZoom(), lat: c.lat, lng: c.lng, layers: [base, ...overlays] }) +
+      '&r=' + encodeURIComponent(routeToParam(doc));
+    try {
+      await navigator.clipboard.writeText(url);
+      toast = `Ссылка скопирована (${url.length} символов)`;
+    } catch {
+      prompt('Ссылка на маршрут', url);
+    }
+  }
+
+  $effect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => (toast = ''), 3000);
+    return () => clearTimeout(t);
+  });
 
   $effect(() => {
     void route.version;
@@ -38,18 +149,33 @@
 
   function exportRoute() {
     if (route.points.length < 2) return;
-    const name = `Маршрут ${(route.profileData.length / 1000).toFixed(0)} км`;
+    const name = route.name || route.autoName();
     const t: Track = {
       id: 'route',
       name,
       lines: [route.points.map((p) => (p.ele != null ? [p.lng, p.lat, p.ele] : [p.lng, p.lat]))],
-      points: [],
+      points: route.checkpoints.map((c) => ({ name: c.name, coord: [c.lng, c.lat] })),
     };
     exportTrack(t);
   }
 
   function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') editing = false;
+    const t = e.target as HTMLElement;
+    if (t.closest('input, textarea, select, [contenteditable]')) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) route.redo();
+      else route.undo();
+    } else if (mod && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      route.redo();
+    } else if (e.key === 'Escape') {
+      editing = false;
+    } else if (editing && (e.key === 'Backspace' || e.key === 'Delete')) {
+      e.preventDefault();
+      route.removeLast();
+    }
   }
 
   const groups = $derived(
@@ -123,6 +249,7 @@
       try {
         const t = parseTrackFile(f.name, await f.text());
         tracks = [...tracks, t];
+        store.put(trackToDoc(t));
         refreshTracks();
         zoomTo(t);
       } catch (e) {
@@ -147,6 +274,7 @@
 
   function removeTrack(t: Track) {
     tracks = tracks.filter((x) => x.id !== t.id);
+    store.delete(t.id);
     refreshTracks();
   }
 
@@ -189,7 +317,7 @@
         paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#e0218a', 'circle-stroke-width': 2 },
       });
       editor = new RouteEditor(map!, route);
-      if (!route.waypoints.length) editing = false;
+      await loadStored();
       await showRaster(layerById(base) ?? layerById(DEFAULT_BASE)!, 'tracks-line');
       for (const id of overlays) await showRaster(layerById(id)!, 'tracks-line');
       syncHash();
@@ -245,7 +373,11 @@
       </select>
     </div>
     {#if editing}
-      <div class="hint">Щелчок по карте добавляет точку, точку можно тащить, щелчок по точке удаляет её. Потяните линию, чтобы добавить точку посередине.</div>
+      <div class="hint">
+        Щелчок по карте добавляет точку{route.prepend ? ' в начало' : ''}. Точку можно тащить, двойной щелчок удаляет её,
+        Backspace убирает последнюю. Потяните линию, чтобы вставить точку. Правая кнопка (долгое нажатие) по линии: отрезок по прямой.
+        ⌘Z / Ctrl+Z отменяет.
+      </div>
     {/if}
     {#if route.waypoints.length}
       <div class="row">
@@ -254,9 +386,19 @@
           <option value="surface">Цвет: покрытие</option>
           <option value="plain">Цвет: один</option>
         </select>
-        <button onclick={() => route.reverse()} title="Развернуть">⇄</button>
+        <button onclick={() => route.undo()} disabled={!route.canUndo} title="Отменить (⌘Z)" aria-label="Отменить">↶</button>
+        <button onclick={() => route.redo()} disabled={!route.canRedo} title="Повторить (⌘⇧Z)" aria-label="Повторить">↷</button>
+        <button onclick={() => route.reverse()} title="Развернуть" aria-label="Развернуть">⇄</button>
+      </div>
+      <div class="row">
+        <button onclick={() => route.outAndBack()} disabled={route.waypoints.length < 2}>Туда и обратно</button>
+        <button onclick={() => route.backToStart()} disabled={route.waypoints.length < 2}>К старту</button>
+      </div>
+      <div class="row">
         <button onclick={exportRoute} disabled={route.points.length < 2}>GPX</button>
-        <button onclick={() => confirm('Удалить маршрут?') && route.clear()} title="Удалить маршрут" aria-label="Удалить маршрут">×</button>
+        <button onclick={shareRoute} disabled={!route.waypoints.length}>Поделиться</button>
+        <button onclick={newRoute}>Новый</button>
+        <button onclick={() => confirm('Очистить маршрут?') && route.clear()} title="Очистить" aria-label="Очистить">×</button>
       </div>
     {/if}
     {#if route.loading}<div class="hint">Считаю…</div>{/if}
@@ -277,6 +419,14 @@
       Открыть GPX/KML
       <input type="file" accept=".gpx,.kml" multiple onchange={(e) => addFiles((e.currentTarget as HTMLInputElement).files!)} />
     </label>
+    {#if savedRoutes.length}<div class="sect">Маршруты</div>{/if}
+    {#each savedRoutes as r (r.id)}
+      <div class="track" class:current={r.id === route.docId}>
+        <button class="name route-name" onclick={() => openRoute(r)} title="Открыть">{r.name}</button>
+        <button onclick={() => deleteRoute(r)} title="Удалить" aria-label="Удалить">×</button>
+      </div>
+    {/each}
+    {#if tracks.length}<div class="sect">Треки</div>{/if}
     {#each tracks as t (t.id)}
       <div class="track">
         <button class="name" onclick={() => zoomTo(t)} title="Показать на карте">{t.name}</button>
@@ -286,4 +436,6 @@
     {/each}
     {#if error}<div class="error">{error}</div>{/if}
   </div>
+
+  {#if toast}<div class="toast" role="status">{toast}</div>{/if}
 </div>

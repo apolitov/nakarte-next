@@ -1,5 +1,6 @@
 // Draws the route on the map and handles editing: click to add a point,
-// drag a point, click a point to delete it, drag the line to insert a point.
+// drag a point, double-click a point to delete it, drag the line to insert a
+// point, right-click (long touch) the line to switch a leg to a straight line.
 import * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { RouteState } from './route.svelte';
@@ -31,7 +32,11 @@ export class RouteEditor {
       id: 'route-line',
       type: 'line',
       source: 'route',
-      paint: { 'line-color': ['get', 'color'], 'line-width': 5 },
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': 5,
+        'line-dasharray': ['case', ['==', ['get', 'straight'], true], ['literal', [1.2, 1.2]], ['literal', [1, 0]]],
+      },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
     });
     // wide invisible line to grab for inserting points
@@ -54,9 +59,16 @@ export class RouteEditor {
     map.on('mouseleave', 'route-hit', () => {
       map.getCanvas().style.cursor = this.editing ? 'crosshair' : '';
     });
-    map.on('mousedown', 'route-hit', (e) => this.startInsert(e));
+    map.on('mousedown', 'route-hit', (e) => {
+      if (e.originalEvent.button === 0) this.pressLine(e);
+    });
     map.on('touchstart', 'route-hit', (e) => {
-      if (e.points.length === 1) this.startInsert(e);
+      if (e.points.length === 1) this.pressLine(e);
+    });
+    map.on('contextmenu', 'route-hit', (e) => {
+      e.preventDefault();
+      const f = e.features?.[0];
+      if (f) this.legMenu(Number(f.properties?.leg ?? 0), e.lngLat);
     });
   }
 
@@ -64,6 +76,8 @@ export class RouteEditor {
     this.editing = on;
     this.map.getCanvas().style.cursor = on ? 'crosshair' : '';
     for (const m of this.markers.values()) m.setDraggable(on);
+    if (!on) this.route.prepend = false;
+    this.render();
   }
 
   setColorMode(mode: ColorMode) {
@@ -71,24 +85,62 @@ export class RouteEditor {
     this.render();
   }
 
-  private startInsert(e: maplibregl.MapLayerMouseEvent | maplibregl.MapLayerTouchEvent) {
+  private popup: maplibregl.Popup | null = null;
+
+  /** Small menu for a leg: switch between road and straight line. */
+  legMenu(leg: number, at: maplibregl.LngLatLike) {
+    const straight = !!this.route.waypoints[leg]?.straight;
+    const el = document.createElement('div');
+    el.className = 'ctx';
+    const btn = (title: string, fn: () => void) => {
+      const b = document.createElement('button');
+      b.textContent = title;
+      b.onclick = () => {
+        this.popup?.remove();
+        fn();
+      };
+      el.append(b);
+    };
+    btn(straight ? 'Этот отрезок по дорогам' : 'Этот отрезок по прямой', () => this.route.setLegStraight(leg, !straight));
+    this.popup?.remove();
+    this.popup = new maplibregl.Popup({ closeButton: false, className: 'ctx-popup' }).setLngLat(at).setDOMContent(el).addTo(this.map);
+  }
+
+  /**
+   * Press on the line: dragging inserts a point (one gesture, as in nakarte);
+   * a long touch without movement opens the leg menu.
+   */
+  private pressLine(e: maplibregl.MapLayerMouseEvent | maplibregl.MapLayerTouchEvent) {
     if (!this.editing) return;
     const f = e.features?.[0];
     if (!f) return;
     e.preventDefault();
     const leg = Number(f.properties?.leg ?? 0);
-    const el = markerEl('', 'via');
-    const marker = new maplibregl.Marker({ element: el }).setLngLat(e.lngLat).addTo(this.map);
-    this.dragInsert = { index: leg + 1, marker };
-    const move = (ev: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => marker.setLngLat(ev.lngLat);
-    const up = (ev: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+    const start = e.point;
+    const isTouch = 'points' in e;
+    let marker: maplibregl.Marker | null = null;
+    const longPress = isTouch ? setTimeout(() => !marker && (cleanup(), this.legMenu(leg, e.lngLat)), 550) : 0;
+    const move = (ev: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+      if (!marker) {
+        if (Math.hypot(ev.point.x - start.x, ev.point.y - start.y) < 6) return;
+        clearTimeout(longPress);
+        marker = new maplibregl.Marker({ element: markerEl('', 'via') }).setLngLat(ev.lngLat).addTo(this.map);
+        this.dragInsert = { index: leg + 1, marker };
+      }
+      marker.setLngLat(ev.lngLat);
+    };
+    const cleanup = () => {
+      clearTimeout(longPress);
       this.map.off('mousemove', move);
       this.map.off('touchmove', move);
       this.map.off('mouseup', up);
       this.map.off('touchend', up);
+    };
+    const up = (ev: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+      cleanup();
+      if (!marker) return;
       marker.remove();
-      const ins = this.dragInsert!;
-      this.route.insert(ins.index, ev.lngLat.lng, ev.lngLat.lat);
+      this.route.insert(leg + 1, ev.lngLat.lng, ev.lngLat.lat);
       // let the click that follows mouseup pass without adding a point
       setTimeout(() => (this.dragInsert = null), 0);
     };
@@ -116,6 +168,21 @@ export class RouteEditor {
         });
         el.addEventListener('click', (ev) => {
           ev.stopPropagation();
+          if (!this.editing) return;
+          // click on an end point continues the route from that end
+          const ws = this.route.waypoints;
+          if (ws.length > 1 && ws[0].id === w.id) this.route.prepend = true;
+          else if (ws.at(-1)?.id === w.id) this.route.prepend = false;
+          this.render();
+        });
+        el.addEventListener('dblclick', (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          if (this.editing) this.route.remove(w.id);
+        });
+        el.addEventListener('contextmenu', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
           if (this.editing) this.route.remove(w.id);
         });
         this.markers.set(w.id, m);
@@ -125,7 +192,12 @@ export class RouteEditor {
         el.className = `wp wp-${kind}`;
         el.textContent = label;
       }
-      m.getElement().title = this.editing ? 'Тащите, чтобы сдвинуть; щелчок удаляет' : '';
+      const active = this.editing && ((kind === 'start' && this.route.prepend) || (kind === 'end' && !this.route.prepend));
+      m.getElement().classList.toggle('wp-active', active);
+      m.setDraggable(this.editing);
+      m.getElement().title = this.editing
+        ? 'Тащите, чтобы сдвинуть. Двойной щелчок или правая кнопка удаляют. Щелчок по крайней точке продолжает маршрут от неё.'
+        : '';
     });
     for (const [id, m] of this.markers) {
       if (!seen.has(id)) {
@@ -144,8 +216,9 @@ export class RouteEditor {
     let run: number[][] = [];
     let runColor = '';
     let runLeg = -1;
+    let runStraight = false;
     const flush = () => {
-      if (run.length > 1) features.push({ type: 'Feature', properties: { color: runColor, leg: runLeg }, geometry: { type: 'LineString', coordinates: run } });
+      if (run.length > 1) features.push({ type: 'Feature', properties: { color: runColor, leg: runLeg, straight: runStraight }, geometry: { type: 'LineString', coordinates: run } });
     };
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
@@ -159,6 +232,7 @@ export class RouteEditor {
       }
       runColor = color;
       runLeg = leg;
+      runStraight = p.straight;
       run.push([p.lng, p.lat]);
     }
     flush();

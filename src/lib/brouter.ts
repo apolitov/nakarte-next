@@ -103,14 +103,21 @@ const cache = new Map<string, Promise<Leg>>();
 
 type LngLat = { lng: number; lat: number };
 
-export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId): Promise<Leg> {
+export type Params = Record<string, string | number | boolean>;
+
+export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params = {}): Promise<Leg> {
   if (profile === 'straight') {
     return Promise.resolve({ points: [a, b].map((p) => ({ lng: p.lng, lat: p.lat, ele: null })), spans: [] });
   }
-  const key = `${profile}|${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}`;
+  // profile parameters go as profile:<name>=<value>; booleans as 1/0
+  const extra = Object.entries(params)
+    .sort(([x], [y]) => x.localeCompare(y))
+    .map(([k, v]) => `&profile:${encodeURIComponent(k)}=${typeof v === 'boolean' ? (v ? 1 : 0) : encodeURIComponent(String(v))}`)
+    .join('');
+  const key = `${profile}|${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}${extra}`;
   let p = cache.get(key);
   if (!p) {
-    const url = `${API}?lonlats=${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=${profile}&alternativeidx=0&format=geojson`;
+    const url = `${API}?lonlats=${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=${profile}${extra}&alternativeidx=0&format=geojson`;
     p = fetch(url).then(async (r) => {
       const text = await r.text();
       if (!r.ok) throw new Error(text.trim().split('\n')[0] || `BRouter ${r.status}`);

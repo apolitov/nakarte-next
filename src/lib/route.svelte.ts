@@ -1,32 +1,49 @@
-// Route being edited: waypoints, routing profile, legs between waypoints.
+// Route being edited: waypoints, per-leg mode (road or straight), routing
+// profile, legs between waypoints, undo/redo.
 import { fetchLeg, type Leg, type LegPoint, type ProfileId } from './brouter';
 import { buildProfile, type Profile } from './profile';
+import { newId, type Checkpoint, type RouteDoc } from './store';
 
 export interface Waypoint {
   id: number;
   lng: number;
   lat: number;
+  /** The leg from this waypoint to the next one is a straight line. */
+  straight?: boolean;
 }
 
 type LegState = { status: 'loading' } | { status: 'ok'; leg: Leg } | { status: 'error'; error: string };
+type Snapshot = { waypoints: Omit<Waypoint, 'id'>[]; checkpoints: Checkpoint[] };
 
 let nextId = 1;
-const STORAGE = 'nk-route';
+const HISTORY = 200;
 
 export class RouteState {
+  docId = $state(newId('r'));
+  name = $state('');
   waypoints = $state<Waypoint[]>([]);
+  checkpoints = $state<Checkpoint[]>([]);
   profile = $state<ProfileId>('trekking');
+  params = $state<Record<string, string | number | boolean>>({});
   legs = $state<LegState[]>([]);
   /** Bumped on every change, so effects can react without deep tracking. */
   version = $state(0);
+  /** Next click adds a point at the start instead of the end. */
+  prepend = $state(false);
+
+  private undoStack: Snapshot[] = [];
+  private redoStack: Snapshot[] = [];
+  canUndo = $state(false);
+  canRedo = $state(false);
 
   /** Full geometry: legs glued together (shared endpoints dropped). */
   points = $derived.by(() => {
-    const out: (LegPoint & { leg: number })[] = [];
+    const out: (LegPoint & { leg: number; straight: boolean })[] = [];
     this.legs.forEach((l, i) => {
       if (l.status !== 'ok') return;
+      const straight = !!this.waypoints[i]?.straight;
       const pts = out.length ? l.leg.points.slice(1) : l.leg.points;
-      for (const p of pts) out.push({ ...p, leg: i });
+      for (const p of pts) out.push({ ...p, leg: i, straight });
     });
     return out;
   });
@@ -45,31 +62,90 @@ export class RouteState {
   loading = $derived(this.legs.some((l) => l.status === 'loading'));
   error = $derived(this.legs.find((l) => l.status === 'error') as { error: string } | undefined);
 
-  constructor() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE) ?? 'null');
-      if (saved?.waypoints?.length) {
-        this.profile = saved.profile ?? 'trekking';
-        this.setWaypoints(saved.waypoints);
-      }
-    } catch {
-      /* no storage */
-    }
+  // ---- persistence ----
+
+  toDoc(): RouteDoc {
+    return {
+      id: this.docId,
+      kind: 'route',
+      name: this.name || this.autoName(),
+      profile: this.profile,
+      params: { ...this.params },
+      waypoints: this.waypoints.map(({ lng, lat, straight }) => (straight ? { lng, lat, straight } : { lng, lat })),
+      checkpoints: this.checkpoints.map((c) => ({ ...c })),
+      updated: Date.now(),
+    };
   }
 
-  private save() {
-    try {
-      localStorage.setItem(
-        STORAGE,
-        JSON.stringify({ profile: this.profile, waypoints: this.waypoints.map(({ lng, lat }) => ({ lng, lat })) }),
-      );
-    } catch {
-      /* no storage */
-    }
+  load(doc: RouteDoc) {
+    this.docId = doc.id;
+    this.name = doc.name;
+    this.profile = (doc.profile as ProfileId) ?? 'trekking';
+    this.params = { ...(doc.params ?? {}) };
+    this.checkpoints = doc.checkpoints ?? [];
+    this.undoStack = [];
+    this.redoStack = [];
+    this.syncHistoryFlags();
+    this.rebuild(doc.waypoints);
   }
 
-  setWaypoints(pts: { lng: number; lat: number }[]) {
-    this.waypoints = pts.map((p) => ({ id: nextId++, lng: p.lng, lat: p.lat }));
+  /** Starts a new empty route. */
+  reset() {
+    this.load({ id: newId('r'), kind: 'route', name: '', profile: this.profile, params: this.params, waypoints: [], checkpoints: [], updated: 0 });
+  }
+
+  autoName() {
+    const km = this.profileData.length / 1000;
+    const d = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    return km > 0 ? `Маршрут ${km.toFixed(km < 10 ? 1 : 0)} км, ${d}` : `Маршрут, ${d}`;
+  }
+
+  // ---- history ----
+
+  private snapshot(): Snapshot {
+    return {
+      waypoints: this.waypoints.map(({ lng, lat, straight }) => ({ lng, lat, straight })),
+      checkpoints: this.checkpoints.map((c) => ({ ...c })),
+    };
+  }
+
+  /** Call before every user edit. */
+  private record() {
+    this.undoStack.push(this.snapshot());
+    if (this.undoStack.length > HISTORY) this.undoStack.shift();
+    this.redoStack = [];
+    this.syncHistoryFlags();
+  }
+
+  private syncHistoryFlags() {
+    this.canUndo = this.undoStack.length > 0;
+    this.canRedo = this.redoStack.length > 0;
+  }
+
+  undo() {
+    const s = this.undoStack.pop();
+    if (!s) return;
+    this.redoStack.push(this.snapshot());
+    this.restore(s);
+  }
+
+  redo() {
+    const s = this.redoStack.pop();
+    if (!s) return;
+    this.undoStack.push(this.snapshot());
+    this.restore(s);
+  }
+
+  private restore(s: Snapshot) {
+    this.checkpoints = s.checkpoints;
+    this.syncHistoryFlags();
+    this.rebuild(s.waypoints); // legs come from the request cache, so this is instant
+  }
+
+  // ---- legs ----
+
+  private rebuild(pts: Omit<Waypoint, 'id'>[]) {
+    this.waypoints = pts.map((p) => ({ id: nextId++, lng: p.lng, lat: p.lat, straight: p.straight || undefined }));
     this.legs = [];
     for (let i = 1; i < this.waypoints.length; i++) this.loadLeg(i - 1);
     this.changed();
@@ -77,7 +153,6 @@ export class RouteState {
 
   private changed() {
     this.version++;
-    this.save();
   }
 
   private pending = new Map<string, number>();
@@ -90,7 +165,7 @@ export class RouteState {
     const token = ++this.seq;
     this.pending.set(key, token);
     this.legs[i] = { status: 'loading' };
-    fetchLeg(a, b, this.profile).then(
+    fetchLeg(a, b, a.straight ? 'straight' : this.profile, this.params).then(
       (leg) => this.resolveLeg(key, token, { status: 'ok', leg }),
       (e) => this.resolveLeg(key, token, { status: 'error', error: (e as Error).message }),
     );
@@ -107,17 +182,29 @@ export class RouteState {
     this.version++;
   }
 
+  // ---- edits ----
+
   add(lng: number, lat: number) {
-    this.waypoints.push({ id: nextId++, lng, lat });
-    if (this.waypoints.length > 1) {
-      this.legs.push({ status: 'loading' });
-      this.loadLeg(this.waypoints.length - 2);
+    this.record();
+    if (this.prepend && this.waypoints.length) {
+      this.waypoints.unshift({ id: nextId++, lng, lat });
+      this.legs.unshift({ status: 'loading' });
+      this.loadLeg(0);
+    } else {
+      this.waypoints.push({ id: nextId++, lng, lat });
+      if (this.waypoints.length > 1) {
+        this.legs.push({ status: 'loading' });
+        this.loadLeg(this.waypoints.length - 2);
+      }
     }
     this.changed();
   }
 
   insert(index: number, lng: number, lat: number) {
-    this.waypoints.splice(index, 0, { id: nextId++, lng, lat });
+    this.record();
+    // the new point inherits the leg mode of the leg it splits
+    const straight = this.waypoints[index - 1]?.straight;
+    this.waypoints.splice(index, 0, { id: nextId++, lng, lat, straight });
     this.legs.splice(index - 1, 1, { status: 'loading' }, { status: 'loading' });
     this.loadLeg(index - 1);
     this.loadLeg(index);
@@ -127,7 +214,8 @@ export class RouteState {
   move(id: number, lng: number, lat: number) {
     const i = this.waypoints.findIndex((w) => w.id === id);
     if (i < 0) return;
-    this.waypoints[i] = { id, lng, lat };
+    this.record();
+    this.waypoints[i] = { ...this.waypoints[i], lng, lat };
     if (i > 0) this.loadLeg(i - 1);
     if (i < this.waypoints.length - 1) this.loadLeg(i);
     this.changed();
@@ -136,6 +224,7 @@ export class RouteState {
   remove(id: number) {
     const i = this.waypoints.findIndex((w) => w.id === id);
     if (i < 0) return;
+    this.record();
     this.waypoints.splice(i, 1);
     if (this.waypoints.length < 2) this.legs = [];
     else if (i === 0) this.legs.splice(0, 1);
@@ -147,18 +236,66 @@ export class RouteState {
     this.changed();
   }
 
+  /** Removes the point added last (at the end, or at the start in prepend mode). */
+  removeLast() {
+    const w = this.prepend ? this.waypoints[0] : this.waypoints.at(-1);
+    if (w) this.remove(w.id);
+  }
+
+  setLegStraight(leg: number, straight: boolean) {
+    const w = this.waypoints[leg];
+    if (!w || !!w.straight === straight) return;
+    this.record();
+    this.waypoints[leg] = { ...w, straight: straight || undefined };
+    this.loadLeg(leg);
+    this.changed();
+  }
+
   reverse() {
-    this.setWaypoints([...this.waypoints].reverse());
+    this.record();
+    const w = this.waypoints;
+    // leg i (w[i]→w[i+1]) becomes leg n-2-i, whose start point is w[i+1]
+    const rev = w
+      .map((p, i) => ({ lng: p.lng, lat: p.lat, straight: i > 0 ? w[i - 1].straight : undefined }))
+      .reverse();
+    this.rebuild(rev);
+  }
+
+  /** Goes back to the start along the same way: out-and-back. */
+  outAndBack() {
+    if (this.waypoints.length < 2) return;
+    this.record();
+    const w = this.waypoints;
+    const back = w.slice(0, -1).reverse().map((p, k) => {
+      const i = w.length - 2 - k; // original index; return leg ends at w[i]
+      return { lng: p.lng, lat: p.lat, straight: i > 0 ? w[i - 1].straight : undefined, src: i };
+    });
+    const pts = [
+      ...w.map((p, i) => ({ lng: p.lng, lat: p.lat, straight: i === w.length - 1 ? w[w.length - 2].straight : p.straight })),
+      ...back.map(({ lng, lat, straight }) => ({ lng, lat, straight })),
+    ];
+    this.rebuild(pts);
+  }
+
+  /** Closes the loop: adds the start as the last point. */
+  backToStart() {
+    const s = this.waypoints[0];
+    if (!s || this.waypoints.length < 2) return;
+    this.add(s.lng, s.lat);
   }
 
   clear() {
-    this.waypoints = [];
-    this.legs = [];
-    this.changed();
+    this.record();
+    this.rebuild([]);
   }
 
   setProfile(p: ProfileId) {
     this.profile = p;
-    this.setWaypoints(this.waypoints);
+    this.rebuild(this.snapshot().waypoints);
+  }
+
+  setParams(params: Record<string, string | number | boolean>) {
+    this.params = params;
+    this.rebuild(this.snapshot().waypoints);
   }
 }
