@@ -14,6 +14,7 @@ export const ICONS = {
   chevron: '<path d="M6 9l6 6 6-6"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   share: '<path d="M12 15V3M7 8l5-5 5 5M5 12v8h14v-8"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
   watch: '<rect x="6" y="6" width="12" height="12" rx="4"/><path d="M9 6l1-4h4l1 4M9 18l1 4h4l1-4M12 10v2l2 1"/>',
   logo: '<path d="M3 18l5-9 4 6 3-4 6 7z"/>',

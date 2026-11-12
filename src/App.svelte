@@ -16,7 +16,6 @@
   import { CheckpointLayer, type CheckpointItem } from './lib/checkpoints';
   import { whoami, login, logout, sync, remote, shareShort, snapshot, loadShort, type User, loginAuthelia, deleteAccount } from './lib/account';
   import type { Doc } from './lib/store';
-  import { encodeCourse } from './lib/fit';
   import { buildTimeline, nearestPoint, segmentClasses, type TimelineEvent } from './lib/timeline';
   import GarminDialog from './ui/GarminDialog.svelte';
   import AccountMenu from './ui/AccountMenu.svelte';
@@ -651,18 +650,6 @@
     return { name, gpx: toGpx(t), profile: route.profile.replace('nk-', '') };
   }
 
-  function exportFit() {
-    if (route.points.length < 2) return;
-    const name = route.name || route.autoName();
-    const bytes = encodeCourse({
-      name,
-      sport: route.profile === 'nk-hike' ? 'hiking' : 'cycling',
-      points: route.points,
-      checkpoints: route.checkpoints,
-    });
-    download(new Blob([bytes as BlobPart], { type: 'application/vnd.ant.fit' }), `${name}.fit`);
-  }
-
   function download(blob: Blob, filename: string) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1154,8 +1141,7 @@
           <Icon name="download" size={20} /><span>{t('act.gpx')}</span>
         </button>
         <div class="sec3">
-          <button class="sbtn" onclick={shareRoute}>{t('act.share')}</button>
-          <button class="sbtn" onclick={exportFit} data-tip={t('act.fitTip')}>FIT</button>
+          <button class="sbtn" onclick={shareRoute}><Icon name="link" size={15} />&nbsp;{t('act.share')}</button>
           <button class="sbtn" onclick={() => (garminOpen = true)} data-tip={t('act.garminTip')}><Icon name="watch" size={15} />&nbsp;Garmin</button>
         </div>
       {/if}
@@ -1344,7 +1330,7 @@
   }
   .sec3 {
     display: grid;
-    grid-template-columns: 1fr 1fr 1.3fr;
+    grid-template-columns: 1fr 1fr;
     gap: 6px;
   }
   .sbtn {

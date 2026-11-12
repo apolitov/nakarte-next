@@ -95,11 +95,10 @@ const en = {
   'route.deleted': 'Route deleted',
   'act.garmin': 'Send to Garmin',
   'act.beta': 'beta',
-  'act.share': 'Share',
+  'act.share': 'Copy link',
   'act.gpxTip': 'Download a GPX file',
   'act.gpx': 'Download GPX',
   'act.garminTip': 'Send to Garmin Connect (beta)',
-  'act.fitTip': 'Garmin course: FIT file',
 
   // my routes
   'mine.title': 'My routes',
