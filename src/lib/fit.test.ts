@@ -14,7 +14,9 @@ describe('FIT course', () => {
     const d = new Decoder(Stream.fromByteArray(bytes));
     expect(d.isFIT()).toBe(true);
     expect(d.checkIntegrity()).toBe(true);
-    const { messages, errors } = d.read();
+    const { messages: m, errors } = d.read();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const messages = m as any;
     expect(errors).toEqual([]);
     expect(messages.fileIdMesgs[0].type).toBe('course');
     expect(messages.courseMesgs[0].name).toBe('Синтра гравел д');
