@@ -87,6 +87,8 @@ const en = {
   'tl.cramped': 'Timeline: {n} items',
 
   // actions
+  'route.delete': 'Delete route',
+  'route.deleted': 'Route deleted',
   'act.garmin': 'Send to Garmin',
   'act.beta': 'beta',
   'act.share': 'Share',
@@ -151,7 +153,7 @@ const en = {
   // layers popover
   'lay.title': 'Map layers',
   'lay.close': 'Close',
-  'lay.overlays': 'On top of the map',
+  'lay.overlays': 'Overlays',
   'lay.coloring': 'Route line colouring',
   'lay.colorGrade': 'Grade and surface',
   'lay.colorSurface': 'Surface only',

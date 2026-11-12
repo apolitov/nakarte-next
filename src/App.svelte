@@ -392,6 +392,20 @@
     if (r.id === route.docId) route.reset();
   }
 
+  /** Deletes the route being edited (saved copy too), then starts a new one. */
+  function deleteCurrent() {
+    if (!route.waypoints.length) return;
+    const name = route.name || route.autoName();
+    if (!confirm(t('mine.confirmDelete', { name }))) return;
+    if (savedRoutes.some((r) => r.id === route.docId)) {
+      deleteDoc(route.docId);
+      savedRoutes = savedRoutes.filter((x) => x.id !== route.docId);
+    }
+    route.reset();
+    editing = false;
+    say(t('route.deleted'));
+  }
+
   function newRoute() {
     saveRoute();
     route.reset();
@@ -818,6 +832,7 @@
       <div class="logo"><span class="lm"><Icon name="logo" size={14} stroke={2.4} /></span>Na Carta</div>
       <AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={login} onlogout={logout} onsync={runSync} />
     </div>
+    <div class="titlerow">
     <input
       class="title"
       value={route.name}
@@ -827,6 +842,10 @@
       onchange={(e) => route.rename(e.currentTarget.value)}
       onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
     />
+    {#if route.waypoints.length}
+      <button class="del" onclick={deleteCurrent} aria-label={t('route.delete')} data-tip={t('route.delete')}><Icon name="trash" size={18} /></button>
+    {/if}
+    </div>
     <Segmented name="kind" label={t('route.typeLabel')} value={route.profile}
       items={PROFILES.map((p) => [p.id, p.title] as const)}
       onchange={(v) => route.setProfile(v as ProfileId)} />
@@ -950,6 +969,31 @@
     border-radius: 6px;
     width: 20px;
     height: 20px;
+  }
+  .titlerow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .titlerow .title {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    margin-right: 0;
+  }
+  .del {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    color: var(--soft);
+  }
+  .del:hover {
+    background: var(--tint);
+    color: #c0262d;
   }
   .title {
     flex: none;

@@ -38,16 +38,6 @@
     <h3>{t('lay.title')}</h3>
     <button class="x" aria-label={t('lay.close')} onclick={onclose}><Icon name="close" size={18} /></button>
   </div>
-  {#each groups as [group, items] (group)}
-    <div class="grp">
-      <h4>{group}</h4>
-      <div class="items">
-        {#each items as l (l.id)}
-          <label class="it"><input type="radio" name="nk-base" value={l.id} checked={base === l.id} onchange={() => onbase(l.id)} /><span>{l.title}</span></label>
-        {/each}
-      </div>
-    </div>
-  {/each}
   {#if over.length}
     <div class="grp">
       <h4>{t('lay.overlays')}</h4>
@@ -58,6 +48,16 @@
       </div>
     </div>
   {/if}
+  {#each groups as [group, items] (group)}
+    <div class="grp">
+      <h4>{group}</h4>
+      <div class="items">
+        {#each items as l (l.id)}
+          <label class="it"><input type="radio" name="nk-base" value={l.id} checked={base === l.id} onchange={() => onbase(l.id)} /><span>{l.title}</span></label>
+        {/each}
+      </div>
+    </div>
+  {/each}
   <div class="grp">
     <h4>{t('lay.coloring')}</h4>
     <div class="items">
