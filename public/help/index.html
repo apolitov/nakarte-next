@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Справка · Na Carta</title>
+<title>Help · Na Carta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -35,89 +35,88 @@ th{font-weight:600;color:var(--soft);font-size:13px}
 </head>
 <body>
 <main>
-<div class="top"><span>Na Carta · справка</span><a href="../">← к карте</a></div>
+<div class="top"><span>Na Carta · help</span><a href="../">← back to the map</a></div>
 
-<h1>Справка</h1>
-<p>Как планировщик выбирает дорогу, что значат цвета на линии и как читать перевалы.</p>
-<nav><a href="#routing">Как строится маршрут</a><a href="#line">Цвета и штрихи</a><a href="#passes">Перевалы</a><a href="#limits">Ограничения</a></nav>
+<h1>Help</h1>
+<p>How the planner picks roads, what the colours on the line mean and how to read mountain passes.</p>
+<nav><a href="#routing">How routing works</a><a href="#line">Colours and dashes</a><a href="#passes">Mountain passes</a><a href="#limits">Limitations</a></nav>
 
-<h2 id="routing">Как строится маршрут</h2>
-<p>Вы ставите точки, планировщик соединяет каждую пару соседних точек отдельным отрезком. Отрезки считает роутер <a href="https://github.com/abrensch/brouter">BRouter</a>, он работает на нашем сервере. Дороги, тропы, покрытие и веломаршруты он берёт из <a href="https://www.openstreetmap.org">OpenStreetMap</a>, высоты из встроенной модели рельефа.</p>
-<p>Роутер ищет не самый короткий путь, а самый «дешёвый». У каждого вида дороги есть цена за километр, своя в каждом профиле. Например, для гравела хорошая грунтовка стоит 1,1, тихий асфальт 1,3, второстепенная дорога 2,2, крупная трасса около 8,6. Поэтому гравел выбирает грунтовку, если крюк небольшой, спокойно едет по тихому асфальту и уходит с трасс. Для МТБ разница между грунтом и асфальтом намного больше, поэтому он тянется к грунту и тропам сильнее. К цене добавляются подъёмы, повороты и запреты: туда, куда велосипеду нельзя, роутер не поведёт.</p>
-<p>Когда вы двигаете точку, пересчитываются только два соседних отрезка, остальные берутся из памяти. Поэтому правка длинного маршрута не тормозит.</p>
+<h2 id="routing">How routing works</h2>
+<p>You place points, and the planner connects each pair of neighbouring points with its own leg. Legs are calculated by <a href="https://github.com/abrensch/brouter">BRouter</a> running on our server. Roads, trails, surfaces and cycle routes come from <a href="https://www.openstreetmap.org">OpenStreetMap</a>, elevation from a built-in terrain model.</p>
+<p>The router does not look for the shortest path but for the cheapest one. Every kind of road has a price per kilometre, different in each profile. For gravel, a good dirt road costs 1.1, a quiet paved road 1.3, a secondary road 2.2 and a main road about 8.6. So gravel takes a dirt road when the detour is short, rides quiet tarmac without fuss and stays off busy roads. For MTB the gap between dirt and tarmac is much bigger, so it is drawn to dirt and trails much more. Climbs, turns and access rules add to the price: the router never sends you where bikes are not allowed.</p>
+<p>When you drag a point, only the two legs next to it are recalculated; the rest comes from memory, so editing a long route stays fast.</p>
 
-<h3>Профили</h3>
+<h3>Profiles</h3>
 <table>
-<tr><th>Профиль</th><th>Что любит</th><th>Чего избегает</th></tr>
-<tr><td>Шоссе</td><td>асфальт любого класса, включая крупные дороги</td><td>грунт (в десять раз дороже), ступени, паромы. Трафик учитывает слабо: может повести по оживлённой дороге</td></tr>
-<tr><td>Гравел</td><td>хороший грунт (гравий, укатанное, колеи), тихий асфальт почти наравне с ним, веломаршруты</td><td>крупные трассы, грязь, песок, сложные тропы, ступени</td></tr>
-<tr><td>МТБ</td><td>тропы и грунт, заметно сильнее, чем гравел</td><td>асфальт стоит в несколько раз дороже троп, ступени запрещены</td></tr>
-<tr><td>Пешком</td><td>тропы, дорожки, грунтовки, размеченные пешие маршруты</td><td>крупные дороги. Тропы сложнее T3 по шкале SAC не использует</td></tr>
+<tr><th>Profile</th><th>Prefers</th><th>Avoids</th></tr>
+<tr><td>Road</td><td>tarmac of any class, main roads included</td><td>unpaved (ten times the price), steps, ferries. It barely weighs traffic, so it may pick a busy road</td></tr>
+<tr><td>Gravel</td><td>good dirt (gravel, compacted, tracks), quiet tarmac almost on par, cycle routes</td><td>main roads, mud, sand, technical trails, steps</td></tr>
+<tr><td>MTB</td><td>trails and dirt, much more than gravel</td><td>tarmac costs several times more than trails; steps are not allowed</td></tr>
+<tr><td>Hike</td><td>trails, footways, dirt roads, signed walking routes</td><td>main roads. Trails above T3 on the SAC scale are not used</td></tr>
 </table>
 
-<h3>Настройки</h3>
-<p><b>Покрытие.</b> «Асфальт» делает грунтовые участки в 2,5 раза дороже, «грунт» делает так же с асфальтом. Если у дороги в OSM не указано покрытие, обычные улицы и дороги считаются асфальтом, а колеи и тропы грунтом.</p>
-<p><b>Подъёмы.</b> «Меньше» добавляет цену за каждый метр подъёма круче 1,5%, и роутер начинает объезжать горки. «Не избегать» снимает эту цену совсем. «Больше подъёмов» роутер сделать не может: он умеет только штрафовать, но не поощрять.</p>
-<p><b>Следовать велодорожкам.</b> Велодорожки, велополосы и размеченные веломаршруты (местные, региональные, EuroVelo) остаются по своей цене, а всё остальное дорожает в 1,6 раза. Маршрут может стать немного длиннее, зато пойдёт по велоинфраструктуре. Для профиля «Пешком» настройки нет.</p>
-<p><b>Не круче N%.</b> Подъёмы круче лимита становятся очень дорогими, и роутер ищет обход. Это мягкое ограничение: если обхода нет, крутой участок останется, а на профиле высот он будет отмечен красным сверху с общей длиной.</p>
+<h3>Settings</h3>
+<p><b>Surface.</b> “Paved” makes unpaved ways 2.5 times more expensive, “Unpaved” does the same to tarmac. When OpenStreetMap has no surface tag, ordinary streets and roads count as paved, tracks and trails as unpaved.</p>
+<p><b>Climbs.</b> “Fewer” adds a price to every metre of climbing steeper than 1.5%, and the router starts going around hills. “Don’t avoid” removes that price. The router cannot look for “more climbs”: it can only penalise, never reward.</p>
+<p><b>Follow cycleways.</b> Cycleways, cycle lanes and signed cycle routes (local, regional, national, EuroVelo) keep their price, everything else costs 1.6 times more. The route may get a little longer but follows cycle infrastructure. Not available for hiking.</p>
+<p><b>Max grade N%.</b> Climbs steeper than the limit become very expensive, and the router looks for a way around. It is a soft limit: when there is no way around, the steep part stays, and the elevation profile marks it in red along the top with its total length.</p>
 
-<h3>Отрезок по прямой</h3>
-<p>Если нужной тропы нет в OpenStreetMap, переключите отрезок на «по прямой»: правой кнопкой по линии, долгим нажатием на телефоне или клавишами ⌘I / Ctrl+I. Такой отрезок рисуется серым пунктиром, высоты для него берутся из открытой модели рельефа.</p>
+<h3>Straight legs</h3>
+<p>If the trail you need is missing from OpenStreetMap, switch the leg to a straight line: right-click the line, long-press on a phone, or press ⌘I / Ctrl+I. A straight leg is drawn as a grey dashed line; its elevation comes from an open terrain model.</p>
 
-<h3>Время в пути</h3>
-<p>Это грубая оценка по средней скорости профиля с поправкой на набор высоты, поэтому перед ним стоит «~». На неё влияет ваша форма, груз и погода, а их планировщик не знает.</p>
+<h3>Riding time</h3>
+<p>A rough estimate from the profile’s average speed adjusted for climbing, hence the “~”. Your fitness, load and weather change it, and the planner knows none of them.</p>
 
-<h2 id="line">Цвета и штрихи на линии</h2>
-<p>Линия показывает две вещи сразу: <b>цвет</b> отвечает за уклон, <b>рисунок</b> за покрытие. Тот же цвет и тот же рисунок повторяются на профиле высот.</p>
+<h2 id="line">Colours and dashes on the line</h2>
+<p>The line shows two things at once: <b>colour</b> is the grade, <b>pattern</b> is the surface. The elevation profile repeats both.</p>
 <table>
-<tr><th>Уклон</th><th></th></tr>
-<tr><td><span class="sw" style="background:#2c7fb8"></span>↓ круче 8%</td><td><span class="sw" style="background:#7fcdbb"></span>↓ 3–8%</td></tr>
-<tr><td><span class="sw" style="background:#c9c9cc"></span>±3%, почти ровно</td><td><span class="sw" style="background:#fee08b"></span>↑ 3–6%</td></tr>
+<tr><th>Grade</th><th></th></tr>
+<tr><td><span class="sw" style="background:#2c7fb8"></span>↓ steeper than 8%</td><td><span class="sw" style="background:#7fcdbb"></span>↓ 3–8%</td></tr>
+<tr><td><span class="sw" style="background:#c9c9cc"></span>±3%, nearly flat</td><td><span class="sw" style="background:#fee08b"></span>↑ 3–6%</td></tr>
 <tr><td><span class="sw" style="background:#fdae61"></span>↑ 6–10%</td><td><span class="sw" style="background:#d73027"></span>↑ 10–15%</td></tr>
-<tr><td><span class="sw" style="background:#7f0000"></span>↑ круче 15%</td><td></td></tr>
+<tr><td><span class="sw" style="background:#7f0000"></span>↑ steeper than 15%</td><td></td></tr>
 </table>
 <table>
-<tr><th>Покрытие</th><th>Рисунок</th></tr>
-<tr><td>Асфальт, бетон, плитка</td><td><span class="dash"></span>сплошная</td></tr>
-<tr><td>Укатанное, мелкий гравий, брусчатка</td><td><span class="dash" style="border-top-style:dashed"></span>длинный штрих</td></tr>
-<tr><td>Гравий, грунтовка</td><td><span class="dash" style="border-top-style:dashed;border-top-width:4px;width:20px"></span>короткий штрих</td></tr>
-<tr><td>Грунт, тропа</td><td><span class="dash" style="border-top-style:dotted"></span>точки</td></tr>
-<tr><td>По прямой</td><td><span class="dash" style="border-top-style:dashed;border-color:#9a9aa2"></span>серый пунктир</td></tr>
+<tr><th>Surface</th><th>Pattern</th></tr>
+<tr><td>Asphalt, concrete, paving</td><td><span class="dash"></span>solid</td></tr>
+<tr><td>Compacted, fine gravel, cobbles</td><td><span class="dash" style="border-top-style:dashed"></span>long dashes</td></tr>
+<tr><td>Gravel, dirt road</td><td><span class="dash" style="border-top-style:dashed;border-top-width:4px;width:20px"></span>short dashes</td></tr>
+<tr><td>Ground, trail</td><td><span class="dash" style="border-top-style:dotted"></span>dots</td></tr>
+<tr><td>Straight leg</td><td><span class="dash" style="border-top-style:dashed;border-color:#9a9aa2"></span>grey dashes</td></tr>
 </table>
-<p class="small">Покрытие берётся из тегов OSM. Если тега нет, оно угадывается по виду дороги, а на профиле такой участок отмечен как «нет данных».</p>
+<p class="small">Surface comes from OpenStreetMap tags. Without a tag it is guessed from the road type, and the profile marks such parts as “no data”.</p>
 
-<h2 id="passes">Перевалы</h2>
-<p>Слой «Перевалы» собран из двух источников:</p>
+<h2 id="passes">Mountain passes</h2>
+<p>The “Passes” layer combines two sources:</p>
 <ul>
-<li><b>OpenStreetMap</b>: около 37 тысяч перевалов по всему миру, у многих есть высота, у части есть категория.</li>
-<li><b>Каталог ФСТР</b>: открытый классификатор перевалов Федерации спортивного туризма, около 7,5 тысячи перевалов бывшего СССР и соседних гор. В нём есть категория, характер склонов, что соединяет перевал и данные о первопрохождении.</li>
+<li><b>OpenStreetMap</b>: about 37,000 passes worldwide, many with elevation, some with a grade.</li>
+<li><b>FSTR catalogue</b>: the open pass classifier of the Russian Sport Tourism Federation, about 7,500 passes in the former USSR and neighbouring ranges. It has grades, terrain, what the pass connects and first crossings. Names and descriptions from it are in Russian.</li>
 </ul>
-<p>Если перевал есть в обоих источниках и точки лежат рядом, мы объединяем их в одну запись. Категорию в таком случае берём из каталога ФСТР. В карточке перевала всегда указано, откуда данные.</p>
-<p>При отдалении карты видны только перевалы с категорией, при приближении появляются все с названиями, а с 12-го зума все остальные.</p>
+<p>When a pass is in both sources and the points are close, they are merged into one record, and the grade is taken from the FSTR catalogue. The pass card always tells where the data comes from.</p>
+<p>Zoomed out, only graded passes are shown; closer in, named ones appear, and from zoom 12 all of them.</p>
 
-<h3>Категории</h3>
+<h3>Grades</h3>
 <table>
-<tr><th>Категория</th><th>Что обычно ждёт</th></tr>
-<tr><td><span class="sw" style="background:#8a8a85"></span>н/к</td><td>Некатегорийный. Тропа или пологий травянистый склон, без снега и льда.</td></tr>
-<tr><td><span class="sw" style="background:#2e9d5b"></span>1А</td><td>Простой. Осыпи, травянистые склоны, небольшие снежники. Иногда нужен ледоруб для самостраховки.</td></tr>
-<tr><td><span class="sw" style="background:#c9a227"></span>1Б</td><td>Несложный. Крутые осыпи и снег, короткие скальные участки. Самостраховка ледорубом, местами верёвка.</td></tr>
-<tr><td><span class="sw" style="background:#e07b24"></span>2А</td><td>Средней сложности. Снег, лёд и скалы, закрытые ледники. Кошки, верёвки, движение в связках.</td></tr>
-<tr><td><span class="sw" style="background:#d1242f"></span>2Б</td><td>Сложный. Крутой лёд и скалы, долгая работа с верёвками. Нужна альпинистская подготовка.</td></tr>
-<tr><td><span class="sw" style="background:#7f1d2e"></span>3А</td><td>Высшей сложности. Высокогорье, крутые ледовые и скальные стены.</td></tr>
-<tr><td><span class="sw" style="background:#141414"></span>3Б</td><td>Самые трудные перевалы: сложное лазание, большие высоты, лавинная и обвальная опасность.</td></tr>
+<tr><th>Grade</th><th>What to expect</th></tr>
+<tr><td><span class="sw" style="background:#8a8a85"></span>NC</td><td>Non-graded. A trail or a gentle grassy slope, no snow or ice.</td></tr>
+<tr><td><span class="sw" style="background:#2e9d5b"></span>1A</td><td>Easy. Scree, grassy slopes, small snowfields. Sometimes an ice axe for self-belay.</td></tr>
+<tr><td><span class="sw" style="background:#c9a227"></span>1B</td><td>Moderate. Steep scree and snow, short rock sections. Ice axe self-belay, a rope in places.</td></tr>
+<tr><td><span class="sw" style="background:#e07b24"></span>2A</td><td>Intermediate. Snow, ice and rock, covered glaciers. Crampons, ropes, roped travel.</td></tr>
+<tr><td><span class="sw" style="background:#d1242f"></span>2B</td><td>Difficult. Steep ice and rock, long rope work. Mountaineering skills required.</td></tr>
+<tr><td><span class="sw" style="background:#7f1d2e"></span>3A</td><td>Very difficult. High altitude, steep ice and rock walls.</td></tr>
+<tr><td><span class="sw" style="background:#141414"></span>3B</td><td>The hardest passes: technical climbing, high altitude, rockfall and avalanche danger.</td></tr>
 </table>
-<p>Звёздочка после категории (например, 1Б*) означает перевал на верхней границе категории.</p>
-<p>Характер склонов в каталоге записан коротко: «сн» снег, «лд» лёд, «ск» скалы, «ос» осыпь, «тр» трава. Например, «сн-лд-ос» означает, что встретятся снег, лёд и осыпь.</p>
-<div class="note"><b>Категория описывает типичные летние условия.</b> Ранней весной, поздней осенью и в снежный год перевал может оказаться сложнее, а ледники за последние десятилетия сильно отступили. Перед выходом читайте свежие отчёты на <a href="https://westra.ru/passes/">westra.ru</a> и <a href="https://tssr.ru/">tssr.ru</a>.</div>
+<p>An asterisk after a grade (for example 1B*) marks a pass at the upper end of its grade.</p>
+<div class="note"><b>A grade describes typical summer conditions.</b> In early spring, late autumn or a snowy year a pass can be harder, and glaciers have retreated a lot over the last decades. Read recent trip reports before you go, for example on <a href="https://westra.ru/passes/">westra.ru</a> and <a href="https://tssr.ru/">tssr.ru</a> (in Russian).</div>
 
-<h2 id="limits">Ограничения</h2>
+<h2 id="limits">Limitations</h2>
 <ul>
-<li>Карта хороша настолько, насколько полна OpenStreetMap. Новую тропу или закрытую дорогу роутер узнает только после обновления данных.</li>
-<li>Высоты взяты из модели рельефа с шагом около 30 м. На коротких крутых участках уклон может быть сглажен, а набор высоты отличаться от показаний часов на 5–10%.</li>
-<li>Лимит крутизны мягкий: он уводит от крутых мест, если есть обход, но не запрещает их.</li>
-<li>Время в пути и покрытие без тега в OSM являются оценками.</li>
+<li>The map is as good as OpenStreetMap is complete. The router learns about a new trail or a closed road only after the next data update.</li>
+<li>Elevation comes from a terrain model with about 30 m resolution. Short steep pitches can be smoothed, and total climbing may differ from your watch by 5–10%.</li>
+<li>The grade limit is soft: it steers around steep parts when it can, but does not forbid them.</li>
+<li>Riding time and surfaces without an OpenStreetMap tag are estimates.</li>
 </ul>
-<p class="small">Данные карт © OpenStreetMap и участники. Перевалы: OpenStreetMap и классификатор ФСТР. Роутинг: BRouter.</p>
+<p class="small">Map data © OpenStreetMap contributors. Passes: OpenStreetMap and the FSTR classifier. Routing: BRouter.</p>
 </main>
 </body>
 </html>

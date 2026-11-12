@@ -8,59 +8,59 @@ const URL_DATA = `${import.meta.env.BASE_URL}data/passes.geojson`;
 export const PASS_CATEGORIES: { id: string; title: string; color: string; text: string }[] = [
   {
     id: 'нк',
-    title: 'н/к',
+    title: 'NC',
     color: '#8a8a85',
-    text: 'Некатегорийный. Обычно тропа или пологий травянистый склон, без снега и льда. Проходится без снаряжения.',
+    text: 'Non-graded. Usually a trail or a gentle grassy slope, no snow or ice. No equipment needed.',
   },
   {
     id: '1А',
-    title: '1А',
+    title: '1A',
     color: '#2e9d5b',
-    text: 'Простой. Осыпи, травянистые склоны, небольшие снежники средней крутизны. Нужен опыт походов в горах, снаряжение обычное, иногда ледоруб для самостраховки.',
+    text: 'Easy. Scree, grassy slopes, small snowfields of moderate steepness. Mountain hiking experience; sometimes an ice axe for self-belay.',
   },
   {
     id: '1Б',
-    title: '1Б',
+    title: '1B',
     color: '#c9a227',
-    text: 'Несложный. Крутые осыпи и снежные склоны, короткие скальные участки. Самостраховка ледорубом, иногда верёвка на отдельных местах.',
+    text: 'Moderate. Steep scree and snow slopes, short rock sections. Ice axe self-belay, a rope in places.',
   },
   {
     id: '2А',
-    title: '2А',
+    title: '2A',
     color: '#e07b24',
-    text: 'Средней сложности. Снежно-ледовые и скальные участки, закрытые ледники. Кошки, верёвки, навыки страховки и движения в связках.',
+    text: 'Intermediate. Snow, ice and rock sections, covered glaciers. Crampons, ropes, belaying and roped travel.',
   },
   {
     id: '2Б',
-    title: '2Б',
+    title: '2B',
     color: '#d1242f',
-    text: 'Сложный. Крутой лёд и скалы, длительная работа с верёвками, ледовые и скальные станции. Нужна альпинистская подготовка.',
+    text: 'Difficult. Steep ice and rock, long rope work, ice and rock anchors. Mountaineering skills required.',
   },
   {
     id: '3А',
-    title: '3А',
+    title: '3A',
     color: '#7f1d2e',
-    text: 'Высшей сложности. Высокогорье, крутые ледовые и скальные стены, многочасовая работа на верёвках.',
+    text: 'Very difficult. High altitude, steep ice and rock walls, hours of rope work.',
   },
   {
     id: '3Б',
-    title: '3Б',
+    title: '3B',
     color: '#141414',
-    text: 'Высшей сложности, самые трудные перевалы. Сложное лазание, большие высоты, обвальная и лавинная опасность.',
+    text: 'Hardest passes. Technical climbing, high altitude, rockfall and avalanche danger.',
   },
 ];
 
-/** FSTR character codes, e.g. «сн-лд-ск-ос» → «снег, лёд, скалы, осыпь». */
+/** FSTR terrain codes (Russian abbreviations), e.g. «сн-лд-ск-ос» → «snow, ice, rock, scree». */
 const KIND_PART: Record<string, string> = {
-  сн: 'снег',
-  лд: 'лёд',
-  лед: 'лёд',
-  ск: 'скалы',
-  ос: 'осыпь',
-  тр: 'трава',
-  тропа: 'тропа',
-  дорога: 'дорога',
-  гр: 'грунт',
+  сн: 'snow',
+  лд: 'ice',
+  лед: 'ice',
+  ск: 'rock',
+  ос: 'scree',
+  тр: 'grass',
+  тропа: 'trail',
+  дорога: 'road',
+  гр: 'dirt',
 };
 
 function kindText(k?: string) {
@@ -82,7 +82,7 @@ let loaded: Promise<void> | null = null;
 /** Shows passes; categorised ones from zoom 7, named from 10, all from 12. */
 export function showPasses(map: maplibregl.Map, beforeId?: string, onHelp?: () => void) {
   loaded ??= (async () => {
-    map.addSource('passes', { type: 'geojson', data: URL_DATA, attribution: 'Перевалы: © OpenStreetMap, каталог ФСТР' });
+    map.addSource('passes', { type: 'geojson', data: URL_DATA, attribution: 'Passes: © OpenStreetMap, FSTR catalogue' });
     const before = beforeId && map.getLayer(beforeId) ? beforeId : undefined;
     map.addLayer(
       {
@@ -108,7 +108,11 @@ export function showPasses(map: maplibregl.Map, beforeId?: string, onHelp?: () =
         minzoom: 11,
         filter: ['<=', ['get', 'rk'], 1],
         layout: {
-          'text-field': ['concat', ['coalesce', ['get', 'n'], ''], ['case', ['has', 'c'], ['concat', ' ', ['get', 'c']], '']],
+          'text-field': [
+            'concat',
+            ['coalesce', ['get', 'n'], ''],
+            ['case', ['has', 'c'], ['concat', ' ', ['match', ['get', 'c'], ...PASS_CATEGORIES.flatMap((c) => [c.id, c.title]), '']], ''],
+          ] as unknown as maplibregl.ExpressionSpecification,
           'text-size': 11,
           'text-offset': [0, 1.1],
           'text-anchor': 'top',
@@ -150,10 +154,10 @@ function passCard(p: Record<string, unknown>, onHelp?: () => void): HTMLElement 
   h.className = 'pc-head';
   const badge = document.createElement('span');
   badge.className = 'pc-cat';
-  badge.textContent = cat ? cat.title : 'без категории';
+  badge.textContent = cat ? cat.title : 'no grade';
   if (cat) badge.style.background = cat.color;
   const title = document.createElement('b');
-  title.textContent = s('n') || 'Перевал без названия';
+  title.textContent = s('n') || 'Unnamed pass';
   h.append(title, badge);
   el.append(h);
   const line = (label: string, value: string | null) => {
@@ -167,26 +171,26 @@ function passCard(p: Record<string, unknown>, onHelp?: () => void): HTMLElement 
     d.append(l, v);
     el.append(d);
   };
-  line('Высота', s('e') ? `${s('e')} м` : null);
-  line('Другие названия', [s('a'), s('nl'), s('ne')].filter(Boolean).join(', ') || null);
-  line('Характер', kindText(s('k')));
-  line('Соединяет', s('cn') || null);
-  line('Район', s('r') || null);
-  line('Первопрохождение', s('f') || null);
-  line('Примечание', s('i') || null);
-  if (s('ap')) line('Координаты', 'приблизительные');
+  line('Elevation', s('e') ? `${s('e')} m` : null);
+  line('Other names', [s('a'), s('nl'), s('ne')].filter(Boolean).join(', ') || null);
+  line('Terrain', kindText(s('k')));
+  line('Connects', s('cn') || null);
+  line('Area', s('r') || null);
+  line('First crossing', s('f') || null);
+  line('Notes', s('i') || null);
+  if (s('ap')) line('Position', 'approximate');
   const src = document.createElement('div');
   src.className = 'pc-src';
   const parts: string[] = [];
-  if (s('src').includes('fstr')) parts.push('каталог ФСТР');
+  if (s('src').includes('fstr')) parts.push('FSTR catalogue');
   if (s('o')) parts.push('OpenStreetMap');
-  src.textContent = `Источник: ${parts.join(' и ')}`;
+  src.textContent = `Source: ${parts.join(' and ')}`;
   if (s('o')) {
     const a = document.createElement('a');
     a.href = `https://www.openstreetmap.org/node/${s('o')}`;
     a.target = '_blank';
     a.rel = 'noopener';
-    a.textContent = ' · в OSM';
+    a.textContent = ' · on OSM';
     src.append(a);
   }
   el.append(src);
@@ -199,7 +203,7 @@ function passCard(p: Record<string, unknown>, onHelp?: () => void): HTMLElement 
   if (onHelp) {
     const b = document.createElement('button');
     b.className = 'pc-more';
-    b.textContent = 'Что значат категории';
+    b.textContent = 'What the grades mean';
     b.onclick = onHelp;
     el.append(b);
   }
