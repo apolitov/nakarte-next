@@ -17,6 +17,18 @@
   let code = $state('');
   let error = $state('');
   let result = $state<{ url: string | null; device: string | null } | null>(null);
+  let devices = $state<{ id: number; name: string; chosen: boolean }[]>([]);
+  /** device id, or 0 = only save in Garmin Connect */
+  let deviceId = $state<number>(0);
+
+  async function loadDevices() {
+    try {
+      devices = await call('/devices');
+      deviceId = (devices.find((d) => d.chosen) ?? devices[0])?.id ?? 0;
+    } catch {
+      devices = [];
+    }
+  }
   let dlg: HTMLDialogElement;
 
   async function call(path: string, init?: RequestInit) {
@@ -34,7 +46,14 @@
       error = '';
       result = null;
       step = 'idle';
-      if (loggedIn) call('/status').then((s) => (status = s), (e) => (error = e.message));
+      if (loggedIn)
+        call('/status').then(
+          (s) => {
+            status = s;
+            if (s.connected) loadDevices();
+          },
+          (e) => (error = e.message),
+        );
     } else dlg?.close();
   });
 
@@ -49,6 +68,7 @@
       else {
         status = { enabled: true, connected: true, device: r.device };
         step = 'idle';
+        loadDevices();
       }
     } catch (err) {
       error = (err as Error).message;
@@ -64,6 +84,7 @@
       status = { enabled: true, connected: true, device: r.device };
       step = 'idle';
       code = '';
+      loadDevices();
     } catch (err) {
       error = (err as Error).message;
     }
@@ -75,7 +96,7 @@
     error = '';
     step = 'sending';
     try {
-      result = await call('/send', json({ ...r, to_device: true }));
+      result = await call('/send', json({ ...r, to_device: deviceId > 0, device_id: deviceId || null }));
       step = 'done';
     } catch (err) {
       error = (err as Error).message;
@@ -126,7 +147,14 @@
     {#if result.url}<a href={result.url} target="_blank" rel="noopener">Открыть в Garmin Connect</a>{/if}
     <p class="muted">Чекпоинты пока уходят только в файл FIT.</p>
   {:else}
-    <p>Аккаунт подключён{status.device ? `, устройство: ${status.device}` : ''}.</p>
+    <p>Аккаунт Garmin подключён.</p>
+    <label class="dev">
+      Куда отправить
+      <select bind:value={deviceId}>
+        {#each devices as d (d.id)}<option value={d.id}>{d.name}</option>{/each}
+        <option value={0}>Только сохранить в Garmin Connect</option>
+      </select>
+    </label>
     <button class="primary" onclick={send} disabled={step === 'sending'}>{step === 'sending' ? 'Отправляю…' : 'Отправить маршрут'}</button>
     <button class="link" onclick={disconnect}>Отключить Garmin</button>
   {/if}
@@ -167,6 +195,23 @@
     color: inherit;
     font-size: 20px;
     cursor: pointer;
+  }
+  .dev {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .dev select {
+    font: inherit;
+    font-size: 14px;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 8px;
   }
   form {
     display: flex;
