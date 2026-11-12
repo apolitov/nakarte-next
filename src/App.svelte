@@ -16,6 +16,7 @@
   import { whoami, login, logout, sync, remote, shareShort, loadShort, type User } from './lib/account';
   import type { Doc } from './lib/store';
   import { encodeCourse } from './lib/fit';
+  import GarminDialog from './GarminDialog.svelte';
 
   let container: HTMLDivElement;
   let map: MlMap | undefined;
@@ -321,6 +322,19 @@
     exportTrack(t);
   }
 
+  let garminOpen = $state(false);
+  function garminRoute() {
+    if (route.points.length < 2) return null;
+    const name = route.name || route.autoName();
+    const t: Track = {
+      id: 'route',
+      name,
+      lines: [route.points.map((p) => (p.ele != null ? [p.lng, p.lat, p.ele] : [p.lng, p.lat]))],
+      points: [],
+    };
+    return { name, gpx: toGpx(t), profile: route.profile.replace('nk-', '') };
+  }
+
   function exportFit() {
     if (route.points.length < 2) return;
     const name = route.name || route.autoName();
@@ -620,6 +634,7 @@
         <button class:active={placing === 'route'} onclick={() => (placing = placing === 'route' ? null : 'route')} title="Щелчок по карте поставит чекпоинт">+ Чекпоинт</button>
         <button onclick={exportRoute} disabled={route.points.length < 2}>GPX</button>
         <button onclick={exportFit} disabled={route.points.length < 2} title="Курс для Garmin: файл .fit">FIT</button>
+        <button onclick={() => (garminOpen = true)} disabled={route.points.length < 2}>В Garmin <small class="beta">бета</small></button>
         <button onclick={shareRoute} disabled={!route.waypoints.length}>Поделиться</button>
         <button onclick={newRoute}>Новый</button>
         <button onclick={() => confirm('Очистить маршрут?') && route.clear()} title="Очистить" aria-label="Очистить">×</button>
@@ -673,6 +688,8 @@
     {/each}
     {#if error}<div class="error">{error}</div>{/if}
   </div>
+
+  <GarminDialog bind:open={garminOpen} loggedIn={!!user} getRoute={garminRoute} onlogin={login} />
 
   {#if toast}<div class="toast" role="status">{toast}</div>{/if}
   {#if placing}<div class="toast" role="status">Щёлкните по карте, чтобы поставить чекпоинт. Esc: отмена</div>{/if}
