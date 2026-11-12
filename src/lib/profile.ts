@@ -56,23 +56,36 @@ export const SURFACE_STYLE: Record<SurfaceClass, { color: string; title: string 
   unknown: { color: '#b3b3b8', title: 'Нет данных' },
 };
 
-/** Grade colour stops, by absolute grade in %. */
-export const GRADE_STOPS: [number, string][] = [
-  [0, '#2b9a52'],
-  [3, '#8cc63f'],
-  [6, '#f2c230'],
-  [9, '#ef7d22'],
-  [12, '#d7262d'],
-  [16, '#7a1020'],
+/**
+ * Signed grade classes: descents blue, flat grey, climbs yellow to dark red.
+ * Thresholds after brouter-web and Garmin ClimbPro (see docs in the repo history).
+ */
+export const GRADE_CLASSES: { min: number; color: string; title: string }[] = [
+  { min: -Infinity, color: '#2c7fb8', title: 'спуск круче 8%' },
+  { min: -8, color: '#7fcdbb', title: 'спуск 3–8%' },
+  { min: -3, color: '#c9c9cc', title: 'ровно' },
+  { min: 3, color: '#fee08b', title: '3–6%' },
+  { min: 6, color: '#fdae61', title: '6–10%' },
+  { min: 10, color: '#d73027', title: '10–15%' },
+  { min: 15, color: '#7f0000', title: 'круче 15%' },
 ];
 
 export function gradeColor(g: number | null): string {
   if (g == null) return SURFACE_STYLE.unknown.color;
-  const a = Math.abs(g);
-  let c = GRADE_STOPS[0][1];
-  for (const [v, col] of GRADE_STOPS) if (a >= v) c = col;
+  let c = GRADE_CLASSES[0].color;
+  for (const k of GRADE_CLASSES) if (g >= k.min) c = k.color;
   return c;
 }
+
+/** Dash pattern per surface, in line widths (MapLibre) — the profile strip reuses it. */
+export const SURFACE_DASH: Record<SurfaceClass, number[]> = {
+  paved: [1, 0],
+  compact: [4, 1.5],
+  unpaved: [2, 1.5],
+  ground: [1, 1.2],
+  path: [0.3, 1.2],
+  unknown: [1, 0],
+};
 
 /** Builds the profile. Grade is measured over a window of `win` metres to suppress DEM noise. */
 export function buildProfile(points: LegPoint[], spans: WaySpan[] = [], win = 100): Profile {

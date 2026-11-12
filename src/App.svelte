@@ -524,9 +524,9 @@
     {#if route.waypoints.length}
       <div class="row">
         <select bind:value={colorMode} aria-label="Раскраска линии">
-          <option value="grade">Цвет: уклон</option>
-          <option value="surface">Цвет: покрытие</option>
-          <option value="plain">Цвет: один</option>
+          <option value="grade">Уклон и покрытие</option>
+          <option value="surface">Только покрытие</option>
+          <option value="plain">Одним цветом</option>
         </select>
         <button onclick={() => route.undo()} disabled={!route.canUndo} title="Отменить (⌘Z)" aria-label="Отменить">↶</button>
         <button onclick={() => route.redo()} disabled={!route.canRedo} title="Повторить (⌘⇧Z)" aria-label="Повторить">↷</button>

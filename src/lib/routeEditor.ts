@@ -4,14 +4,22 @@
 import * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { RouteState } from './route.svelte';
-import { gradeColor, SURFACE_STYLE } from './profile';
+import { gradeColor, SURFACE_STYLE, SURFACE_DASH, type SurfaceClass } from './profile';
 
 export type ColorMode = 'grade' | 'surface' | 'plain';
+
+const DASH_EXPR = [
+  'match',
+  ['get', 'surf'],
+  ...(Object.entries(SURFACE_DASH) as [SurfaceClass, number[]][]).flatMap(([k, v]) => [k, ['literal', v]]),
+  ['literal', [1, 0]],
+] as unknown as maplibregl.ExpressionSpecification;
 const PLAIN = '#2a6df4';
 
 export class RouteEditor {
   private markers = new Map<number, maplibregl.Marker>();
   editing = false;
+  /** grade: colour = grade, dashes = surface; surface: colour and dashes = surface; plain: one colour */
   colorMode: ColorMode = 'grade';
   private dragInsert: { index: number; marker: maplibregl.Marker } | null = null;
   /** Returns true when it handled the click (e.g. placing a checkpoint). */
@@ -27,7 +35,8 @@ export class RouteEditor {
       id: 'route-casing',
       type: 'line',
       source: 'route',
-      paint: { 'line-color': '#fff', 'line-width': 8, 'line-opacity': 0.85 },
+      // dark casing: the light "flat" colour and the gaps of dashes stay readable on any base map
+      paint: { 'line-color': '#26262b', 'line-width': 8, 'line-opacity': 0.75 },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
     });
     map.addLayer({
@@ -37,7 +46,8 @@ export class RouteEditor {
       paint: {
         'line-color': ['get', 'color'],
         'line-width': 5,
-        'line-dasharray': ['case', ['==', ['get', 'straight'], true], ['literal', [1.2, 1.2]], ['literal', [1, 0]]],
+        // data-driven dasharray needs MapLibre GL JS >= 5.8
+        'line-dasharray': ['case', ['==', ['get', 'straight'], true], ['literal', [1.2, 1.2]], DASH_EXPR],
       },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
     });
@@ -221,15 +231,17 @@ export class RouteEditor {
     let runColor = '';
     let runLeg = -1;
     let runStraight = false;
+    let runSurf: SurfaceClass = 'unknown';
     const flush = () => {
-      if (run.length > 1) features.push({ type: 'Feature', properties: { color: runColor, leg: runLeg, straight: runStraight }, geometry: { type: 'LineString', coordinates: run } });
+      if (run.length > 1) features.push({ type: 'Feature', properties: { color: runColor, leg: runLeg, straight: runStraight, surf: this.colorMode === 'plain' ? 'paved' : runSurf }, geometry: { type: 'LineString', coordinates: run } });
     };
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
       const color =
         this.colorMode === 'grade' ? gradeColor(prof.grade[i]) : this.colorMode === 'surface' ? SURFACE_STYLE[prof.surface[i]].color : PLAIN;
       const leg = i === 0 ? p.leg : pts[i].leg;
-      if (i > 0 && (color !== runColor || leg !== runLeg)) {
+      const surf = prof.surface[i];
+      if (i > 0 && (color !== runColor || leg !== runLeg || surf !== runSurf)) {
         // segment i-1→i takes the colour of point i
         flush();
         run = [[pts[i - 1].lng, pts[i - 1].lat]];
@@ -237,6 +249,7 @@ export class RouteEditor {
       runColor = color;
       runLeg = leg;
       runStraight = p.straight;
+      runSurf = surf;
       run.push([p.lng, p.lat]);
     }
     flush();

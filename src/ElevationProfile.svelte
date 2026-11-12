@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { gradeColor, SURFACE_STYLE, GRADE_STOPS, formatKm, type Profile, type SurfaceClass } from './lib/profile';
+  import { gradeColor, SURFACE_STYLE, SURFACE_DASH, GRADE_CLASSES, formatKm, type Profile, type SurfaceClass } from './lib/profile';
   import { kindOf } from './lib/checkpoints';
 
   let {
@@ -109,11 +109,24 @@
     }
     ctx.stroke();
 
-    // surface strip
-    for (let i = 1; i < dist.length; i++) {
-      ctx.fillStyle = SURFACE_STYLE[surface[i]].color;
-      ctx.fillRect(x(dist[i - 1]), bottom + 1, Math.max(1, x(dist[i]) - x(dist[i - 1]) + 0.5), STRIP);
+    // surface strip: the same dash patterns as the line on the map
+    const sy = bottom + 1 + STRIP / 2;
+    ctx.lineWidth = STRIP;
+    ctx.lineCap = 'butt';
+    for (let i0 = 1; i0 < dist.length; ) {
+      const cls = surface[i0];
+      let i1 = i0;
+      while (i1 + 1 < dist.length && surface[i1 + 1] === cls) i1++;
+      const pat = SURFACE_DASH[cls];
+      ctx.strokeStyle = SURFACE_STYLE[cls].color;
+      ctx.setLineDash(pat[1] === 0 ? [] : pat.map((v) => Math.max(1, v * STRIP)));
+      ctx.beginPath();
+      ctx.moveTo(x(dist[i0 - 1]), sy);
+      ctx.lineTo(x(dist[i1]), sy);
+      ctx.stroke();
+      i0 = i1 + 1;
     }
+    ctx.setLineDash([]);
 
     // stretches over the grade limit: hatched band along the top
     if (steep.ranges.length) {
@@ -215,10 +228,13 @@
   ></canvas>
   <div class="legend">
     <span class="muted">Уклон:</span>
-    {#each GRADE_STOPS as [v, c] (v)}<span class="sw" style="background:{c}"></span>{v}%{/each}
+    {#each GRADE_CLASSES as k (k.min)}<span class="sw" style="background:{k.color}"></span>{k.title}{/each}
     <span class="sep"></span>
     {#each surfaceShare as [s, m] (s)}
-      <span class="sw" style="background:{SURFACE_STYLE[s].color}"></span>{SURFACE_STYLE[s].title} {Math.round((m / profile.length) * 100)}%
+      <svg class="dash" width="22" height="8" aria-hidden="true"
+        ><line x1="0" y1="4" x2="22" y2="4" stroke={SURFACE_STYLE[s].color} stroke-width="4"
+          stroke-dasharray={SURFACE_DASH[s][1] === 0 ? 'none' : SURFACE_DASH[s].map((v) => Math.max(1, v * 4)).join(' ')} /></svg
+      ><span>{SURFACE_STYLE[s].title}&nbsp;{Math.round((m / profile.length) * 100)}%</span>
     {/each}
   </div>
 </div>
@@ -262,6 +278,12 @@
     width: 10px;
     height: 10px;
     border-radius: 2px;
+  }
+  .dash {
+    flex: none;
+  }
+  .legend > span:not(.sw):not(.sep):not(.muted) {
+    margin-right: 6px;
   }
   .sep {
     width: 10px;
