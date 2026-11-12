@@ -354,9 +354,8 @@
       say(t('toast.fromLink'));
       fitPoints(fromLink.waypoints);
       fitWhenReady = true;
-    } else if (!route.waypoints.length && savedRoutes[0]) {
-      route.load(savedRoutes[0]);
     }
+    // saved routes are not opened automatically: they are listed in My routes
     loaded = true;
     refreshTracks();
     whoami().then((u) => {
@@ -684,6 +683,11 @@
   function syncHash() {
     if (!map) return;
     const c = map.getCenter();
+    try {
+      localStorage.setItem(VIEW_KEY, JSON.stringify({ lng: c.lng, lat: c.lat, zoom: map.getZoom() }));
+    } catch {
+      /* no storage */
+    }
     history.replaceState(null, '', formatHash({ zoom: map.getZoom(), lat: c.lat, lng: c.lng, layers: [base, ...overlays] }));
   }
 
@@ -728,13 +732,37 @@
     if (e.dataTransfer?.files.length) addFiles(e.dataTransfer.files);
   }
 
+  const VIEW_KEY = 'nk-view';
+  const lastView: { lng: number; lat: number; zoom: number } | null = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
+    } catch {
+      return null;
+    }
+  })();
+
+  /** First visit without a view in the URL: open the map on the visitor's city (by IP, on our server). */
+  async function cityView() {
+    if (initial.zoom != null || lastView || new URLSearchParams(location.hash.slice(1)).has('r')) return;
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/where`);
+      if (r.status !== 200) return;
+      const { lat, lon } = await r.json();
+      if (map && !route.waypoints.length) map.jumpTo({ center: [lon, lat], zoom: 11 });
+    } catch {
+      /* stays on Europe */
+    }
+  }
+
   onMount(() => {
     registerYandexProtocol();
+    cityView();
     map = new maplibregl.Map({
       container,
       style: { version: 8, sources: {}, layers: [] },
-      center: [initial.lng ?? -9.14, initial.lat ?? 38.72],
-      zoom: initial.zoom ?? 10,
+      // URL view, else the last view in this browser, else the visitor's city (below), else Europe
+      center: [initial.lng ?? lastView?.lng ?? 10, initial.lat ?? lastView?.lat ?? 50],
+      zoom: initial.zoom ?? lastView?.zoom ?? 3.5,
       attributionControl: { compact: true },
       maxPitch: 0,
       dragRotate: false,
@@ -829,7 +857,10 @@
 <div class="app" role="application" ondragover={(e) => e.preventDefault()} ondrop={onDrop}>
   <aside class="side" aria-label={t('route.panel')}>
     <div class="head">
-      <div class="logo"><span class="lm"><Icon name="logo" size={14} stroke={2.4} /></span>Na Carta</div>
+      <picture class="logo">
+        <source srcset="{import.meta.env.BASE_URL}brand/symbol-colour-dark.svg" media="(prefers-color-scheme: dark)" />
+        <img src="{import.meta.env.BASE_URL}brand/symbol-colour.svg" alt="Na Carta" width="81" height="28" />
+      </picture>
       <AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={login} onlogout={logout} onsync={runSync} />
     </div>
     <div class="titlerow">
@@ -952,23 +983,12 @@
     flex: none;
   }
   .logo {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 600;
-    font-size: 12.5px;
-    color: var(--soft);
-    letter-spacing: -0.01em;
-    white-space: nowrap;
+    display: block;
+    line-height: 0;
   }
-  .lm {
-    display: grid;
-    place-items: center;
-    background: var(--marker);
-    color: var(--marker-ink);
-    border-radius: 6px;
-    width: 20px;
-    height: 20px;
+  .logo img {
+    height: 28px;
+    width: auto;
   }
   .titlerow {
     display: flex;
