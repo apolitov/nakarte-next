@@ -763,16 +763,26 @@
     }
   })();
 
-  /** First visit without a view in the URL: open the map on the visitor's city (by IP, on our server). */
+  /**
+   * Opening without a view in the URL: centre on the visitor's city (by IP, on our server).
+   * If the last view in this browser is within 30 km of that city it stays as it was;
+   * otherwise (another city, a VPN) the map moves to the city.
+   */
   async function cityView() {
-    if (initial.zoom != null || lastView || new URLSearchParams(location.hash.slice(1)).has('r')) return;
+    if (initial.zoom != null || new URLSearchParams(location.hash.slice(1)).has('r') || new URLSearchParams(location.hash.slice(1)).has('s')) return;
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/where`);
       if (r.status !== 200) return;
       const { lat, lon } = await r.json();
-      if (map && !route.waypoints.length) map.jumpTo({ center: [lon, lat], zoom: 11 });
+      if (!map || route.waypoints.length) return;
+      if (lastView) {
+        const k = Math.PI / 180;
+        const d = 6371 * Math.acos(Math.min(1, Math.sin(lat * k) * Math.sin(lastView.lat * k) + Math.cos(lat * k) * Math.cos(lastView.lat * k) * Math.cos((lon - lastView.lng) * k)));
+        if (d < 30) return;
+      }
+      map.jumpTo({ center: [lon, lat], zoom: 11 });
     } catch {
-      /* stays on Europe */
+      /* stays on the last view or Europe */
     }
   }
 

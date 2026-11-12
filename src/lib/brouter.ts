@@ -174,6 +174,13 @@ async function requestLeg(url: string, attempt = 0): Promise<Leg> {
   const r = await fetch(url);
   const text = await r.text();
   if (r.ok) return parseBrouter(JSON.parse(text));
+  // the server queues legs and limits each client: wait as long as it asks and try again
+  if ((r.status === 429 || r.status === 503) && attempt < 5) {
+    const after = Math.min(10, Number(r.headers.get('Retry-After')) || 2);
+    await new Promise((res) => setTimeout(res, after * 1000 + Math.random() * 500));
+    return requestLeg(url, attempt + 1);
+  }
+  if (r.status === 429 || r.status === 503) throw new Error(t('route.busy'));
   const msg = text.trim().split('\n')[0];
   if (/killed/i.test(msg) && attempt < 3) {
     await new Promise((res) => setTimeout(res, 400 + Math.random() * 600 * (attempt + 1)));
