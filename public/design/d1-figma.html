@@ -1,0 +1,1329 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>nakarte next – Figma, тёмные панели</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+:root{--font-ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;--font-num:'JetBrains Mono',ui-monospace,Menlo,monospace;--bg:#161616;--panel:#2c2c2c;--panel2:#383838;--panel3:#555;--ink:#ffffff;--ink2:#b8b8b8;--line:#454545;--grid:rgba(255,255,255,.16);
+--accent:#0b74d1;--accent-ink:#fff;--accent-text:#5cb8ff;--accent-soft:rgba(13,153,255,.22);--accent-ring:#5cb8ff;--seg-on:#4a4a4a;
+--steep:#ff6b5b;--danger:#ff8a7d;--pf-bg:#232323;--strip-bg:#3a3a3a;--strip-ink:#e6e6e6;--tip-bg:#101010;--tip-tip:#fff;--tip-ink:#fff;--tip-ink2:#c9c9c9;--shadow:0 6px 24px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.04);
+--sel:rgba(92,184,255,.13);--sbar-asphalt:#8b8b95;--sbar-compact:#c0a45e;--sbar-gravel:#d6c8a2;--sbar-dirt:#a9794a;--sbar-trail:#6fa35a;}
+@media (prefers-color-scheme:dark){:root{--bg:#0f0f0f;--panel:#232323;--panel2:#2e2e2e;--line:#3a3a3a;--pf-bg:#1b1b1b;--strip-bg:#2e2e2e;--seg-on:#3e3e3e;}}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:400 12px/1.4 var(--font-ui);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent-text);outline-offset:1px}
+.mono,kbd,output,.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+kbd{font-size:10.5px;padding:0 4px;border-radius:3px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:var(--hh) minmax(0,1fr) auto;--hh:44px;--lw:244px;--rw:272px}
+.dim{color:var(--ink2)}
+
+/* шапка */
+.top{display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--panel);border-bottom:1px solid var(--line);position:relative;z-index:20}
+.logo{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--accent);color:var(--accent-ink);flex:none}
+.name{flex:0 1 300px;min-width:90px;height:28px;padding:0 8px;border:1px solid transparent;border-radius:6px;background:transparent;font-weight:600;font-size:13px;text-overflow:ellipsis}
+.name:hover{border-color:var(--line)}
+.name:focus{outline:none;border-color:var(--accent-text);background:var(--panel2)}
+.sync{display:inline-flex;align-items:center;gap:6px;color:var(--ink2);white-space:nowrap}
+.sync .dot{width:7px;height:7px;border-radius:50%;background:#e0a030}
+.sync[data-state=ok] .dot{background:#2faa5a}
+.grow{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);white-space:nowrap;font-weight:500}
+.btn:hover{border-color:var(--ink2)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--accent-text);font-weight:600}
+.btn.ghost:hover{background:var(--panel2)}
+.btn small{color:var(--ink2);font-weight:400;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;padding:0 12px}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.primary[data-state=busy]{opacity:.8}
+.btn.primary[data-state=done]{background:#1b7f43;border-color:#1b7f43}
+.btn.wide{width:100%;height:30px}
+.btn.danger{color:var(--danger)}
+.btn[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent-text)}
+.ibtn{width:28px;padding:0}
+.pop-wrap{position:relative}
+.pop{position:absolute;right:0;top:calc(100% + 8px);width:332px;max-height:calc(100vh - 120px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:10px 12px 12px;z-index:50}
+.pop.menu{width:170px;padding:6px}
+.pop.menu button{display:flex;width:100%;align-items:center;gap:8px;height:30px;padding:0 8px;border:0;border-radius:5px;background:transparent;text-align:left}
+.pop.menu button:hover{background:var(--panel2)}
+.pop-h{font-weight:600;font-size:11px;color:var(--ink2);margin:6px 0 6px;letter-spacing:.02em}
+.pop-h:first-child{margin-top:0}
+.lg-group h4{margin:8px 0 5px;font-size:11.5px;font-weight:600}
+.lg-group h4 small{font-weight:400;color:var(--ink2);margin-left:4px}
+.lg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.lyr{display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 2px 5px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);font-size:11px;line-height:1.2}
+.lyr:hover{border-color:var(--ink2)}
+.lyr[aria-checked=true]{border-color:var(--accent-text);box-shadow:0 0 0 1px var(--accent-text);background:var(--accent-soft)}
+.lyr.dis{opacity:.6}
+.lyr-sw{width:100%;height:26px;border-radius:4px}
+.ovl{display:grid;gap:2px}
+.ov{display:flex;align-items:center;gap:8px;height:30px;cursor:pointer}
+.ov input{position:absolute;opacity:0;width:1px;height:1px}
+.tgl{width:28px;height:16px;border-radius:8px;background:var(--panel3);position:relative;flex:none;transition:background .15s}
+.tgl::after{content:"";position:absolute;left:2px;top:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .15s}
+.ov input:checked+.tgl{background:var(--accent)}
+.ov input:checked+.tgl::after{transform:translateX(12px)}
+.ov input:focus-visible+.tgl{outline:2px solid var(--accent-text);outline-offset:2px}
+
+/* основа */
+#main{display:grid;grid-template-columns:var(--lw) minmax(0,1fr) var(--rw);min-height:0;transition:grid-template-columns .2s}
+#app.no-left{--lw:0px}#app.no-right{--rw:0px}
+.panel{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--panel);transition:visibility 0s}
+#left{border-right:1px solid var(--line)}#right{border-left:1px solid var(--line)}
+#app.no-left #left,#app.no-right #right{visibility:hidden;border-width:0;transition:visibility 0s .2s}
+.ph2{display:flex;align-items:center;gap:6px;height:36px;padding:0 8px 0 12px;border-bottom:1px solid var(--line);font-weight:600;flex:none;white-space:nowrap}
+.ph2 .sp{flex:1}
+.ib{display:inline-grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;color:var(--ink2);flex:none}
+.ib:hover{background:var(--panel2);color:var(--ink)}
+.ib[aria-pressed=false].eye{color:var(--ink2);opacity:.75}
+.ib.spacer{pointer-events:none}
+.scroll{flex:1;overflow:auto;min-height:0}
+.sheet-x{display:none}
+
+/* слои документа */
+.tree,.tree ul{list-style:none;margin:0;padding:0}
+.tree{padding:6px 0}
+.row{display:flex;align-items:center;gap:6px;height:28px;padding:0 8px 0 6px;cursor:default;white-space:nowrap}
+.row:hover{background:var(--panel2)}
+.row.on{background:var(--accent-soft)}
+.row.on .nm{font-weight:600}
+.row.l1{padding-left:20px}.row.l2{padding-left:34px}
+.row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.row .cnt{color:var(--ink2);font-size:11px}
+.row.grp{color:var(--ink2);font-weight:500}
+.row.empty{color:var(--ink2);height:auto;padding-top:4px;padding-bottom:6px;white-space:normal;line-height:1.35}
+.row.empty:hover{background:transparent}
+.rico{display:grid;place-items:center;color:var(--ink2);flex:none}
+.chev svg{transition:transform .15s;transform:rotate(-90deg)}
+.chev.open svg{transform:none}
+.cpi{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;color:#fff;flex:none}
+.cpi.sm{width:17px;height:17px}
+.swatch{position:relative;width:16px;height:16px;border-radius:4px;overflow:hidden;border:1px solid var(--line);flex:none;cursor:pointer}
+.swatch input{position:absolute;inset:-4px;width:30px;height:30px;opacity:0;cursor:pointer}
+.swatch i{position:absolute;inset:0}
+
+/* инспектор */
+.sec{padding:10px 12px 12px;border-bottom:1px solid var(--line)}
+.sec h3{margin:0 0 8px;font-size:11.5px;font-weight:600}
+.prow{display:grid;grid-template-columns:82px minmax(0,1fr);align-items:center;gap:6px;min-height:28px;margin-bottom:4px}
+.prow>label{color:var(--ink2)}
+.prow.col{grid-template-columns:1fr;gap:3px;margin-bottom:8px}
+.inp{width:100%;height:28px;padding:0 8px;border:1px solid transparent;border-radius:5px;background:var(--panel2)}
+textarea.inp{height:auto;padding:6px 8px;resize:vertical;line-height:1.4}
+.inp::placeholder{color:var(--ink2);opacity:1}
+.inp:hover{border-color:var(--line)}
+.inp:focus{outline:none;border-color:var(--accent-text)}
+.seg{display:flex;padding:2px;border-radius:6px;background:var(--panel2);gap:2px}
+.seg button{flex:1;height:24px;padding:0 4px;border:0;border-radius:4px;background:transparent;color:var(--ink2);white-space:nowrap;font-size:11.5px}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-checked=true]{background:var(--seg-on);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--line)}
+.pc.range{display:flex;align-items:center;gap:8px}
+.pc.range input{flex:1;min-width:0;accent-color:var(--accent)}
+.pc.range output{min-width:34px;text-align:right}
+.note{margin:6px 0 0;color:var(--ink2);line-height:1.4}.note.pad{padding:10px 12px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-bottom:8px}
+.stats.one{grid-template-columns:1fr 1fr}
+.stats span{display:block;color:var(--ink2);font-size:11px}
+.stats b{font:600 13px var(--font-num);font-variant-numeric:tabular-nums}
+.sbar{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:1px;margin:2px 0 8px;background:var(--panel2)}
+.sbar i{display:block}
+.slist{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.slist li{display:flex;align-items:center;gap:7px}
+.slist .sw{width:10px;height:10px;border-radius:2px;flex:none}
+.slist .mono{margin-left:auto;color:var(--ink2)}
+.tgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.tgrid button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px 5px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);font-size:10.5px}
+.tgrid button[aria-checked=true]{border-color:var(--accent-text);box-shadow:0 0 0 1px var(--accent-text);background:var(--accent-soft)}
+
+/* карта */
+#mapwrap{position:relative;min-width:0;min-height:0;overflow:hidden;background:#e6e3dc}
+#map{position:absolute;inset:0}
+#map .maplibregl-canvas-container.maplibregl-interactive{cursor:var(--cur,grab)}
+body[data-tool=V]{--cur:default}
+body[data-tool=R],body[data-tool=L],body[data-tool=M]{--cur:crosshair}
+body[data-tool=C]{--cur:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M12 25s7-6.2 7-11.5A7 7 0 0 0 5 13.5C5 18.8 12 25 12 25z' fill='%230b74d1' stroke='%23fff' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='13' r='2.4' fill='%23fff'/%3E%3C/svg%3E") 12 25,copy}
+body[data-tool=E]{--cur:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M22 24H11L5.5 18.5a2 2 0 0 1 0-2.8L14 7.2a2 2 0 0 1 2.8 0l5.7 5.7a2 2 0 0 1 0 2.8L14 24' fill='%23fff' stroke='%231e1e1e' stroke-width='1.8'/%3E%3C/svg%3E") 6 22,not-allowed}
+body[data-tool=E] .wp,body[data-tool=E] .cp{cursor:not-allowed}
+body[data-tool=V] .wp,body[data-tool=V] .cp{cursor:grab}
+body:not([data-tool=V]):not([data-tool=E]) .wp,body:not([data-tool=V]):not([data-tool=E]) .cp{cursor:inherit}
+.maplibregl-ctrl-top-right{margin-top:4px}
+.maplibregl-ctrl-group{border-radius:8px!important;box-shadow:0 1px 4px rgba(0,0,0,.3)!important}
+.maplibregl-ctrl-attrib{font-size:10.5px}
+#hint{position:absolute;top:10px;left:10px;max-width:calc(100% - 80px);padding:5px 10px;border-radius:7px;background:var(--tip-bg);color:var(--tip-ink);font-size:11.5px;line-height:1.35;box-shadow:0 1px 4px rgba(0,0,0,.3);pointer-events:none;z-index:4}
+#hint kbd{background:#fff;color:#1e1e1e;border-color:#fff;margin-right:2px}
+#rulerChip{position:absolute;top:48px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:4px 6px 4px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);z-index:5;white-space:nowrap}
+#rulerChip b{font:600 13px var(--font-num)}
+#rulerChip span{color:var(--ink2)}
+#rulerChip button{height:22px;padding:0 9px;border:0;border-radius:999px;background:var(--panel2)}
+#fitBtn{position:absolute;right:10px;top:78px;width:29px;height:29px;display:grid;place-items:center;border:0;border-radius:8px;background:#fff;color:#1e1e1e;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:3}
+#mapTip{position:absolute;transform:translate(12px,-34px);padding:3px 8px;border-radius:6px;background:var(--tip-bg);color:var(--tip-ink);font:500 11.5px var(--font-num);pointer-events:none;white-space:nowrap;z-index:3}
+.hover-dot{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid #1e1e1e;box-shadow:0 0 0 3px rgba(255,255,255,.85);pointer-events:none}
+.wp{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;font:600 11px var(--font-num);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.wp-start{background:#1a7f37;color:#fff;z-index:2}.wp-end{background:#1e1e1e;color:#fff}
+.wp-mid{background:#fff;color:#1e1e1e;border-color:#1e1e1e}
+.cp{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.cp.sel{box-shadow:0 0 0 3px #0b74d1,0 1px 4px rgba(0,0,0,.5)}
+
+/* палитра инструментов */
+#palwrap{position:absolute;z-index:6}
+#pal{display:flex;align-items:center;gap:2px;padding:4px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
+.tbtn{position:relative;display:grid;place-items:center;width:38px;height:38px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--ink)}
+.tbtn:hover:not(:disabled){background:var(--panel2)}
+.tbtn[aria-pressed=true],.tbtn[aria-pressed=true]:hover:not(:disabled){background:var(--accent);color:var(--accent-ink)}
+.tbtn:disabled{opacity:.45;cursor:default}
+.tbtn .k{position:absolute;right:3px;bottom:1px;font:600 9.5px var(--font-num);color:var(--ink2)}
+.tbtn[aria-pressed=true] .k{color:var(--accent-ink)}
+.tbtn .tri{position:absolute;right:3px;top:3px;width:0;height:0;border-left:4px solid transparent;border-top:4px solid currentColor;transform:rotate(-45deg) translate(1px,-1px);opacity:.8}
+.psep{background:var(--line);flex:none}
+.tbtn::after{content:attr(data-tip) "  " attr(data-key);position:absolute;white-space:pre;padding:4px 8px;border-radius:6px;background:var(--tip-bg);color:var(--tip-ink);font:500 11.5px var(--font-ui);opacity:0;pointer-events:none;transition:opacity .12s;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.tbtn:hover::after,.tbtn:focus-visible::after{opacity:1;transition-delay:.25s}
+#fly{position:absolute;width:196px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:7}
+.fly-h{padding:2px 6px 5px;color:var(--ink2);font-size:11px;font-weight:600}
+#fly button{display:flex;align-items:center;gap:8px;width:100%;height:30px;padding:0 6px;border:0;border-radius:6px;background:transparent;text-align:left}
+#fly button:hover{background:var(--panel2)}
+#fly button[aria-checked=true]{background:var(--accent-soft)}
+#fly .fn{flex:1}
+
+/* профиль */
+#prof{position:relative;display:flex;flex-direction:column;height:var(--ph);background:var(--pf-bg);border-top:1px solid var(--line);z-index:8;min-height:0}
+#prof.collapsed{height:auto}
+#profGrip{position:absolute;left:0;right:0;top:-5px;height:11px;cursor:ns-resize;z-index:9;touch-action:none}
+#profGrip::after{content:"";position:absolute;left:50%;top:3px;width:44px;height:4px;margin-left:-22px;border-radius:2px;background:var(--ink2);opacity:.5;transition:opacity .15s}
+#profGrip:hover::after,#profGrip:focus-visible::after,body.resizing #profGrip::after{opacity:1;background:var(--accent-text)}
+body.resizing{cursor:ns-resize;user-select:none}
+.phd{display:flex;align-items:center;flex-wrap:wrap;gap:4px 14px;min-height:36px;padding:3px 10px 3px 6px;flex:none}
+.phd strong{font-weight:600}
+.sum{display:flex;align-items:center;gap:12px;font-size:12.5px;white-space:nowrap}
+.sum b{font:600 13px var(--font-num)}
+.sum.ranged b{color:var(--accent-text)}
+#rangebox{display:flex;align-items:center;gap:6px;padding:2px 4px 2px 10px;border-radius:999px;background:var(--accent-soft);border:1px solid var(--accent-text);white-space:nowrap;font-size:11.5px}
+#rangebox button{height:20px;padding:0 8px;border:0;border-radius:999px;background:transparent;color:var(--accent-text);font-weight:600}
+.legend{display:flex;align-items:center;gap:6px 14px;margin-left:auto;font-size:11px;color:var(--ink);white-space:nowrap;min-width:0}
+.lg{display:inline-flex;align-items:center;gap:10px}
+.lg-i{display:inline-flex;align-items:center;gap:4px}
+.sq{display:inline-block;width:10px;height:10px;border-radius:2px;flex:none}
+.sq.flat{outline:1.5px solid #26262b;outline-offset:-1.5px}
+.sq.steep{background:var(--steep);height:4px;margin-top:1px}
+.lg-s svg{color:var(--ink)}.lg-s em{font-style:normal}
+#profBody{position:relative;flex:1;min-height:0}
+#prof.collapsed #profBody{display:none}
+#pc{position:absolute;left:0;top:0}
+#pov{position:absolute;inset:0;cursor:crosshair;touch-action:none}
+#psel{position:absolute;background:var(--sel);border-left:1.5px solid var(--accent-text);border-right:1.5px solid var(--accent-text);pointer-events:none}
+#pcur{position:absolute;width:0;border-left:1px solid var(--ink);pointer-events:none}
+#pcur::after{content:"";position:absolute;left:-5px;top:calc(var(--y) - 5px);width:10px;height:10px;border-radius:50%;background:var(--pf-bg);border:2.5px solid var(--ink);box-sizing:border-box}
+#ptip{position:absolute;padding:4px 8px;border-radius:6px;background:var(--tip-bg);color:var(--tip-ink);font:500 11.5px var(--font-num);pointer-events:none;white-space:nowrap;z-index:2;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+#ptip span{display:block;color:var(--tip-ink2);font:400 11px var(--font-ui)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);padding:7px 14px;border-radius:8px;background:var(--tip-bg);color:var(--tip-ink);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.2s;z-index:100;max-width:90vw}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+#backdrop.on{opacity:1;pointer-events:auto}
+
+/* окно меньше 1280 */
+@media (max-width:1799px){.legend{flex-basis:100%;margin-left:0;padding:0 0 3px 22px}#prof.collapsed .lg-surf{display:none}#prof.collapsed .legend{flex-basis:auto;margin-left:auto;padding:0}}
+@media (max-width:1100px){#app{--lw:220px;--rw:248px}.sync span:last-child{display:none}}
+
+/* мобильные: палитра в полосу над профилем, слои и свойства – листы */
+@media (max-width:639.98px){
+  #app{--hh:46px}
+  .top{gap:4px;padding:0 6px}
+  .name{flex:1 1 auto;min-width:60px;padding:0 4px}
+  .sync{gap:0}.sync span:last-child,#signin,.btn .lbl,.btn small{display:none}
+  .btn{padding:0;width:34px;height:34px}
+  .btn.primary{padding:0}
+  .btn.primary .lbl{display:none}
+  .logo{display:none}
+  #main{grid-template-columns:minmax(0,1fr)!important}
+  .panel{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:74vh;height:auto;border-radius:14px 14px 0 0;border:1px solid var(--line)!important;transform:translateY(105%);visibility:hidden;transition:transform .24s,visibility 0s .24s;z-index:40;box-shadow:var(--shadow)}
+  .panel.open{transform:none;visibility:visible;transition:transform .24s,visibility 0s}
+  #app.no-left #left,#app.no-right #right{visibility:hidden}
+  #app.no-left #left.open,#app.no-right #right.open{visibility:visible}
+  .sheet-x{display:inline-grid}
+  .ph2{height:44px}
+  .row{height:36px}.ib{width:30px;height:30px}
+  .prow{min-height:34px}.inp{height:34px}.seg button{height:30px}
+  .pop,.pop.menu{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;max-height:70vh;border-radius:14px 14px 0 0;z-index:45}
+  .pop.menu button{height:42px}
+  .lg-grid{grid-template-columns:repeat(3,1fr)}
+  #hint{left:6px;right:6px;top:6px;max-width:none;font-size:11px}
+  .maplibregl-ctrl-top-right{margin-top:44px}#fitBtn{top:122px}
+  .maplibregl-ctrl-bottom-left{margin-bottom:52px}
+  #palwrap{left:0!important;right:0;bottom:0!important;top:auto!important;transform:none!important}
+  #pal{width:100%;border-radius:0;border-width:1px 0 0;justify-content:space-between;flex-direction:row!important;padding:4px 6px;overflow-x:auto;gap:0}
+  .tbtn{width:42px;height:42px;flex:none}
+  .tbtn::after{display:none}
+  .psep{width:1px!important;height:24px!important;margin:0 2px!important}
+  #fly{left:6px!important;right:auto!important;top:auto!important;bottom:calc(100% + 8px)!important;transform:none!important}
+  .phd{gap:2px 10px;padding:2px 8px 2px 4px}
+  .phd strong{display:none}
+  .sum{gap:9px;font-size:11.5px}.sum b{font-size:12px}
+  .legend{order:5;width:100%;margin-left:0;overflow-x:auto;padding:0 0 3px 4px;scrollbar-width:none}
+  #rangebox{font-size:11px}
+  #prof.collapsed .legend{display:none}
+  #mapTip{display:none}
+  #hint .d{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:0s!important;transition-delay:0s!important}}
+
+
+/* d1: палитра – горизонтально по центру карты над профилем, как в FigJam */
+#palwrap{left:50%;bottom:16px;transform:translateX(-50%)}
+#pal{border-radius:14px}
+.psep{width:1px;height:22px;margin:0 5px}
+.tbtn::after{bottom:calc(100% + 10px);left:50%;transform:translateX(-50%)}
+#fly{bottom:calc(100% + 10px);left:50%;transform:translateX(-50%)}
+#hint{left:10px}
+
+</style>
+</head>
+<body class="d1" data-tool="V">
+<div id="app" style="--ph:236px">
+  <header class="top">
+    <button type="button" class="btn ibtn" id="toggleLeft" aria-label="Слои документа" aria-pressed="true" title="Слои документа"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h18v16H3z"/><path d="M9 4v16"/></svg></button>
+    <span class="logo" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/><path d="M15 5a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/><path d="M7 17c0-6.5 10-2.5 10-10"/></svg></span>
+    <input id="name" class="name" type="text" aria-label="Название маршрута" value="" spellcheck="false">
+    <span class="sync" id="sync" data-state="off"><i class="dot"></i><span id="syncTxt">Только на этом устройстве</span></span>
+    <button type="button" class="btn ghost" id="signin">Войти</button>
+    <span class="grow"></span>
+    <div class="pop-wrap">
+      <button type="button" class="btn" id="layersBtn" aria-expanded="false" aria-haspopup="true" aria-label="Слои карты"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 12.5l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg><span class="lbl">Карта</span><small id="baseName">OSM</small></button>
+      <div class="pop" id="layersPop" hidden></div>
+    </div>
+    <button type="button" class="btn" id="share" aria-label="Поделиться"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M5 12v8h14v-8"/></svg><span class="lbl">Поделиться</span></button>
+    <div class="pop-wrap">
+      <button type="button" class="btn" id="exportBtn" aria-expanded="false" aria-haspopup="true" aria-label="Экспорт"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span class="lbl">Экспорт</span></button>
+      <div class="pop menu" id="exportPop" hidden><button type="button" data-fmt="gpx"><b>GPX</b><span class="dim">трек и точки</span></button><button type="button" data-fmt="fit"><b>FIT</b><span class="dim">для часов</span></button></div>
+    </div>
+    <button type="button" class="btn primary" id="garmin" aria-label="Отправить в Garmin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 6h10v12H7z"/><path d="M9 6l.6-3h4.8L15 6"/><path d="M9 18l.6 3h4.8L15 18"/><path d="M12 10v2.5l1.6 1"/></svg><span class="lbl">Отправить в Garmin</span></button>
+    <button type="button" class="btn ibtn" id="toggleRight" aria-label="Свойства" aria-pressed="true" title="Свойства"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h18v16H3z"/><path d="M15 4v16"/></svg></button>
+  </header>
+  <div id="main">
+    <aside class="panel" id="left" aria-label="Слои документа">
+      <div class="ph2"><span>Слои</span><span class="sp"></span><button type="button" class="ib sheet-x" data-close="left" aria-label="Закрыть"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg></button></div>
+      <div class="scroll" id="layersBody"></div>
+    </aside>
+    <div id="mapwrap">
+      <div id="map"></div>
+      <div id="hint"></div>
+      <div id="rulerChip" hidden><b>0 км</b><span></span><button type="button" id="rulerClear">Сброс</button></div>
+      <button type="button" id="fitBtn" aria-label="Показать весь маршрут" title="Показать весь маршрут"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg></button>
+      <div id="mapTip" hidden></div>
+      <div id="palwrap"><div id="pal" role="toolbar" aria-label="Инструменты построения"></div><div id="fly" role="radiogroup" hidden></div></div>
+    </div>
+    <aside class="panel" id="right" aria-label="Свойства">
+      <div class="ph2"><span id="inspTitle">Маршрут</span><span class="sp"></span><button type="button" class="ib sheet-x" data-close="right" aria-label="Закрыть"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg></button></div>
+      <div class="scroll" id="inspBody"></div>
+    </aside>
+  </div>
+  <section id="prof" aria-label="Профиль высот">
+    <div id="profGrip" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Высота профиля, перетащите или стрелки вверх и вниз" aria-valuemin="120" aria-valuenow="236" title="Потяните, чтобы изменить высоту. Двойной щелчок сворачивает"></div>
+    <div class="phd">
+      <button type="button" class="ib" id="profToggle" aria-expanded="true" aria-label="Свернуть профиль"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <strong>Профиль</strong>
+      <div class="sum" id="sum"><span><b id="sumKm">0</b> км</span><span title="Набор высоты">↑ <b id="sumUp"></b></span><span title="Спуск">↓ <b id="sumDown"></b></span><span title="Время в пути"><b id="sumTime"></b></span></div>
+      <div id="rangebox" hidden><span>Участок: <b id="rangeTxt"></b></span><button type="button" id="rangeClear">Сбросить</button></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div id="profBody"><canvas id="pc" aria-label="График высот маршрута"></canvas><div id="psel" hidden></div><div id="pcur" hidden></div><div id="ptip" hidden></div><div id="pov"></div></div>
+  </section>
+</div>
+<div id="backdrop"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const VARIANT = 'd1';
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function cr(p0, p1, p2, p3, t) { const t2 = t * t, t3 = t2 * t; return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3); }
+function splineAt(P, u) {
+  const n = P.length; const i = Math.min(Math.floor(u), n - 2); const t = u - i;
+  const a = P[Math.max(i - 1, 0)], b = P[i], c = P[i + 1], d = P[Math.min(i + 2, n - 1)];
+  return [cr(a[0], b[0], c[0], d[0], t), cr(a[1], b[1], c[1], d[1], t)];
+}
+function pchip(xs, ys) {
+  const n = xs.length, h = [], d = [], m = new Array(n);
+  for (let i = 0; i < n - 1; i++) { h[i] = xs[i + 1] - xs[i]; d[i] = (ys[i + 1] - ys[i]) / h[i]; }
+  m[0] = d[0]; m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (d[i - 1] * d[i] <= 0) m[i] = 0;
+    else { const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1]; m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]); }
+  }
+  return x => {
+    let i = 0; while (i < n - 2 && x > xs[i + 1]) i++;
+    const t = (x - xs[i]) / h[i], t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * ys[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * ys[i + 1] + (t3 - t2) * h[i] * m[i + 1];
+  };
+}
+function buildData() {
+  const rnd = mulberry32(11);
+  const ctrl = [[38.7978, -9.3868], [38.7905, -9.3720], [38.7780, -9.3650], [38.7655, -9.3770], [38.7560, -9.3950], [38.7520, -9.4150], [38.7600, -9.4350], [38.7700, -9.4520], [38.7850, -9.4620], [38.8010, -9.4580], [38.8130, -9.4400], [38.8230, -9.4200], [38.8200, -9.4010], [38.8110, -9.3925], [38.7967, -9.3905]];
+  const NV = 60;
+  const V = [];
+  for (let j = 0; j < NV; j++) {
+    const u = j / (NV - 1) * (ctrl.length - 1);
+    const p = splineAt(ctrl, u);
+    const w = Math.sin(Math.PI * j / (NV - 1));
+    const nz = (Math.sin(j * 1.37) + 0.6 * Math.sin(j * 2.91 + 1) + (rnd() - 0.5) * 0.8) * 0.00042 * w;
+    const nz2 = (Math.cos(j * 1.71) + 0.5 * Math.sin(j * 3.3) + (rnd() - 0.5) * 0.8) * 0.00052 * w;
+    V.push([p[0] + nz, p[1] + nz2]);
+  }
+  // плотная кривая и равномерная передискретизация (нормируем на 42,3 км)
+  const dense = [];
+  for (let j = 0; j < (NV - 1) * 12; j++) dense.push(splineAt(V, j / 12));
+  dense.push(V[NV - 1]);
+  const cum = [0];
+  for (let j = 1; j < dense.length; j++) {
+    const dy = (dense[j][0] - dense[j - 1][0]) * 110574, dx = (dense[j][1] - dense[j - 1][1]) * 111320 * Math.cos(dense[j][0] * Math.PI / 180);
+    cum.push(cum[j - 1] + Math.hypot(dx, dy));
+  }
+  const total = cum[cum.length - 1];
+  const N = 424; const pts = []; let k = 0;
+  for (let i = 0; i < N; i++) {
+    const s = total * i / (N - 1);
+    while (k < cum.length - 2 && cum[k + 1] < s) k++;
+    const f = (s - cum[k]) / (cum[k + 1] - cum[k] || 1);
+    pts.push([dense[k][1] + (dense[k + 1][1] - dense[k][1]) * f, dense[k][0] + (dense[k + 1][0] - dense[k][0]) * f]);
+  }
+  const km = pts.map((_, i) => i * 0.1);
+  const EC = [[0,190],[1.5,205],[3,240],[4.5,265],[6,245],[7.5,200],[9,152],[10.8,128],[12.5,100],[14.1,92],[15.5,118],[17,150],[18.2,160],[18.6,205],[19,262],[19.4,296],[20.2,250],[21,170],[22.5,118],[24,98],[24.6,128],[25.3,176],[26,226],[27,262],[28,280],[29,292],[30,262],[31.5,214],[33,192],[34.5,232],[36,258],[37,244],[38.2,205],[39.5,170],[41,176],[42.3,190]];
+  const f = pchip(EC.map(e => e[0]), EC.map(e => e[1]));
+  const ele = km.map(x => Math.round((190 + 1.408 * (f(x) + 2.2 * Math.sin(x * 3.1) + 1.3 * Math.sin(x * 7.7 + 1) - 190) + 25 * x / 42.3) * 10) / 10);
+  const grade = ele.map((_, i) => { const lo = Math.max(i - 3, 0), hi = Math.min(i + 3, N - 1); return (ele[hi] - ele[lo]) / ((hi - lo) * 100) * 100; });
+  // покрытие по участкам: A 25,8 / C 9,3 / G 5,1 / T 2,1
+  const SR = [['asphalt', 7.0], ['compact', 3.0], ['gravel', 2.2], ['asphalt', 6.0], ['trail', 1.2], ['gravel', 1.6], ['compact', 3.1], ['asphalt', 5.3], ['trail', 0.9], ['gravel', 1.3], ['compact', 3.2], ['asphalt', 7.5]];
+  const surf = new Array(N - 1); { let a = 0; SR.forEach(([s, l]) => { const b = a + l; for (let i = 0; i < N - 1; i++) { const m = i * 0.1 + 0.05; if (m >= a - 1e-9 && m < b - 1e-9) surf[i] = s; } a = b; }); }
+  const straight = new Array(N - 1).fill(false);
+  for (let i = 260; i < 272; i++) straight[i] = true; // 26,0–27,2 км
+  let up = 0, down = 0; for (let i = 1; i < N; i++) { const d = ele[i] - ele[i - 1]; if (d > 0) up += d; else down -= d; }
+  const wps = [0, 141, 280, 423].map(i => ({ i, km: km[i], lon: pts[i][0], lat: pts[i][1] }));
+  const cps = [{ type: 'water', name: 'Питьевой фонтан, Сан-Педру', i: 108 }, { type: 'cafe', name: 'Кафе «Кошта», Колареш', i: 215 }, { type: 'view', name: 'Смотровая Пенинья', i: 331 }]
+    .map(c => ({ ...c, km: km[c.i], ele: ele[c.i], lon: pts[c.i][0], lat: pts[c.i][1] }));
+  return { N, pts, km, ele, grade, surf, straight, wps, cps, up, down, total: 42.3 };
+}
+
+const sw = (a, b, c) => 'linear-gradient(135deg,' + a + ' 0 45%,' + b + ' 45% 70%,' + c + ' 70%)';
+const MAPY_KEY = window.NK_MAPY_KEY || '';
+const LAYER_GROUPS = [
+  { name: 'OpenStreetMap', items: [
+    { id: 'osm', name: 'OSM', url: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], max: 19, sw: sw('#f2efe9', '#aad3df', '#c8facc') },
+    { id: 'cyclosm', name: 'CyclOSM', url: ['https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', 'https://b.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png'], max: 19, sw: sw('#f3f1d6', '#9ec8e8', '#b8dca0') },
+    { id: 'otm', name: 'OpenTopoMap', url: ['https://a.tile.opentopomap.org/{z}/{x}/{y}.png', 'https://b.tile.opentopomap.org/{z}/{x}/{y}.png'], max: 17, sw: sw('#e8dfc5', '#a8d1e0', '#b9d9a6') },
+  ] },
+  { name: 'mapy.com', note: 'нужен ключ API', items: [
+    { id: 'mapy-outdoor', name: 'Туристическая', url: ['https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=' + MAPY_KEY], max: 19, sw: sw('#f4f0dd', '#8fc7e8', '#a9d68b'), key: true },
+    { id: 'mapy-winter', name: 'Зимняя', url: ['https://api.mapy.cz/v1/maptiles/winter/256/{z}/{x}/{y}?apikey=' + MAPY_KEY], max: 19, sw: sw('#f2f6f9', '#b4d6ee', '#dfe9ef'), key: true },
+  ] },
+  { name: 'Google', items: [
+    { id: 'g-map', name: 'Карта', url: ['https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'], max: 20, sw: sw('#f5f3ee', '#a5d0f0', '#c6e6c2') },
+    { id: 'g-sat', name: 'Спутник', url: ['https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'], max: 20, sw: sw('#4c5a3b', '#1f3a52', '#6b6a4a') },
+    { id: 'g-hyb', name: 'Гибрид', url: ['https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'], max: 20, sw: sw('#4c5a3b', '#e8e8e8', '#6b6a4a') },
+    { id: 'g-ter', name: 'Рельеф', url: ['https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}'], max: 15, sw: sw('#d9cfb2', '#a5c8e4', '#aac79a') },
+  ] },
+  { name: 'Спутник', items: [
+    { id: 'esri', name: 'ESRI', url: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], max: 19, sw: sw('#59663f', '#233f55', '#7a7455') },
+    { id: 'bing', name: 'Bing', url: ['bing://{z}/{x}/{y}'], max: 19, sw: sw('#526140', '#2b4a60', '#807a5a') },
+  ] },
+  { name: 'Яндекс', items: [
+    { id: 'ya-map', name: 'Карта', url: ['https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU'], max: 19, sw: sw('#f3f0e8', '#bcd9ef', '#cfe5b8') },
+    { id: 'ya-sat', name: 'Спутник', url: ['https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}'], max: 19, sw: sw('#566341', '#25425a', '#7d775a') },
+  ] },
+];
+const OVERLAYS = [
+  { id: 'wm-cycle', name: 'Waymarked: вело', url: ['https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png'], max: 18, opacity: 0.85 },
+  { id: 'wm-hike', name: 'Waymarked: пешие', url: ['https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png'], max: 18, opacity: 0.85 },
+  { id: 'strava', name: 'Хитмап Strava', url: ['https://heatmap-external-a.strava.com/tiles/all/hot/{z}/{x}/{y}.png'], max: 15, opacity: 0.8 },
+];
+const ALL_LAYERS = {}; LAYER_GROUPS.forEach(g => g.items.forEach(i => ALL_LAYERS[i.id] = i)); OVERLAYS.forEach(o => ALL_LAYERS[o.id] = o);
+
+const OVERLAYS_PLACEHOLDER = 0;
+
+/* ===== константы оформления ===== */
+const GC = ['#2c7fb8', '#7fcdbb', '#c9c9cc', '#fee08b', '#fdae61', '#d73027', '#7f0000'];
+const GL = ['↓ >8%', '↓ 3–8%', '±3%', '↑ 3–6%', '↑ 6–10%', '↑ 10–15%', '↑ >15%'];
+const SURF = {
+  asphalt: { name: 'Асфальт', dash: null },
+  compact: { name: 'Укатанное', dash: [4, 1.5] },
+  gravel: { name: 'Гравий', dash: [2, 1.5] },
+  dirt: { name: 'Грунт', dash: [1, 1.2] },
+  trail: { name: 'Тропа', dash: [0.3, 1.2] },
+};
+const SURF_KEYS = ['asphalt', 'compact', 'gravel', 'dirt', 'trail'];
+const gradeClass = g => g < -8 ? 0 : g < -3 ? 1 : g < 3 ? 2 : g < 6 ? 3 : g < 10 ? 4 : g <= 15 ? 5 : 6;
+const FLAT_OUTLINE = '#26262b', STRAIGHT = '#6b747c';
+const $ = id => document.getElementById(id);
+const fmt = (n, d = 1) => n.toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
+const gfmt = g => (g >= 0 ? '↑ ' : '↓ ') + fmt(Math.abs(g)) + '%';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const isMobile = () => matchMedia('(max-width:639.98px)').matches;
+function fmtTime(h) { const m = Math.round(h * 60); return Math.floor(m / 60) + ' ч ' + String(m % 60).padStart(2, '0') + ' мин'; }
+
+/* ===== иконки (только path, чтобы рисовать и в SVG, и на canvas) ===== */
+const ICONS = {
+  v: ['M5 3l5.2 16 2.6-6.6L19.4 10 5 3z'],
+  r: ['M5 19a2 2 0 1 0 4 0 2 2 0 1 0-4 0', 'M15 5a2 2 0 1 0 4 0 2 2 0 1 0-4 0', 'M7 17c0-6.5 10-2.5 10-10'],
+  l: ['M6 18L18 6', 'M3 16h5v5H3z', 'M16 3h5v5h-5z'],
+  c: ['M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z', 'M12 7.6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'],
+  m: ['M3 15L15 3l6 6L9 21z', 'M7 13l2 2', 'M10 10l2 2', 'M13 7l2 2'],
+  e: ['M20 20H9L3.5 14.5a2 2 0 0 1 0-2.8L12 3.2a2 2 0 0 1 2.8 0l5.7 5.7a2 2 0 0 1 0 2.8L12 20', 'M7 9l8 8'],
+  undo: ['M9 14L4 9l5-5', 'M4 9h10a6 6 0 0 1 0 12h-3'],
+  redo: ['M15 14l5-5-5-5', 'M20 9H10a6 6 0 0 0 0 12h3'],
+  water: ['M12 3c3 4.2 6 7.4 6 11a6 6 0 0 1-12 0c0-3.6 3-6.8 6-11z'],
+  food: ['M6 3v6a2 2 0 0 0 4 0V3', 'M8 11v10', 'M16 21V3c-2.5 1.5-3.5 4.5-3.5 8H16'],
+  shop: ['M5 8h14l-1 12H6L5 8z', 'M9 8a3 3 0 0 1 6 0'],
+  camp: ['M3 20L12 5l9 15H3z', 'M10 20l2-5 2 5'],
+  view: ['M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z', 'M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6z'],
+  danger: ['M12 3l10 18H2L12 3z', 'M12 10v5', 'M12 18v.5'],
+  peak: ['M2 20l7-12 4 6 3-4 6 10H2z'],
+  eyeoff: ['M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z', 'M3 3l18 18'],
+  chev: ['M6 9l6 6 6-6'],
+  layers: ['M12 3l9 5-9 5-9-5 9-5z', 'M3 12.5l9 5 9-5', 'M3 17l9 5 9-5'],
+  share: ['M12 15V3', 'M7 8l5-5 5 5', 'M5 12v8h14v-8'],
+  down: ['M12 3v12', 'M7 10l5 5 5-5', 'M5 21h14'],
+  watch: ['M7 6h10v12H7z', 'M9 6l.6-3h4.8L15 6', 'M9 18l.6 3h4.8L15 18', 'M12 10v2.5l1.6 1'],
+  pl: ['M3 4h18v16H3z', 'M9 4v16'],
+  pr: ['M3 4h18v16H3z', 'M15 4v16'],
+  close: ['M6 6l12 12', 'M18 6L6 18'],
+  trash: ['M4 7h16', 'M9 7V4h6v3', 'M6 7l1 13h10l1-13'],
+  route: ['M5 19a2 2 0 1 0 4 0 2 2 0 1 0-4 0', 'M15 5a2 2 0 1 0 4 0 2 2 0 1 0-4 0', 'M7 17c0-6.5 10-2.5 10-10'],
+  track: ['M3 17c4-9 6 1 9-6s6 4 9-5'],
+  user: ['M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M4 21a8 8 0 0 1 16 0'],
+  fit: ['M4 9V4h5', 'M20 9V4h-5', 'M4 15v5h5', 'M20 15v5h-5'],
+  plus: ['M12 5v14', 'M5 12h14'],
+  minus: ['M5 12h14'],
+};
+function ic(name, size = 16, sw = 1.7) {
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name].map(d => '<path d="' + d + '"/>').join('') + '</svg>';
+}
+const CP_TYPES = [
+  { id: 'water', name: 'Вода', color: '#1b6fc4' },
+  { id: 'food', name: 'Еда', color: '#b5530a' },
+  { id: 'shop', name: 'Магазин', color: '#7a4fc2' },
+  { id: 'camp', name: 'Ночёвка', color: '#1c7a4a' },
+  { id: 'view', name: 'Вид', color: '#0f7f8a' },
+  { id: 'danger', name: 'Опасно', color: '#c0271f' },
+  { id: 'peak', name: 'Вершина', color: '#6b4f3a' },
+];
+const CPT = {}; CP_TYPES.forEach(t => CPT[t.id] = t);
+const TOOLS = [
+  { id: 'V', icon: 'v', name: 'Выбор и перемещение', key: 'V', hint: 'Клик по линии выбирает отрезок, точки можно перетаскивать.' },
+  { id: 'R', icon: 'r', name: 'Маршрут по дорогам', key: 'R', hint: 'Клик по карте добавляет точку, отрезок идёт по дорогам.' },
+  { id: 'L', icon: 'l', name: 'Отрезок по прямой', key: 'L', hint: 'Клик по карте добавляет точку, отрезок идёт по прямой.' },
+  { id: 'C', icon: 'c', name: 'Чекпоинт', key: 'C', hint: 'Клик по карте ставит чекпоинт. Тип: клавиши 1–7.' },
+  { id: 'M', icon: 'm', name: 'Линейка', key: 'M', hint: 'Клики по карте измеряют расстояние. Esc завершает.' },
+  { id: 'E', icon: 'e', name: 'Ластик', key: 'E', hint: 'Клик по точке или чекпоинту удаляет её.' },
+];
+
+/* ===== геометрия и документ ===== */
+let KS = 1; // масштаб мок-данных: профиль мока рассчитан на 42,3 км
+const havR = (a, b) => hav(a, b) / KS;
+const hav = (a, b) => KS * havRaw(a, b);
+const havRaw = (a, b) => { // a,b: [lon,lat], метры
+  const dy = (b[1] - a[1]) * 110574, dx = (b[0] - a[0]) * 111320 * Math.cos((a[1] + b[1]) / 2 * Math.PI / 180);
+  return Math.hypot(dx, dy);
+};
+const eleAt = (lon, lat) => 150 + 90 * Math.sin(lat * 95) * Math.cos(lon * 80) + 40 * Math.sin(lon * 210 + lat * 170);
+function makeSeg(A, B, mode, eA, eB) {
+  const dist = hav(A, B), n = Math.max(2, Math.round(dist / 100)), pts = [], ele = [];
+  const dx = B[0] - A[0], dy = B[1] - A[1];
+  const sgn = (Math.round(A[0] * 1e4 + B[1] * 1e4) % 2) ? 1 : -1;
+  for (let j = 0; j <= n; j++) {
+    const t = j / n; let x = A[0] + dx * t, y = A[1] + dy * t;
+    if (mode === 'road' && j > 0 && j < n) {
+      const w = Math.sin(Math.PI * t) * 0.09 * sgn + Math.sin(t * 17 + A[0] * 900) * 0.012 * Math.sin(Math.PI * t);
+      x += -dy * w; y += dx * w;
+    }
+    pts.push([x, y]);
+    ele.push(Math.round((eA + (eB - eA) * t + (j > 0 && j < n ? 3 * Math.sin(j * 1.3 + A[1] * 400) * Math.sin(Math.PI * t) : 0)) * 10) / 10);
+  }
+  pts[0] = A.slice(); pts[n] = B.slice();
+  return { mode, pts, ele, surf: new Array(n).fill('asphalt') };
+}
+const newEle = (from, ea, to, distM) => ea + clamp(eleAt(to[0], to[1]) - eleAt(from[0], from[1]), -0.06 * distM, 0.06 * distM);
+
+function initialDoc() {
+  const M = buildData(); // мок-маршрут: 424 точки через 100 м
+  const cuts = [0, 141, 260, 272, 423];
+  const surfAll = M.surf.map((s, i) => (s === 'trail' && i > 300) ? 'dirt' : s);
+  const segs = [];
+  for (let k = 0; k < cuts.length - 1; k++) {
+    const a = cuts[k], b = cuts[k + 1];
+    segs.push({ mode: k === 2 ? 'straight' : 'road', pts: M.pts.slice(a, b + 1), ele: M.ele.slice(a, b + 1), surf: surfAll.slice(a, b) });
+  }
+  return {
+    name: 'Синтра – Кабу-да-Рока – Кашкайш',
+    bike: 'gravel', pave: 'any', climb: 'normal', limit: 12, colorMode: 'grade', color: '#0b74d1',
+    wps: cuts.map(i => ({ lon: M.pts[i][0], lat: M.pts[i][1] })),
+    segs,
+    cps: [
+      { id: 'c1', type: 'water', name: 'Фонтан, Сан-Педру', note: 'Питьевая вода, работает круглый год.', lon: M.pts[108][0], lat: M.pts[108][1], vis: true },
+      { id: 'c2', type: 'food', name: 'Кафе «Кошта», Колареш', note: 'Открыто с 8:00, есть свежие бифана.', lon: M.pts[215][0], lat: M.pts[215][1], vis: true },
+      { id: 'c3', type: 'view', name: 'Смотровая Пенинья', note: '', lon: M.pts[331][0], lat: M.pts[331][1], vis: true },
+      { id: 'c4', type: 'danger', name: 'Крутой спуск по щебню', note: 'Сбросить скорость, на поворотах сыпуха.', lon: M.pts[300][0], lat: M.pts[300][1], vis: true },
+    ],
+    vis: true,
+  };
+}
+let doc = initialDoc();
+{ let L = 0; doc.segs.forEach(sg => { for (let i = 1; i < sg.pts.length; i++) L += havRaw(sg.pts[i - 1], sg.pts[i]); }); KS = 42300 / L; }
+const TRACK = (function () {
+  const M = buildData(); const c = [];
+  for (let i = 0; i < 330; i += 3) c.push([M.pts[i][0] + 0.0014 * Math.sin(i / 17), M.pts[i][1] + 0.0011 * Math.cos(i / 23) - 0.0012]);
+  let d = 0; for (let i = 1; i < c.length; i++) d += hav(c[i - 1], c[i]);
+  return { name: 'Вчерашняя тренировка', color: '#e8590c', vis: true, coords: c, km: d / 1000 };
+})();
+const ui = { sel: { t: 'route' }, tool: 'V', cpType: 'water', expand: { route: true, segs: true, cps: true }, ruler: [], hover: null, range: null };
+let D = null;
+
+function derive() {
+  const pts = [], ele = [], surf = [], straight = [], segIdx = [], wpIdx = [0];
+  doc.segs.forEach((s, k) => {
+    s.pts.forEach((p, j) => {
+      if (k > 0 && j === 0) return;
+      pts.push(p); ele.push(s.ele[j]);
+      if (j > 0) { straight.push(s.mode === 'straight'); surf.push(s.mode === 'straight' ? 'straight' : s.surf[j - 1]); segIdx.push(k); }
+    });
+    wpIdx.push(pts.length - 1);
+  });
+  const N = pts.length, km = [0];
+  for (let i = 1; i < N; i++) km.push(km[i - 1] + hav(pts[i - 1], pts[i]) / 1000);
+  const grade = ele.map((_, i) => {
+    const lo = Math.max(i - 3, 0), hi = Math.min(i + 3, N - 1), dk = (km[hi] - km[lo]) * 1000;
+    return dk > 0 ? clamp((ele[hi] - ele[lo]) / dk * 100, -30, 30) : 0;
+  });
+  const sm = ele.map((_, i) => { let s = 0, c = 0; for (let j = Math.max(0, i - 1); j <= Math.min(N - 1, i + 1); j++) { s += ele[j]; c++; } return s / c; });
+  D = { N, pts, ele, sm, km, grade, surf, straight, segIdx, wpIdx };
+  D.cps = doc.cps.map(c => {
+    let best = 0, bd = 1e18; for (let i = 0; i < N; i++) { const d = (pts[i][0] - c.lon) ** 2 + (pts[i][1] - c.lat) ** 2; if (d < bd) { bd = d; best = i; } }
+    return { c, i: best };
+  });
+  D.total = km[N - 1];
+}
+const SPEED = { road: [23, 900], gravel: [18, 700], mtb: [14, 500], foot: [4.6, 420] };
+function stats(i0, i1) {
+  let up = 0, down = 0, steep = 0, steepN = 0, inS = false;
+  for (let i = i0 + 1; i <= i1; i++) {
+    const d = D.sm[i] - D.sm[i - 1]; if (d > 0) up += d; else down -= d;
+  }
+  for (let i = i0; i < i1; i++) {
+    const s = Math.abs((D.grade[i] + D.grade[i + 1]) / 2) > doc.limit;
+    if (s) { steep += D.km[i + 1] - D.km[i]; if (!inS) steepN++; }
+    inS = s;
+  }
+  const km = D.km[i1] - D.km[i0], sp = SPEED[doc.bike];
+  return { km, up, down, steep, steepN, avg: km > 0 ? (D.ele[i1] - D.ele[i0]) / (km * 10) : 0, time: km / sp[0] + up / sp[1] };
+}
+function nearestIdx(lon, lat) {
+  let best = 0, bd = 1e18; for (let i = 0; i < D.N; i++) { const d = (D.pts[i][0] - lon) ** 2 + (D.pts[i][1] - lat) ** 2; if (d < bd) { bd = d; best = i; } }
+  return best;
+}
+const idxAtKm = km => { let lo = 0, hi = D.N - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (D.km[m] < km) lo = m + 1; else hi = m; } return lo; };
+
+/* ===== undo/redo ===== */
+const undoSt = [], redoSt = [];
+function snap() { undoSt.push(JSON.stringify(doc)); if (undoSt.length > 60) undoSt.shift(); redoSt.length = 0; updUndo(); }
+function restore(js) { doc = JSON.parse(js); validateSel(); refresh(); }
+function undo() { if (!undoSt.length) return toast('Нечего отменять'); redoSt.push(JSON.stringify(doc)); restore(undoSt.pop()); updUndo(); toast('Отменено'); }
+function redo() { if (!redoSt.length) return toast('Нечего повторять'); undoSt.push(JSON.stringify(doc)); restore(redoSt.pop()); updUndo(); toast('Повторено'); }
+function updUndo() { const u = $('tUndo'), r = $('tRedo'); if (u) { u.disabled = !undoSt.length; r.disabled = !redoSt.length; } }
+function validateSel() {
+  const s = ui.sel;
+  if (s.t === 'seg' && !doc.segs[s.k]) ui.sel = { t: 'route' };
+  if (s.t === 'cp' && !doc.cps.find(c => c.id === s.id)) ui.sel = { t: 'route' };
+}
+
+/* ===== тосты ===== */
+let toastT;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); }
+
+/* ===== карта ===== */
+const MAP = { map: null, ready: false, wpMarkers: [], cpMarkers: [], hoverEl: null, hoverMk: null, base: 'osm', overlays: new Set() };
+const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+function initMap() {
+  maplibregl.addProtocol('bing', async (params) => {
+    const [z, x, y] = params.url.match(/bing:\/\/(\d+)\/(\d+)\/(\d+)/).slice(1).map(Number);
+    let q = ''; for (let i = z; i > 0; i--) { let d = 0; const m = 1 << (i - 1); if (x & m) d++; if (y & m) d += 2; q += d; }
+    const r = await fetch('https://ecn.t' + ((x + y) % 4) + '.tiles.virtualearth.net/tiles/a' + q + '.jpeg?g=1');
+    return { data: await r.arrayBuffer() };
+  });
+  const map = new maplibregl.Map({
+    container: 'map', center: [-9.40, 38.79], zoom: 12, maxZoom: 19, dragRotate: false, pitchWithRotate: false, attributionControl: false,
+    style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#e6e3dc' } }] },
+  });
+  MAP.map = map;
+  map.touchZoomRotate.disableRotation();
+  map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '© участники OpenStreetMap' }), 'bottom-left');
+  map.on('load', () => {
+    ensureLayer('osm');
+    const rl = { 'line-cap': 'round', 'line-join': 'round' }, bl = { 'line-cap': 'butt', 'line-join': 'round' };
+    const w = ['interpolate', ['linear'], ['zoom'], 9, 2.5, 13, 5, 17, 8];
+    const wh = ['interpolate', ['linear'], ['zoom'], 9, 5, 13, 9, 17, 13];
+    const wc = ['interpolate', ['linear'], ['zoom'], 9, 4, 13, 7, 17, 10.5];
+    ['sel', 'range', 'rubber', 'ruler', 'rulerpts'].forEach(id => map.addSource(id, { type: 'geojson', data: emptyFC() }));
+    map.addSource('route', { type: 'geojson', data: emptyFC() });
+    map.addSource('track', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: TRACK.coords } } });
+    map.addLayer({ id: 'track-halo', type: 'line', source: 'track', layout: rl, paint: { 'line-color': '#fff', 'line-width': 6, 'line-opacity': 0.8 } });
+    map.addLayer({ id: 'track', type: 'line', source: 'track', layout: rl, paint: { 'line-color': TRACK.color, 'line-width': 3 } });
+    map.addLayer({ id: 'sel-casing', type: 'line', source: 'sel', layout: rl, paint: { 'line-color': '#0b74d1', 'line-width': 16, 'line-opacity': 0.45 } });
+    map.addLayer({ id: 'route-halo', type: 'line', source: 'route', layout: rl, paint: { 'line-color': '#ffffff', 'line-width': wh, 'line-opacity': 0.92 } });
+    map.addLayer({ id: 'route-flat-casing', type: 'line', source: 'route', filter: ['all', ['==', ['get', 'gc'], 2], ['!=', ['get', 'kind'], 'straight']], layout: rl, paint: { 'line-color': FLAT_OUTLINE, 'line-width': wc } });
+    SURF_KEYS.forEach(s => {
+      const paint = { 'line-color': ['get', 'color'], 'line-width': w }; if (SURF[s].dash) paint['line-dasharray'] = SURF[s].dash;
+      map.addLayer({ id: 'route-' + s, type: 'line', source: 'route', filter: ['==', ['get', 's'], s], layout: SURF[s].dash ? bl : rl, paint });
+    });
+    map.addLayer({ id: 'route-straight', type: 'line', source: 'route', filter: ['==', ['get', 'kind'], 'straight'], layout: bl, paint: { 'line-color': STRAIGHT, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 13, 4, 17, 6], 'line-dasharray': [2, 2] } });
+    map.addLayer({ id: 'range-hl', type: 'line', source: 'range', layout: rl, paint: { 'line-color': '#0b74d1', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 5, 13, 9, 17, 13], 'line-opacity': 0.55 } });
+    map.addLayer({ id: 'rubber', type: 'line', source: 'rubber', layout: bl, paint: { 'line-color': '#0b74d1', 'line-width': 2.5, 'line-dasharray': [2, 2] } });
+    map.addLayer({ id: 'ruler-line', type: 'line', source: 'ruler', layout: rl, paint: { 'line-color': '#1e1e1e', 'line-width': 2.5, 'line-dasharray': [1.5, 1.5] } });
+    map.addLayer({ id: 'ruler-pts', type: 'circle', source: 'rulerpts', paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#1e1e1e', 'circle-stroke-width': 2 } });
+    const hm = document.createElement('div'); hm.className = 'hover-dot'; hm.hidden = true;
+    MAP.hoverEl = hm; MAP.hoverMk = new maplibregl.Marker({ element: hm }).setLngLat([-9.4, 38.79]).addTo(map);
+    MAP.ready = true;
+    applyScheme(); refresh(); setTool(ui.tool, true);
+    fitRoute(true);
+  });
+  map.on('click', onMapClick);
+  map.on('mousemove', onMapMove);
+  map.on('dblclick', e => { if (ui.tool === 'M') e.preventDefault(); });
+  map.getCanvasContainer().addEventListener('mouseleave', () => setHover(null, 'map'));
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+}
+const emptyFC = () => ({ type: 'FeatureCollection', features: [] });
+function ensureLayer(id) {
+  const map = MAP.map, L = ALL_LAYERS[id]; if (map.getSource(id)) return;
+  map.addSource(id, { type: 'raster', tiles: L.url, tileSize: 256, maxzoom: L.max, attribution: '' });
+  map.addLayer({ id: 'l-' + id, type: 'raster', source: id, layout: { visibility: 'none' }, paint: { 'raster-opacity': L.opacity || 1, 'raster-fade-duration': 150 } }, map.getLayer('track-halo') ? 'track-halo' : undefined);
+  applyScheme();
+}
+function applyScheme() {
+  if (!MAP.ready && !MAP.map) return;
+  const map = MAP.map, dark = darkMQ.matches;
+  Object.keys(ALL_LAYERS).forEach(id => { if (map.getLayer('l-' + id) && !OVERLAYS.find(o => o.id === id)) { map.setPaintProperty('l-' + id, 'raster-brightness-max', dark ? 0.8 : 1); map.setPaintProperty('l-' + id, 'raster-saturation', dark ? -0.15 : 0); } });
+}
+function setBase(id) {
+  const L = ALL_LAYERS[id];
+  if (L.key && !window.NK_MAPY_KEY) { toast('mapy.com: нужен ключ API'); return; }
+  ensureLayer(id);
+  LAYER_GROUPS.forEach(g => g.items.forEach(i => { if (MAP.map.getLayer('l-' + i.id)) MAP.map.setLayoutProperty('l-' + i.id, 'visibility', i.id === id ? 'visible' : 'none'); }));
+  MAP.base = id; $('baseName').textContent = L.name; renderLayersPop();
+}
+function setOverlay(id, on) {
+  ensureLayer(id); MAP.map.setLayoutProperty('l-' + id, 'visibility', on ? 'visible' : 'none');
+  on ? MAP.overlays.add(id) : MAP.overlays.delete(id); renderLayersPop();
+}
+function fitRoute(instant) {
+  const b = new maplibregl.LngLatBounds(); D.pts.forEach(p => b.extend(p));
+  const pad = isMobile() ? { top: 20, bottom: 70, left: 20, right: 20 } : { top: 40, bottom: 50, left: 40, right: 40 };
+  MAP.map.fitBounds(b, { padding: pad, duration: instant ? 0 : 600 });
+}
+function routeFeatures() {
+  const out = []; let cur = null;
+  for (let i = 0; i < D.N - 1; i++) {
+    const gc = gradeClass((D.grade[i] + D.grade[i + 1]) / 2), kind = D.straight[i] ? 'straight' : 'routed', s = D.surf[i];
+    const key = gc + '|' + s;
+    if (!cur || cur.key !== key) { cur = { key, gc, s, kind, coords: [D.pts[i]] }; out.push(cur); }
+    cur.coords.push(D.pts[i + 1]);
+  }
+  const solid = doc.colorMode === 'solid';
+  return { type: 'FeatureCollection', features: out.map(o => ({ type: 'Feature', properties: { gc: solid ? 9 : o.gc, color: solid ? doc.color : GC[o.gc], s: o.s, kind: o.kind }, geometry: { type: 'LineString', coordinates: o.coords } })) };
+}
+const lineF = c => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: c } });
+function updateMapData() {
+  if (!MAP.ready) return; const map = MAP.map;
+  map.getSource('route').setData(routeFeatures());
+  const show = doc.vis ? 'visible' : 'none';
+  ['route-halo', 'route-flat-casing', 'route-straight', 'sel-casing'].concat(SURF_KEYS.map(s => 'route-' + s)).forEach(l => map.setLayoutProperty(l, 'visibility', show));
+  const t = TRACK.vis ? 'visible' : 'none'; map.setLayoutProperty('track', 'visibility', t); map.setLayoutProperty('track-halo', 'visibility', t);
+  map.setPaintProperty('track', 'line-color', TRACK.color);
+  // выбранный отрезок
+  const sel = ui.sel;
+  map.getSource('sel').setData(sel.t === 'seg' && doc.segs[sel.k] ? lineF(doc.segs[sel.k].pts) : emptyFC());
+  updateRangeMap(); updateRulerMap();
+  rebuildMarkers();
+}
+function updateRangeMap() {
+  if (!MAP.ready) return;
+  MAP.map.getSource('range').setData(ui.range ? lineF(D.pts.slice(ui.range[0], ui.range[1] + 1)) : emptyFC());
+}
+function rebuildMarkers() {
+  MAP.wpMarkers.forEach(m => m.remove()); MAP.cpMarkers.forEach(m => m.remove()); MAP.wpMarkers = []; MAP.cpMarkers = [];
+  if (!doc.vis) return;
+  doc.wps.forEach((p, k) => {
+    const last = k === doc.wps.length - 1, e = document.createElement('div');
+    e.className = 'wp ' + (k === 0 ? 'wp-start' : last ? 'wp-end' : 'wp-mid');
+    e.innerHTML = k === 0 ? '<span>С</span>' : last ? '<span>Ф</span>' : '<span>' + k + '</span>';
+    e.title = k === 0 ? 'Старт' : last ? 'Финиш' : 'Точка ' + k;
+    const mk = new maplibregl.Marker({ element: e, draggable: ui.tool === 'V' }).setLngLat([p.lon, p.lat]).addTo(MAP.map);
+    e.addEventListener('click', ev => { ev.stopPropagation(); if (ui.tool === 'E') delWp(k); else if (ui.tool === 'V') { ui.sel = { t: 'seg', k: Math.min(k, doc.segs.length - 1) }; refresh(); } });
+    mk.on('dragend', () => moveWp(k, mk.getLngLat()));
+    MAP.wpMarkers.push(mk);
+  });
+  D.cps.forEach(({ c }) => {
+    if (c.vis === false) return;
+    const e = document.createElement('div'); e.className = 'cp' + (ui.sel.t === 'cp' && ui.sel.id === c.id ? ' sel' : '');
+    e.style.background = CPT[c.type].color; e.innerHTML = ic(c.type, 15, 2.1); e.title = CPT[c.type].name + ': ' + c.name;
+    const mk = new maplibregl.Marker({ element: e, draggable: ui.tool === 'V' }).setLngLat([c.lon, c.lat]).addTo(MAP.map);
+    e.addEventListener('click', ev => { ev.stopPropagation(); if (ui.tool === 'E') delCp(c.id); else { ui.sel = { t: 'cp', id: c.id }; refresh(); openRight(); } });
+    mk.on('dragend', () => { snapBefore(); const ll = mk.getLngLat(); c.lon = ll.lng; c.lat = ll.lat; refresh(); });
+    MAP.cpMarkers.push(mk);
+  });
+}
+let pendingSnap = false;
+function snapBefore() { /* снимок состояния до изменения, но после dragend: берём из предыдущего JSON */ undoSt.push(lastJson); redoSt.length = 0; updUndo(); }
+let lastJson = JSON.stringify(doc);
+
+/* ===== правки ===== */
+function addWp(lngLat, mode) {
+  snap();
+  const last = doc.wps[doc.wps.length - 1], B = [lngLat.lng, lngLat.lat], A = [last.lon, last.lat];
+  const sg = doc.segs[doc.segs.length - 1], eA = sg.ele[sg.ele.length - 1];
+  doc.segs.push(makeSeg(A, B, mode, eA, newEle(A, eA, B, hav(A, B))));
+  doc.wps.push({ lon: B[0], lat: B[1] });
+  ui.sel = { t: 'seg', k: doc.segs.length - 1 }; refresh();
+}
+function moveWp(k, ll) {
+  undoSt.push(lastJson); redoSt.length = 0;
+  const P = [ll.lng, ll.lat];
+  const endEle = (s) => s.ele[s.ele.length - 1];
+  const oldP = [doc.wps[k].lon, doc.wps[k].lat];
+  const refEle = k > 0 ? endEle(doc.segs[k - 1]) : doc.segs[0].ele[0];
+  const ne = newEle(oldP, refEle, P, 1500);
+  doc.wps[k] = { lon: P[0], lat: P[1] };
+  if (k > 0) { const s = doc.segs[k - 1]; doc.segs[k - 1] = makeSeg(s.pts[0], P, s.mode, s.ele[0], ne); }
+  if (k < doc.segs.length) { const s = doc.segs[k]; doc.segs[k] = makeSeg(P, s.pts[s.pts.length - 1], s.mode, ne, endEle(s)); }
+  refresh(); updUndo();
+}
+function delWp(k) {
+  if (doc.wps.length <= 2) return toast('В маршруте должно остаться две точки');
+  snap();
+  if (k === 0) { doc.segs.shift(); doc.wps.shift(); }
+  else if (k === doc.wps.length - 1) { doc.segs.pop(); doc.wps.pop(); }
+  else {
+    const a = doc.segs[k - 1], b = doc.segs[k];
+    doc.segs.splice(k - 1, 2, makeSeg(a.pts[0], b.pts[b.pts.length - 1], a.mode, a.ele[0], b.ele[b.ele.length - 1])); doc.wps.splice(k, 1);
+  }
+  validateSel(); refresh(); toast('Точка удалена');
+}
+function addCp(lngLat) {
+  snap();
+  const id = 'c' + Date.now(); const t = CPT[ui.cpType];
+  doc.cps.push({ id, type: ui.cpType, name: t.name + ' ' + (doc.cps.filter(c => c.type === ui.cpType).length + 1), note: '', lon: lngLat.lng, lat: lngLat.lat, vis: true });
+  ui.sel = { t: 'cp', id }; refresh(); openRight();
+}
+function delCp(id) { snap(); doc.cps = doc.cps.filter(c => c.id !== id); validateSel(); refresh(); toast('Чекпоинт удалён'); }
+function setSegMode(k, mode) {
+  const s = doc.segs[k]; if (!s || s.mode === mode) return; snap();
+  const ns = makeSeg(s.pts[0], s.pts[s.pts.length - 1], mode, s.ele[0], s.ele[s.ele.length - 1]);
+  doc.segs[k] = ns; refresh();
+}
+
+/* ===== клики и движение по карте ===== */
+function nearestOnScreen(pt, maxPx) {
+  if (!doc.vis) return -1; let best = -1, bd = maxPx * maxPx;
+  for (let i = 0; i < D.N; i++) { const p = MAP.map.project(D.pts[i]); const d = (p.x - pt.x) ** 2 + (p.y - pt.y) ** 2; if (d < bd) { bd = d; best = i; } }
+  return best;
+}
+function onMapClick(e) {
+  closePops(); closeFly();
+  switch (ui.tool) {
+    case 'R': addWp(e.lngLat, 'road'); break;
+    case 'L': addWp(e.lngLat, 'straight'); break;
+    case 'C': addCp(e.lngLat); break;
+    case 'M': ui.ruler.push([e.lngLat.lng, e.lngLat.lat]); updateRulerMap(); renderInspector(); break;
+    case 'E': {
+      const i = nearestOnScreen(e.point, 12);
+      if (i >= 0) { const k = D.wpIdx.indexOf(i); if (k >= 0) delWp(k); else toast('Удаляются точки маршрута и чекпоинты'); }
+      else if (ui.ruler.length) { ui.ruler = []; updateRulerMap(); renderInspector(); toast('Линейка сброшена'); }
+      break;
+    }
+    default: {
+      const i = nearestOnScreen(e.point, 12);
+      if (i >= 0) { ui.sel = { t: 'seg', k: D.segIdx[Math.min(i, D.N - 2)] }; } else ui.sel = { t: 'route' };
+      refresh(); if (i >= 0) openRight();
+    }
+  }
+}
+function onMapMove(e) {
+  const i = nearestOnScreen(e.point, 14);
+  setHover(i >= 0 ? i : null, 'map');
+  if ((ui.tool === 'R' || ui.tool === 'L') && MAP.ready) {
+    const l = doc.wps[doc.wps.length - 1];
+    MAP.map.getSource('rubber').setData(lineF([[l.lon, l.lat], [e.lngLat.lng, e.lngLat.lat]]));
+  }
+  if (ui.tool === 'M' && ui.ruler.length && MAP.ready) {
+    const l = ui.ruler[ui.ruler.length - 1]; MAP.map.getSource('rubber').setData(lineF([l, [e.lngLat.lng, e.lngLat.lat]]));
+    const d = rulerLen() + havR(l, [e.lngLat.lng, e.lngLat.lat]); $('rulerChip').querySelector('b').textContent = fmt(d / 1000, 2) + ' км';
+  }
+}
+function rulerLen() { let d = 0; for (let i = 1; i < ui.ruler.length; i++) d += havR(ui.ruler[i - 1], ui.ruler[i]); return d; }
+function updateRulerMap() {
+  const chip = $('rulerChip');
+  if (MAP.ready) {
+    MAP.map.getSource('ruler').setData(ui.ruler.length > 1 ? lineF(ui.ruler) : emptyFC());
+    MAP.map.getSource('rulerpts').setData({ type: 'FeatureCollection', features: ui.ruler.map(c => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: c } })) });
+  }
+  chip.hidden = !ui.ruler.length;
+  if (ui.ruler.length) { chip.querySelector('b').textContent = fmt(rulerLen() / 1000, 2) + ' км'; chip.querySelector('span').textContent = ui.ruler.length + ' ' + (ui.ruler.length === 1 ? 'точка' : ui.ruler.length < 5 ? 'точки' : 'точек'); }
+}
+
+/* ===== ховер, синхронизация карта <-> профиль ===== */
+function setHover(i, src) {
+  if (ui.hover === i) return; ui.hover = i;
+  if (MAP.hoverEl) {
+    if (i == null) MAP.hoverEl.hidden = true; else { MAP.hoverEl.hidden = false; MAP.hoverMk.setLngLat(D.pts[i]); }
+  }
+  const tip = $('mapTip');
+  if (i == null || src === 'map') tip.hidden = true;
+  else {
+    const p = MAP.map.project(D.pts[i]); tip.hidden = false; tip.textContent = fmt(D.km[i]) + ' км · ' + gfmt(D.grade[i]);
+    tip.style.left = p.x + 'px'; tip.style.top = p.y + 'px';
+  }
+  drawCursor();
+}
+
+/* ===== инструменты ===== */
+function setTool(t, silent) {
+  ui.tool = t; document.body.dataset.tool = t;
+  document.querySelectorAll('#pal [data-tool]').forEach(b => { const on = b.dataset.tool === t; b.setAttribute('aria-pressed', on); });
+  if (MAP.ready) {
+    MAP.wpMarkers.concat(MAP.cpMarkers).forEach(m => m.setDraggable(t === 'V'));
+    MAP.map.getSource('rubber').setData(emptyFC());
+    MAP.map.doubleClickZoom[t === 'M' ? 'disable' : 'enable']();
+  }
+  const tl = TOOLS.find(x => x.id === t);
+  $('hint').innerHTML = '<kbd>' + tl.key + '</kbd> ' + esc(tl.name) + '<span class="d">. ' + esc(tl.hint) + '</span>';
+  if (t !== 'C') closeFly();
+  if (!silent) renderInspector();
+}
+function closeFly() { $('fly').hidden = true; $('palC').setAttribute('aria-expanded', 'false'); }
+function openFly() { $('fly').hidden = false; $('palC').setAttribute('aria-expanded', 'true'); }
+function setCpType(id) {
+  ui.cpType = id; closeFly();
+  $('palC').querySelector('.ico').innerHTML = ic(id, 20, 1.7);
+  $('fly').querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', b.dataset.type === id));
+  if (ui.sel.t === 'cp' && ui.tool === 'C') { /* тип выбранного не трогаем */ }
+}
+function buildPalette() {
+  const pal = $('pal'); let h = '';
+  TOOLS.forEach(t => {
+    const lbl = t.name + ' (' + t.key + ')';
+    if (t.id === 'C') h += '<button type="button" class="tbtn" id="palC" data-tool="C" aria-pressed="false" aria-haspopup="true" aria-expanded="false" aria-label="' + lbl + '" data-tip="' + esc(t.name) + '" data-key="C"><span class="ico">' + ic('water', 20, 1.7) + '</span><span class="k">C</span><i class="tri"></i></button>';
+    else h += '<button type="button" class="tbtn" data-tool="' + t.id + '" aria-pressed="false" aria-label="' + lbl + '" data-tip="' + esc(t.name) + '" data-key="' + t.key + '"><span class="ico">' + ic(t.icon, 20, 1.7) + '</span><span class="k">' + t.key + '</span></button>';
+    if (t.id === 'V' || t.id === 'M') h += '<i class="psep" role="separator"></i>';
+  });
+  h += '<i class="psep" role="separator"></i><button type="button" class="tbtn" id="tUndo" aria-label="Отменить (⌘Z)" data-tip="Отменить" data-key="⌘Z" disabled><span class="ico">' + ic('undo', 20, 1.7) + '</span></button><button type="button" class="tbtn" id="tRedo" aria-label="Повторить (⌘⇧Z)" data-tip="Повторить" data-key="⌘⇧Z" disabled><span class="ico">' + ic('redo', 20, 1.7) + '</span></button>';
+  pal.innerHTML = h;
+  $('fly').innerHTML = '<div class="fly-h">Тип чекпоинта</div>' + CP_TYPES.map((t, i) => '<button type="button" role="radio" aria-checked="' + (i === 0) + '" data-type="' + t.id + '"><span class="cpi" style="background:' + t.color + '">' + ic(t.id, 14, 2.1) + '</span><span class="fn">' + t.name + '</span><kbd>' + (i + 1) + '</kbd></button>').join('');
+  pal.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.id === 'tUndo') return undo(); if (b.id === 'tRedo') return redo();
+    if (b.dataset.tool === 'C') { if (ui.tool === 'C' && $('fly').hidden) openFly(); else if (ui.tool === 'C') closeFly(); else { setTool('C'); openFly(); } return; }
+    setTool(b.dataset.tool);
+  });
+  $('fly').addEventListener('click', e => { const b = e.target.closest('button[data-type]'); if (b) { setCpType(b.dataset.type); } });
+}
+
+/* ===== панели: слои документа ===== */
+function renderLayers() {
+  const sel = ui.sel, r = ui.expand;
+  const eye = (on, act, id) => '<button type="button" class="ib eye" data-act="' + act + '" ' + (id !== undefined ? 'data-id="' + id + '" ' : '') + 'aria-pressed="' + on + '" aria-label="' + (on ? 'Скрыть' : 'Показать') + '">' + ic(on ? 'view' : 'eyeoff', 14, 1.8) + '</button>';
+  const chev = (open, act) => '<button type="button" class="ib chev' + (open ? ' open' : '') + '" data-act="' + act + '" aria-expanded="' + open + '" aria-label="Развернуть">' + ic('chev', 12, 2.2) + '</button>';
+  let h = '<ul class="tree" role="tree">';
+  // маршрут
+  h += '<li><div class="row l0' + (sel.t === 'route' ? ' on' : '') + '" data-act="sel-route" role="treeitem" aria-selected="' + (sel.t === 'route') + '">' + chev(r.route, 'tg-route') + '<span class="rico">' + ic('route', 14, 1.9) + '</span><span class="nm">' + esc(doc.name) + '</span><label class="swatch" title="Цвет маршрута"><input type="color" id="routeColor" value="' + doc.color + '" aria-label="Цвет маршрута"><i style="background:' + (doc.colorMode === 'solid' ? doc.color : 'linear-gradient(90deg,#2c7fb8,#fee08b,#d73027)') + '"></i></label>' + eye(doc.vis, 'vis-route') + '</div>';
+  if (r.route) {
+    h += '<ul role="group"><li><div class="row l1 grp">' + chev(r.segs, 'tg-segs') + '<span class="nm">Отрезки</span><span class="cnt">' + doc.segs.length + '</span></div>';
+    if (r.segs) {
+      h += '<ul role="group">';
+      doc.segs.forEach((s, k) => {
+        const a = D.wpIdx[k], b = D.wpIdx[k + 1];
+        h += '<li><div class="row l2' + (sel.t === 'seg' && sel.k === k ? ' on' : '') + '" data-act="sel-seg" data-id="' + k + '" role="treeitem" aria-selected="' + (sel.t === 'seg' && sel.k === k) + '"><span class="rico sm">' + ic(s.mode === 'straight' ? 'l' : 'r', 13, 1.8) + '</span><span class="nm">Отрезок ' + (k + 1) + '</span><span class="mono dim">' + fmt(D.km[b] - D.km[a]) + ' км</span></div></li>';
+      });
+      h += '</ul>';
+    }
+    h += '</li><li><div class="row l1 grp">' + chev(r.cps, 'tg-cps') + '<span class="nm">Чекпоинты</span><span class="cnt">' + doc.cps.length + '</span></div>';
+    if (r.cps) {
+      h += '<ul role="group">';
+      if (!doc.cps.length) h += '<li><div class="row l2 empty">Нет чекпоинтов. Нажмите C и кликните по карте.</div></li>';
+      D.cps.slice().sort((x, y) => D.km[x.i] - D.km[y.i]).forEach(({ c, i }) => {
+        const on = sel.t === 'cp' && sel.id === c.id;
+        h += '<li><div class="row l2' + (on ? ' on' : '') + '" data-act="sel-cp" data-id="' + c.id + '" role="treeitem" aria-selected="' + on + '"><span class="cpi sm" style="background:' + CPT[c.type].color + '">' + ic(c.type, 11, 2.2) + '</span><span class="nm">' + esc(c.name) + '</span><span class="mono dim">' + fmt(D.km[i]) + '</span>' + eye(c.vis !== false, 'vis-cp', c.id) + '</div></li>';
+      });
+      h += '</ul>';
+    }
+    h += '</li></ul>';
+  }
+  h += '</li>';
+  // трек
+  const ts = sel.t === 'track';
+  h += '<li><div class="row l0' + (ts ? ' on' : '') + '" data-act="sel-track" role="treeitem" aria-selected="' + ts + '"><span class="ib spacer"></span><span class="rico">' + ic('track', 14, 1.9) + '</span><span class="nm">' + esc(TRACK.name) + '</span><label class="swatch" title="Цвет трека"><input type="color" id="trackColor" value="' + TRACK.color + '" aria-label="Цвет трека"><i style="background:' + TRACK.color + '"></i></label>' + eye(TRACK.vis, 'vis-track') + '</div></li></ul>';
+  $('layersBody').innerHTML = h;
+}
+
+/* ===== инспектор ===== */
+const BIKES = [['road', 'Шоссе'], ['gravel', 'Гравел'], ['mtb', 'МТБ'], ['foot', 'Пешком']];
+const PAVES = [['asphalt', 'Асфальт'], ['any', 'Всё равно'], ['dirt', 'Грунт']];
+const CLIMBS = [['less', 'Меньше'], ['normal', 'Обычно'], ['any', 'Не избегать']];
+function segCtl(name, opts, val) {
+  return '<div class="seg" role="radiogroup" data-seg="' + name + '">' + opts.map(([v, l]) => '<button type="button" role="radio" aria-checked="' + (v === val) + '" data-v="' + v + '">' + l + '</button>').join('') + '</div>';
+}
+const sect = (title, body) => '<section class="sec"><h3>' + title + '</h3>' + body + '</section>';
+const prow = (lab, ctl, cls) => '<div class="prow ' + (cls || '') + '"><label>' + lab + '</label><div class="pc">' + ctl + '</div></div>';
+function statGrid(s) {
+  return '<div class="stats"><div><span>Длина</span><b>' + fmt(s.km) + ' км</b></div><div><span>Набор</span><b>↑ ' + Math.round(s.up) + ' м</b></div><div><span>Спуск</span><b>↓ ' + Math.round(s.down) + ' м</b></div><div><span>Время</span><b>' + fmtTime(s.time) + '</b></div></div>';
+}
+function steepInfoText(s) { return s.steepN ? s.steepN + ' ' + (s.steepN === 1 ? 'участок' : s.steepN < 5 ? 'участка' : 'участков') + ', ' + fmt(s.steep) + ' км круче ' + doc.limit + '%' : 'Участков круче ' + doc.limit + '% нет'; }
+function renderInspector() {
+  const el = $('inspBody'), sel = ui.sel; let h = '', title = '';
+  if (ui.tool === 'M' && ui.ruler.length) {
+    title = 'Линейка';
+    h = sect('Измерение', '<div class="stats one"><div><span>Расстояние</span><b>' + fmt(rulerLen() / 1000, 2) + ' км</b></div><div><span>Точек</span><b>' + ui.ruler.length + '</b></div></div><button type="button" class="btn wide" data-act="ruler-clear">' + ic('trash', 14) + ' Сбросить линейку</button>');
+  } else if (sel.t === 'seg' && doc.segs[sel.k]) {
+    const k = sel.k, s = doc.segs[k], a = D.wpIdx[k], b = D.wpIdx[k + 1], st = stats(a, b);
+    title = 'Отрезок ' + (k + 1);
+    h = sect('Тип', prow('Построение', segCtl('segmode', [['road', 'По дорогам'], ['straight', 'По прямой']], s.mode), 'col')) +
+      sect('Размеры', '<div class="stats"><div><span>Длина</span><b>' + fmt(st.km) + ' км</b></div><div><span>Набор</span><b>↑ ' + Math.round(st.up) + ' м</b></div><div><span>Спуск</span><b>↓ ' + Math.round(st.down) + ' м</b></div><div><span>Средний уклон</span><b>' + gfmt(st.avg) + '</b></div></div>' + prow('Положение', '<span class="mono">' + fmt(D.km[a]) + ' – ' + fmt(D.km[b]) + ' км</span>')) +
+      sect('Покрытие', s.mode === 'straight' ? '<p class="note">Для прямого отрезка покрытие и время считаются по прямой, без учёта дорог.</p>' : surfBreakdown(a, b));
+  } else if (sel.t === 'cp' && doc.cps.find(c => c.id === sel.id)) {
+    const c = doc.cps.find(x => x.id === sel.id), it = D.cps.find(x => x.c === c) || D.cps.find(x => x.c.id === c.id);
+    title = 'Чекпоинт';
+    h = sect('Тип', '<div class="tgrid" role="radiogroup" aria-label="Тип чекпоинта">' + CP_TYPES.map(t => '<button type="button" role="radio" aria-checked="' + (t.id === c.type) + '" data-cptype="' + t.id + '" title="' + t.name + '"><span class="cpi" style="background:' + t.color + '">' + ic(t.id, 14, 2.1) + '</span><span>' + t.name + '</span></button>').join('') + '</div>') +
+      sect('Свойства', prow('Название', '<input type="text" id="cpName" class="inp" value="' + esc(c.name) + '">') + '<div class="prow col"><label for="cpNote">Заметка</label><div class="pc"><textarea id="cpNote" class="inp" rows="3" placeholder="Что важно знать на этом месте">' + esc(c.note || '') + '</textarea></div></div>' + prow('Положение', '<span class="mono">' + fmt(D.km[it.i]) + ' км · ' + Math.round(D.ele[it.i]) + ' м</span>')) +
+      '<section class="sec"><button type="button" class="btn wide danger" data-act="cp-del">' + ic('trash', 14) + ' Удалить чекпоинт</button></section>';
+  } else if (sel.t === 'track') {
+    title = 'Трек';
+    h = sect('Свойства', prow('Название', '<span>' + esc(TRACK.name) + '</span>') + prow('Длина', '<span class="mono">' + fmt(TRACK.km) + ' км</span>') + prow('Видимость', segCtl('trackvis', [['1', 'Показан'], ['0', 'Скрыт']], TRACK.vis ? '1' : '0'))) + '<p class="note pad">Записанный трек показан на карте для сравнения и в расчёте не участвует.</p>';
+  } else {
+    const s = stats(0, D.N - 1);
+    title = 'Маршрут';
+    h = sect('Маршрут', prow('Название', '<input type="text" id="rtName" class="inp" value="' + esc(doc.name) + '">')) +
+      sect('Параметры построения', prow('Велосипед', segCtl('bike', BIKES, doc.bike), 'col') + prow('Покрытие', segCtl('pave', PAVES, doc.pave), 'col') + prow('Подъёмы', segCtl('climb', CLIMBS, doc.climb), 'col') +
+        '<div class="prow"><label for="limit">Лимит крутизны</label><div class="pc range"><input type="range" id="limit" min="5" max="25" step="1" value="' + doc.limit + '"><output id="limitOut" class="mono">' + doc.limit + '%</output></div></div><p class="note" id="steepInfo">' + steepInfoText(s) + '</p>') +
+      sect('Раскраска линии', segCtl('cmode', [['grade', 'По уклону'], ['solid', 'Один цвет']], doc.colorMode)) +
+      sect('Итого', statGrid(s) + surfBreakdown(0, D.N - 1));
+  }
+  $('inspTitle').textContent = title; el.innerHTML = h;
+}
+function surfBreakdown(a, b) {
+  const tot = {}; let all = 0;
+  for (let i = a; i < b; i++) { const d = D.km[i + 1] - D.km[i], s = D.straight[i] ? 'straight' : D.surf[i]; tot[s] = (tot[s] || 0) + d; all += d; }
+  const keys = SURF_KEYS.concat('straight').filter(k => tot[k] > 0.001);
+  let bar = '<div class="sbar" role="img" aria-label="Доли покрытий">' + keys.map(k => '<i style="flex:' + tot[k] + ';background:' + (k === 'straight' ? STRAIGHT : 'var(--sbar-' + k + ')') + '"></i>').join('') + '</div>';
+  return bar + '<ul class="slist">' + keys.map(k => '<li><span class="sw" style="' + (k === 'straight' ? 'background:' + STRAIGHT : 'background:var(--sbar-' + k + ')') + '"></span>' + (k === 'straight' ? 'По прямой' : SURF[k].name) + '<span class="mono">' + fmt(tot[k]) + ' км · ' + Math.round(tot[k] / all * 100) + '%</span></li>').join('') + '</ul>';
+}
+function onInspInput(e) {
+  const t = e.target;
+  if (t.id === 'rtName') { doc.name = t.value; $('name').value = t.value; renderLayers(); }
+  if (t.id === 'cpName') { const c = doc.cps.find(c => c.id === ui.sel.id); if (c) { c.name = t.value; renderLayers(); drawProfile(); } }
+  if (t.id === 'cpNote') { const c = doc.cps.find(c => c.id === ui.sel.id); if (c) c.note = t.value; }
+  if (t.id === 'limit') { doc.limit = +t.value; $('limitOut').textContent = doc.limit + '%'; $('steepInfo').textContent = steepInfoText(stats(0, D.N - 1)); drawProfile(); drawLegend(); }
+}
+function onInspChange(e) {
+  const t = e.target;
+  if (t.id === 'cpName' || t.id === 'cpNote' || t.id === 'rtName' || t.id === 'limit') { undoSt.push(lastJson); redoSt.length = 0; updUndo(); lastJson = JSON.stringify(doc); }
+}
+function onInspClick(e) {
+  const b = e.target.closest('button'); if (!b) return;
+  const seg = b.closest('.seg');
+  if (seg) {
+    const n = seg.dataset.seg, v = b.dataset.v;
+    if (n === 'segmode') return setSegMode(ui.sel.k, v);
+    if (n === 'trackvis') { TRACK.vis = v === '1'; return refresh(); }
+    snap(); doc[n === 'cmode' ? 'colorMode' : n] = v; return refresh();
+  }
+  if (b.dataset.cptype) { const c = doc.cps.find(c => c.id === ui.sel.id); if (c && c.type !== b.dataset.cptype) { snap(); c.type = b.dataset.cptype; refresh(); } return; }
+  if (b.dataset.act === 'cp-del') delCp(ui.sel.id);
+  if (b.dataset.act === 'ruler-clear') { ui.ruler = []; updateRulerMap(); renderInspector(); }
+}
+
+/* ===== общий refresh ===== */
+function refresh() {
+  derive(); lastJson = JSON.stringify(doc);
+  $('name').value = doc.name;
+  renderLayers(); renderInspector(); updateMapData(); drawSummary(); drawLegend(); drawProfile(); updUndo();
+  if (ui.hover != null && ui.hover >= D.N) ui.hover = null;
+}
+
+/* ===== профиль высот ===== */
+const PR = { dpr: 1, W: 0, H: 0, L: 46, R: 12, T: 20, B: 24, strip: 8, x0: 0, x1: 0, y0: 0, y1: 0, emin: 0, emax: 0 };
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const px = km => PR.L + (km / D.total) * (PR.W - PR.L - PR.R);
+const kmAtX = x => clamp((x - PR.L) / (PR.W - PR.L - PR.R), 0, 1) * D.total;
+function drawSummary() {
+  const r = ui.range ? ui.range : [0, D.N - 1], s = stats(r[0], r[1]);
+  $('sumKm').textContent = fmt(s.km); $('sumUp').textContent = Math.round(s.up) + ' м'; $('sumDown').textContent = Math.round(s.down) + ' м'; $('sumTime').textContent = fmtTime(s.time);
+  const rb = $('rangebox'); rb.hidden = !ui.range;
+  $('sum').classList.toggle('ranged', !!ui.range);
+  if (ui.range) $('rangeTxt').textContent = fmt(D.km[r[0]]) + '–' + fmt(D.km[r[1]]) + ' км · ' + gfmt(s.avg) + ' средний';
+}
+function drawLegend() {
+  const grade = GC.map((c, i) => '<span class="lg-i"><i class="sq' + (i === 2 ? ' flat' : '') + '" style="background:' + c + '"></i>' + GL[i] + '</span>').join('');
+  const surf = SURF_KEYS.map(k => { const d = SURF[k].dash; return '<span class="lg-i lg-s"><svg width="24" height="6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" stroke="currentColor" stroke-width="4"' + (d ? ' stroke-dasharray="' + d.map(v => v * 4).join(' ') + '"' : '') + '/></svg><em>' + SURF[k].name + '</em></span>'; }).join('') +
+    '<span class="lg-i lg-s"><svg width="24" height="6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" stroke="' + STRAIGHT + '" stroke-width="3" stroke-dasharray="4 4"/></svg><em>По прямой</em></span>';
+  $('legend').innerHTML = '<span class="lg lg-g">' + grade + '</span><span class="lg lg-surf">' + surf + '</span><span class="lg-i lg-st"><i class="sq steep"></i>Круче ' + doc.limit + '%</span>';
+}
+function sizeCanvas() {
+  const c = $('pc'), wrap = $('profBody'); const r = wrap.getBoundingClientRect();
+  PR.dpr = window.devicePixelRatio || 1; PR.W = Math.max(10, Math.round(r.width)); PR.H = Math.max(10, Math.round(r.height));
+  c.width = PR.W * PR.dpr; c.height = PR.H * PR.dpr; c.style.width = PR.W + 'px'; c.style.height = PR.H + 'px';
+  PR.L = PR.W < 640 ? 34 : 46;
+}
+function drawProfile() {
+  if (!D || $('prof').classList.contains('collapsed')) return;
+  const c = $('pc'); if (c.width / PR.dpr !== PR.W) sizeCanvas();
+  const ctx = c.getContext('2d'); ctx.setTransform(PR.dpr, 0, 0, PR.dpr, 0, 0); ctx.clearRect(0, 0, PR.W, PR.H);
+  const ink2 = cssv('--ink2'), grid = cssv('--grid'), steepC = cssv('--steep'), panel = cssv('--pf-bg');
+  const small = PR.H < 110;
+  PR.T = small ? 12 : 20; PR.B = small ? 16 : 24; PR.strip = small ? 5 : 8;
+  const top = PR.T, bot = PR.H - PR.B - PR.strip - 4;
+  let lo = Infinity, hi = -Infinity; D.ele.forEach(e => { if (e < lo) lo = e; if (e > hi) hi = e; });
+  const step = (hi - lo) > 250 ? 50 : 25; PR.emin = Math.floor((lo - 8) / step) * step; PR.emax = Math.ceil((hi + 8) / step) * step;
+  PR.y0 = top; PR.y1 = bot;
+  const y = e => bot - (e - PR.emin) / (PR.emax - PR.emin) * (bot - top);
+  const X0 = px(0), X1 = px(D.total);
+  ctx.font = '500 10.5px "JetBrains Mono", ui-monospace, Menlo, monospace'; ctx.textBaseline = 'middle';
+  // сетка и подписи высот
+  const rows = Math.max(1, Math.round((bot - top) / 38)), estep = Math.ceil((PR.emax - PR.emin) / rows / step) * step;
+  ctx.lineWidth = 1; ctx.textAlign = 'right';
+  for (let e = PR.emin; e <= PR.emax; e += estep) { const yy = Math.round(y(e)) + 0.5; ctx.strokeStyle = grid; ctx.beginPath(); ctx.moveTo(X0, yy); ctx.lineTo(X1, yy); ctx.stroke(); ctx.fillStyle = ink2; ctx.fillText(e + '', PR.L - 6, yy); }
+  // заливка по уклону
+  for (let i = 0; i < D.N - 1; i++) {
+    const gc = gradeClass((D.grade[i] + D.grade[i + 1]) / 2), xa = px(D.km[i]), xb = px(D.km[i + 1]) + 0.6;
+    ctx.fillStyle = GC[gc]; ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.moveTo(xa, y(D.ele[i])); ctx.lineTo(xb, y(D.ele[i + 1])); ctx.lineTo(xb, bot); ctx.lineTo(xa, bot); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // кромка: для ровных участков тёмная обводка
+  ctx.lineWidth = 1.6; ctx.lineJoin = 'round';
+  for (let i = 0; i < D.N - 1; i++) {
+    const gc = gradeClass((D.grade[i] + D.grade[i + 1]) / 2);
+    ctx.strokeStyle = gc === 2 ? FLAT_OUTLINE : GC[gc]; if (gc !== 2) { ctx.globalAlpha = 1; }
+    ctx.beginPath(); ctx.moveTo(px(D.km[i]), y(D.ele[i])); ctx.lineTo(px(D.km[i + 1]), y(D.ele[i + 1])); ctx.stroke();
+  }
+  // ось X
+  ctx.textAlign = 'center'; ctx.fillStyle = ink2;
+  const pxPerKm = (X1 - X0) / D.total, ks = [1, 2, 5, 10, 20].find(s => s * pxPerKm >= 44) || 20;
+  for (let k = 0; k <= D.total; k += ks) { const xx = Math.round(px(k)) + 0.5; ctx.strokeStyle = grid; ctx.beginPath(); ctx.moveTo(xx, bot); ctx.lineTo(xx, bot + 4); ctx.stroke(); ctx.fillText(k + (k === 0 ? ' км' : ''), xx + (k === 0 ? 8 : 0), PR.H - PR.B / 2 + (small ? 1 : 3)); }
+  // полоса покрытия
+  const sy = bot + 4, sh = PR.strip, u = sh * 0.9;
+  ctx.fillStyle = cssv('--strip-bg'); ctx.fillRect(X0, sy, X1 - X0, sh);
+  const stripInk = cssv('--strip-ink');
+  let a = 0;
+  for (let i = 1; i <= D.N - 1; i++) {
+    if (i === D.N - 1 || D.surf[i] !== D.surf[a]) {
+      const k = D.surf[a], xa = px(D.km[a]), xb = px(D.km[i]);
+      ctx.save(); ctx.beginPath(); ctx.rect(xa, sy, xb - xa, sh); ctx.clip();
+      if (k === 'straight') { ctx.strokeStyle = STRAIGHT; ctx.lineWidth = sh * 0.5; ctx.setLineDash([sh * 0.5, sh * 0.5]); }
+      else { ctx.strokeStyle = stripInk; ctx.lineWidth = sh; ctx.setLineDash(SURF[k].dash ? SURF[k].dash.map(v => v * u) : []); }
+      ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(xa, sy + sh / 2); ctx.lineTo(xb, sy + sh / 2); ctx.stroke(); ctx.restore();
+      a = i;
+    }
+  }
+  ctx.setLineDash([]);
+  // круче лимита
+  ctx.fillStyle = steepC;
+  let run = -1;
+  for (let i = 0; i <= D.N - 1; i++) {
+    const s = i < D.N - 1 && Math.abs((D.grade[i] + D.grade[i + 1]) / 2) > doc.limit;
+    if (s && run < 0) run = i;
+    if (!s && run >= 0) { const xa = px(D.km[run]), xb = px(D.km[i]); ctx.fillRect(xa, 2, Math.max(2, xb - xa), small ? 3 : 5); run = -1; }
+  }
+  // чекпоинты
+  D.cps.forEach(({ c, i }) => {
+    if (c.vis === false) return;
+    const xx = px(D.km[i]), yy = y(D.ele[i]), t = CPT[c.type], on = ui.sel.t === 'cp' && ui.sel.id === c.id;
+    ctx.setLineDash([2, 3]); ctx.strokeStyle = ink2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(xx + 0.5, yy); ctx.lineTo(xx + 0.5, bot); ctx.stroke(); ctx.setLineDash([]);
+    const cy = Math.max(top + 9, yy - 14);
+    ctx.fillStyle = t.color; ctx.strokeStyle = on ? cssv('--accent-ring') : '#fff'; ctx.lineWidth = on ? 2.5 : 1.5;
+    ctx.beginPath(); ctx.arc(xx, cy, 9, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.translate(xx - 6, cy - 6); ctx.scale(0.5, 0.5); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ICONS[c.type].forEach(d => ctx.stroke(new Path2D(d))); ctx.restore();
+  });
+  // выделенный диапазон и курсор – DOM-слоем
+  drawSel(); drawCursor();
+}
+function drawSel() {
+  const s = $('psel');
+  if (!ui.range || $('prof').classList.contains('collapsed')) { s.hidden = true; return; }
+  const xa = px(D.km[ui.range[0]]), xb = px(D.km[ui.range[1]]);
+  s.hidden = false; s.style.left = xa + 'px'; s.style.width = Math.max(1, xb - xa) + 'px'; s.style.top = PR.y0 + 'px'; s.style.height = (PR.H - PR.y0 - PR.B + 2) + 'px';
+}
+function drawCursor() {
+  const cu = $('pcur'), tip = $('ptip'), i = ui.hover;
+  if (i == null || $('prof').classList.contains('collapsed') || !PR.W) { cu.hidden = true; tip.hidden = true; return; }
+  const xx = px(D.km[i]), yy = PR.y1 - (D.ele[i] - PR.emin) / (PR.emax - PR.emin) * (PR.y1 - PR.y0);
+  cu.hidden = false; cu.style.left = xx + 'px'; cu.style.setProperty('--y', (yy - PR.y0) + 'px'); cu.style.top = PR.y0 + 'px'; cu.style.height = (PR.y1 - PR.y0) + 'px';
+  const near = D.cps.find(o => Math.abs(D.km[o.i] - D.km[i]) < 0.25);
+  const sk = D.surf[Math.min(i, D.N - 2)];
+  tip.innerHTML = '<b>' + fmt(D.km[i]) + ' км</b> · ' + Math.round(D.ele[i]) + ' м · ' + gfmt(D.grade[i]) + '<span>' + (sk === 'straight' ? 'По прямой' : SURF[sk].name) + (near ? ' · ' + esc(near.c.name) : '') + '</span>';
+  tip.hidden = false;
+  const tw = tip.offsetWidth; let tx = xx + 12; if (tx + tw > PR.W - 4) tx = xx - tw - 12; tip.style.left = Math.max(4, tx) + 'px'; tip.style.top = (PR.y0 + 6) + 'px';
+}
+function bindProfile() {
+  const ov = $('pov'); let drag = null;
+  const idxFrom = ev => { const r = ov.getBoundingClientRect(); return idxAtKm(kmAtX(ev.clientX - r.left)); };
+  ov.addEventListener('pointermove', ev => {
+    const i = idxFrom(ev); setHover(i, 'prof');
+    if (drag) {
+      drag.moved = drag.moved || Math.abs(ev.clientX - drag.x) > 3;
+      if (drag.moved) { ui.range = [Math.min(drag.i, i), Math.max(drag.i, i)]; if (ui.range[1] - ui.range[0] < 2) ui.range[1] = Math.min(D.N - 1, ui.range[0] + 2); drawSel(); drawSummary(); updateRangeMap(); }
+    }
+  });
+  ov.addEventListener('pointerleave', () => { if (!drag) setHover(null, 'prof'); });
+  ov.addEventListener('pointerdown', ev => { ov.setPointerCapture(ev.pointerId); drag = { x: ev.clientX, i: idxFrom(ev), moved: false }; });
+  ov.addEventListener('pointerup', ev => {
+    if (drag && !drag.moved && ui.range) { ui.range = null; drawSel(); drawSummary(); updateRangeMap(); }
+    drag = null; try { ov.releasePointerCapture(ev.pointerId); } catch (e) { }
+  });
+  ov.addEventListener('pointercancel', () => { drag = null; });
+  ov.addEventListener('dblclick', () => { ui.range = null; drawSel(); drawSummary(); updateRangeMap(); });
+  $('rangeClear').addEventListener('click', () => { ui.range = null; drawSel(); drawSummary(); updateRangeMap(); });
+  // высота и сворачивание
+  const prof = $('prof'), grip = $('profGrip'), app = $('app');
+  const maxH = () => Math.round(innerHeight * 0.62);
+  const setH = h => { h = clamp(Math.round(h), 120, maxH()); app.style.setProperty('--ph', h + 'px'); grip.setAttribute('aria-valuenow', h); try { localStorage.setItem('nk-ph-' + VARIANT, h); } catch (e) { } return h; };
+  const collapse = on => {
+    prof.classList.toggle('collapsed', on); $('profToggle').setAttribute('aria-expanded', !on); $('profToggle').setAttribute('aria-label', on ? 'Развернуть профиль' : 'Свернуть профиль');
+    if (!on) requestAnimationFrame(() => { sizeCanvas(); drawProfile(); }); else { setHover(null, 'prof'); }
+  };
+  let startH = isMobile() ? 170 : 236; try { const v = +localStorage.getItem('nk-ph-' + VARIANT); if (v >= 120) startH = v; } catch (e) { }
+  setH(startH);
+  let g = null;
+  grip.addEventListener('pointerdown', ev => { grip.setPointerCapture(ev.pointerId); g = { y: ev.clientY, h: prof.classList.contains('collapsed') ? 0 : prof.offsetHeight }; document.body.classList.add('resizing'); });
+  grip.addEventListener('pointermove', ev => {
+    if (!g) return; const h = g.h + (g.y - ev.clientY);
+    if (prof.classList.contains('collapsed')) { if (h > 90) { collapse(false); setH(Math.max(h, 140)); } }
+    else if (h < 80) { collapse(true); } else setH(h);
+  });
+  const endG = ev => { g = null; document.body.classList.remove('resizing'); try { grip.releasePointerCapture(ev.pointerId); } catch (e) { } };
+  grip.addEventListener('pointerup', endG); grip.addEventListener('pointercancel', endG);
+  grip.addEventListener('keydown', ev => {
+    if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') { ev.preventDefault(); if (prof.classList.contains('collapsed')) { collapse(false); return; } setH(prof.offsetHeight + (ev.key === 'ArrowUp' ? 24 : -24)); }
+  });
+  grip.addEventListener('dblclick', () => collapse(!prof.classList.contains('collapsed')));
+  $('profToggle').addEventListener('click', () => collapse(!prof.classList.contains('collapsed')));
+  new ResizeObserver(() => { sizeCanvas(); drawProfile(); }).observe($('profBody'));
+}
+
+/* ===== шапка, слои карты, экспорт ===== */
+function renderLayersPop() {
+  let h = '<div class="pop-h">Подложка</div>';
+  LAYER_GROUPS.forEach(g => {
+    h += '<section class="lg-group"><h4>' + g.name + (g.note ? ' <small>' + g.note + '</small>' : '') + '</h4><div class="lg-grid" role="radiogroup" aria-label="' + g.name + '">';
+    g.items.forEach(i => { const dis = i.key && !window.NK_MAPY_KEY; h += '<button type="button" class="lyr' + (dis ? ' dis' : '') + '" role="radio" aria-checked="' + (i.id === MAP.base) + '" data-base="' + i.id + '"><span class="lyr-sw" style="background:' + i.sw + '"></span><span>' + i.name + '</span></button>'; });
+    h += '</div></section>';
+  });
+  h += '<div class="pop-h">Оверлеи</div><div class="ovl">' + OVERLAYS.map(o => '<label class="ov"><input type="checkbox" data-ov="' + o.id + '"' + (MAP.overlays.has(o.id) ? ' checked' : '') + '><span class="tgl" aria-hidden="true"></span>' + o.name + '</label>').join('') + '</div>';
+  $('layersPop').innerHTML = h;
+}
+function closePops() { $('layersPop').hidden = true; $('exportPop').hidden = true; $('layersBtn').setAttribute('aria-expanded', 'false'); $('exportBtn').setAttribute('aria-expanded', 'false'); backdropSync(); }
+function togglePop(id, btn) {
+  const p = $(id), open = p.hidden; closePops(); if (open) { p.hidden = false; $(btn).setAttribute('aria-expanded', 'true'); } backdropSync();
+}
+function backdropSync() {
+  const open = isMobile() && (!$('layersPop').hidden || !$('exportPop').hidden || $('left').classList.contains('open') || $('right').classList.contains('open'));
+  $('backdrop').classList.toggle('on', open);
+}
+function openRight() { if (isMobile()) return; $('app').classList.remove('no-right'); }
+function toggleSide(which) {
+  const el = $(which), app = $('app');
+  if (isMobile()) { const other = which === 'left' ? 'right' : 'left'; $(other).classList.remove('open'); closePops(); el.classList.toggle('open'); backdropSync(); }
+  else { app.classList.toggle('no-' + which); $(which === 'left' ? 'toggleLeft' : 'toggleRight').setAttribute('aria-pressed', !app.classList.contains('no-' + which)); setTimeout(() => MAP.map && MAP.map.resize(), 220); }
+}
+function gpx() {
+  let s = '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="nakarte next" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>' + esc(doc.name) + '</name></metadata>\n';
+  D.cps.forEach(({ c, i }) => { s += '<wpt lat="' + c.lat.toFixed(6) + '" lon="' + c.lon.toFixed(6) + '"><ele>' + D.ele[i] + '</ele><name>' + esc(c.name) + '</name><desc>' + esc(c.note || '') + '</desc><type>' + CPT[c.type].name + '</type></wpt>\n'; });
+  s += '<trk><name>' + esc(doc.name) + '</name><trkseg>\n'; D.pts.forEach((p, i) => { s += '<trkpt lat="' + p[1].toFixed(6) + '" lon="' + p[0].toFixed(6) + '"><ele>' + D.ele[i] + '</ele></trkpt>\n'; }); return s + '</trkseg></trk>\n</gpx>\n';
+}
+function bindHeader() {
+  $('name').addEventListener('input', e => { doc.name = e.target.value; renderLayers(); });
+  $('name').addEventListener('change', () => { undoSt.push(lastJson); redoSt.length = 0; updUndo(); lastJson = JSON.stringify(doc); });
+  $('name').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+  let signed = false;
+  $('signin').addEventListener('click', () => {
+    signed = !signed; const dot = $('sync');
+    dot.dataset.state = signed ? 'ok' : 'off'; $('syncTxt').textContent = signed ? 'Сохранено в аккаунте' : 'Только на этом устройстве'; $('signin').textContent = signed ? 'Выйти' : 'Войти';
+    toast(signed ? 'Вход выполнен (демо)' : 'Вы вышли');
+  });
+  $('share').addEventListener('click', async () => {
+    const url = location.origin + '/maps/r/sintra-cabo-da-roca';
+    try { await navigator.clipboard.writeText(url); toast('Ссылка скопирована'); } catch (e) { toast('Ссылка: ' + url); }
+  });
+  $('layersBtn').addEventListener('click', e => { e.stopPropagation(); togglePop('layersPop', 'layersBtn'); });
+  $('exportBtn').addEventListener('click', e => { e.stopPropagation(); togglePop('exportPop', 'exportBtn'); });
+  $('exportPop').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return; closePops();
+    if (b.dataset.fmt === 'gpx') {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([gpx()], { type: 'application/gpx+xml' })); a.download = 'sintra-route.gpx'; document.body.appendChild(a); a.click(); a.remove(); toast('GPX сохранён: ' + fmt(D.total) + ' км');
+    } else toast('FIT подготовлен: ' + fmt(D.total) + ' км (демо)');
+  });
+  $('garmin').addEventListener('click', () => {
+    const b = $('garmin'); if (b.dataset.state === 'busy') return; b.dataset.state = 'busy'; const l = b.querySelector('.lbl'); l.textContent = 'Отправка…';
+    setTimeout(() => { b.dataset.state = 'done'; l.textContent = 'Отправлено'; toast('Маршрут отправлен в Garmin Connect (демо)'); setTimeout(() => { delete b.dataset.state; l.textContent = 'Отправить в Garmin'; }, 2600); }, 900);
+  });
+  $('layersPop').addEventListener('click', e => { e.stopPropagation(); const b = e.target.closest('[data-base]'); if (b) setBase(b.dataset.base); });
+  $('layersPop').addEventListener('change', e => { if (e.target.dataset.ov) setOverlay(e.target.dataset.ov, e.target.checked); });
+  $('exportPop').addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', e => { if (!e.target.closest('.pop-wrap')) closePops(); if (!e.target.closest('#pal') && !e.target.closest('#fly')) closeFly(); });
+  $('backdrop').addEventListener('click', () => { $('left').classList.remove('open'); $('right').classList.remove('open'); closePops(); });
+  $('toggleLeft').addEventListener('click', () => toggleSide('left'));
+  $('toggleRight').addEventListener('click', () => toggleSide('right'));
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $(b.dataset.close).classList.remove('open'); backdropSync(); }));
+  $('fitBtn').addEventListener('click', () => fitRoute());
+  $('rulerClear').addEventListener('click', () => { ui.ruler = []; updateRulerMap(); renderInspector(); });
+  // слои документа
+  $('layersBody').addEventListener('click', e => {
+    if (e.target.closest('.swatch')) return;
+    const src = e.target.closest('button[data-act]') || e.target.closest('[data-act]'); if (!src) return;
+    const act = src.dataset.act, id = src.dataset.id;
+    if (act === 'tg-route') ui.expand.route = !ui.expand.route; else if (act === 'tg-segs') ui.expand.segs = !ui.expand.segs; else if (act === 'tg-cps') ui.expand.cps = !ui.expand.cps;
+    else if (act === 'vis-route') { doc.vis = !doc.vis; } else if (act === 'vis-track') { TRACK.vis = !TRACK.vis; }
+    else if (act === 'vis-cp') { const c = doc.cps.find(c => c.id === id); c.vis = c.vis === false; }
+    else if (act === 'sel-route') ui.sel = { t: 'route' }; else if (act === 'sel-track') ui.sel = { t: 'track' };
+    else if (act === 'sel-seg') ui.sel = { t: 'seg', k: +id }; else if (act === 'sel-cp') { ui.sel = { t: 'cp', id }; const c = doc.cps.find(c => c.id === id); MAP.map.easeTo({ center: [c.lon, c.lat], duration: 400 }); }
+    refresh();
+  });
+  $('layersBody').addEventListener('input', e => {
+    if (e.target.id === 'routeColor') { doc.color = e.target.value; doc.colorMode = 'solid'; refresh(); }
+    if (e.target.id === 'trackColor') { TRACK.color = e.target.value; refresh(); }
+  });
+  $('inspBody').addEventListener('input', onInspInput);
+  $('inspBody').addEventListener('change', onInspChange);
+  $('inspBody').addEventListener('click', onInspClick);
+}
+
+/* ===== клавиатура ===== */
+document.addEventListener('keydown', e => {
+  const tg = e.target, typing = tg.matches && tg.matches('input[type=text],textarea,select');
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && e.key.toLowerCase() === 'y' && !typing) { e.preventDefault(); redo(); return; }
+  if (typing && e.key === 'Escape') { tg.blur(); return; }
+  if (typing || mod || e.altKey) return;
+  const k = e.key.toUpperCase(), tl = TOOLS.find(t => t.key === k || (k.length === 1 && t.key === e.code.replace('Key', '')));
+  if (tl) { e.preventDefault(); setTool(tl.id); if (tl.id === 'C') openFly(); return; }
+  if (/^[1-7]$/.test(e.key) && ui.tool === 'C') { setCpType(CP_TYPES[+e.key - 1].id); return; }
+  if (e.key === 'Escape') { closePops(); closeFly(); $('left').classList.remove('open'); $('right').classList.remove('open'); backdropSync(); if (ui.tool === 'M' && ui.ruler.length) { ui.ruler = []; updateRulerMap(); renderInspector(); } else if (ui.tool !== 'V') setTool('V'); else if (ui.range) { ui.range = null; drawSel(); drawSummary(); updateRangeMap(); } return; }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && ui.sel.t === 'cp') { e.preventDefault(); delCp(ui.sel.id); }
+});
+
+/* ===== старт ===== */
+document.addEventListener('DOMContentLoaded', () => {
+  buildPalette(); derive(); renderLayersPop(); bindHeader(); bindProfile(); initMap();
+  darkMQ.addEventListener('change', () => { applyScheme(); drawProfile(); });
+  matchMedia('(max-width:639.98px)').addEventListener('change', () => { $('left').classList.remove('open'); $('right').classList.remove('open'); backdropSync(); setTimeout(() => { sizeCanvas(); drawProfile(); MAP.map.resize(); }, 50); });
+  setCpType('water'); setTool('V', true); refresh();
+  window.addEventListener('resize', () => { backdropSync(); });
+});
+
+</script>
+</body>
+</html>

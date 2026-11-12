@@ -1,20 +1,56 @@
+/* Na Carta: palette and type of alexe.pt. Yellow marker is for selection only. */
 :root {
-  --bg: #fff;
-  --fg: #1d1d1f;
-  --muted: #6b6b70;
-  --line: #d9d9de;
-  --accent: #e0218a;
-  --panel-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
-  font: 14px/1.35 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+  --paper: #ffffff;
+  --ink: #141414;
+  --soft: #5f5f5c;
+  --line: #e4e2dc;
+  --marker: #ffd83d;
+  --marker-ink: #141414;
+  --tint: #f6f5f1;
+  --tint2: #ecebe5;
+  --ok: #2e9d5b;
+  --danger: #c62828;
+  --tipbg: #141414;
+  --tipink: #ffffff;
+  --mapbg: #e8e6e1;
+  --shadow: 0 1px 2px rgb(20 20 20 / 0.06), 0 8px 28px rgb(20 20 20 / 0.1);
+  --sans: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1f1f22;
-    --fg: #ececf0;
-    --muted: #a0a0a8;
-    --line: #3a3a40;
+  :root:not([data-theme='light']) {
+    --paper: #171715;
+    --ink: #f2f1ec;
+    --soft: #aaa9a1;
+    --line: #2f2e2a;
+    --tint: #201f1c;
+    --tint2: #2a2926;
+    --danger: #ff7a70;
+    --tipbg: #f2f1ec;
+    --tipink: #141414;
+    --mapbg: #2a2d30;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.45);
+    color-scheme: dark;
   }
+}
+:root[data-theme='dark'] {
+  --paper: #171715;
+  --ink: #f2f1ec;
+  --soft: #aaa9a1;
+  --line: #2f2e2a;
+  --tint: #201f1c;
+  --tint2: #2a2926;
+  --danger: #ff7a70;
+  --tipbg: #f2f1ec;
+  --tipink: #141414;
+  --mapbg: #2a2d30;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.45);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
 }
 html,
 body,
@@ -23,283 +59,221 @@ body,
   margin: 0;
 }
 body {
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 14px/1.4 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+svg {
+  flex: none;
+}
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--tint);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  color: var(--ink);
+  font: 500 11.5px/1 var(--mono);
+}
+
+/* ---- layout ---- */
 .app {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+}
+.side {
   position: relative;
+  z-index: 6;
+  background: var(--paper);
+  box-shadow: 0 0 32px rgb(20 20 20 / 0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 16px 14px;
+  gap: 9px;
+  min-height: 0;
   height: 100%;
+  overflow: hidden;
+}
+.mapcol {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  --prof-h: 0px;
 }
 .map {
   position: absolute;
   inset: 0;
+  background: var(--mapbg);
 }
-.panel {
-  position: absolute;
-  z-index: 2;
-  background: var(--bg);
-  color: var(--fg);
-  border-radius: 8px;
-  box-shadow: var(--panel-shadow);
-  max-width: calc(100vw - 24px);
-}
-.layers {
-  top: 10px;
-  right: 10px;
-}
-.layers .list {
-  max-height: min(70vh, 560px);
-  overflow: auto;
-  padding: 4px 12px 10px;
-  min-width: 220px;
-}
-.layers .group {
-  margin: 10px 0 4px;
-  font-size: 12px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.layers label {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 3px 0;
-  cursor: pointer;
-}
-.toggle {
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-weight: 600;
-  padding: 9px 12px;
-  cursor: pointer;
-}
-.tracks {
-  bottom: 34px;
-  right: 10px;
-  padding: 8px;
-  width: 260px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.tracks .open {
-  display: block;
-  text-align: center;
-  padding: 7px;
-  border: 1px dashed var(--line);
-  border-radius: 6px;
-  cursor: pointer;
-}
-.tracks .open input {
-  display: none;
-}
-.track {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-.track button {
-  border: 1px solid var(--line);
-  background: none;
-  color: inherit;
-  font: inherit;
-  border-radius: 6px;
-  padding: 3px 7px;
-  cursor: pointer;
-}
-.track .name {
-  flex: 1;
-  text-align: left;
-  border-color: transparent;
-  border-left: 4px solid var(--accent);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.error {
-  color: #d1242f;
-  font-size: 12px;
-}
-@media (max-width: 600px) {
-  .tracks {
-    left: 10px;
-    right: 10px;
-    width: auto;
+@media (max-width: 1100px) {
+  .app {
+    grid-template-columns: 280px minmax(0, 1fr);
   }
 }
 
-.routing {
-  top: 10px;
-  left: 54px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 380px;
+/* ---- MapLibre controls ---- */
+.maplibregl-ctrl-group {
+  background: var(--paper) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow) !important;
+  border: 0 !important;
+  overflow: hidden;
 }
-.routing .row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+.maplibregl-ctrl-group button {
+  width: 40px !important;
+  height: 40px !important;
 }
-.routing button,
-.routing select {
-  border: 1px solid var(--line);
-  background: var(--bg);
-  color: inherit;
-  font: inherit;
-  border-radius: 6px;
-  padding: 5px 9px;
-  cursor: pointer;
-  white-space: nowrap;
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--line) !important;
 }
-.routing .row {
-  flex-wrap: wrap;
+.maplibregl-ctrl-bottom-left,
+.maplibregl-ctrl-bottom-right {
+  bottom: var(--prof-h);
 }
-.routing button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+.maplibregl-ctrl-scale {
+  background: color-mix(in srgb, var(--paper) 80%, transparent) !important;
+  color: var(--ink) !important;
+  border-color: var(--ink) !important;
+  font: 500 11px var(--mono);
 }
-.routing .hint {
-  font-size: 12px;
-  color: var(--muted);
+.maplibregl-ctrl-attrib {
+  font-size: 11px;
 }
-.profile-panel {
-  left: 10px;
-  right: 280px;
-  bottom: 34px;
-  padding: 8px 10px;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+    filter: invert(1);
+  }
+  :root:not([data-theme='light']) .maplibregl-ctrl-attrib {
+    background: rgb(23 23 21 / 0.8);
+    color: var(--ink);
+  }
+  :root:not([data-theme='light']) .maplibregl-ctrl-attrib a {
+    color: var(--ink);
+  }
 }
-.profile-panel.collapsed {
-  right: auto;
-}
-.profile-panel .collapse {
-  position: absolute;
-  top: -26px;
-  left: 0;
-  border: 0;
-  border-radius: 6px 6px 0 0;
-  background: var(--bg);
-  color: inherit;
-  font: inherit;
-  font-size: 12px;
-  padding: 4px 10px;
-  cursor: pointer;
-  box-shadow: var(--panel-shadow);
-}
-.profile-panel.collapsed .collapse {
-  position: static;
-  box-shadow: none;
-}
+
+/* ---- markers on the map ---- */
 .wp {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
-  background: #2a6df4;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+  background: #1f2937;
   color: #fff;
-  font: 600 10px/16px system-ui, sans-serif;
+  font: 700 11px/18px var(--sans);
   text-align: center;
   cursor: pointer;
 }
 .wp-start {
-  background: #2b9a52;
-  width: 18px;
-  height: 18px;
+  background: #16a34a;
+  width: 28px;
+  height: 28px;
 }
 .wp-end {
-  background: #d7262d;
-  width: 18px;
-  height: 18px;
-}
-@media (max-width: 600px) {
-  .routing {
-    left: 54px;
-    right: 10px;
-    top: 56px;
-  }
-  .profile-panel {
-    right: 10px;
-    bottom: 120px;
-  }
-}
-.routing button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.tracks .sect {
-  font-size: 12px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-top: 4px;
-}
-.track .route-name {
-  border-left-color: #2a6df4;
-}
-.track.current .name {
-  font-weight: 600;
-}
-.tracks {
-  max-height: 45vh;
-  overflow: auto;
-}
-.toast {
-  position: absolute;
-  z-index: 5;
-  left: 50%;
-  top: 14px;
-  transform: translateX(-50%);
-  background: #1d1d1f;
-  color: #fff;
-  padding: 8px 14px;
-  border-radius: 8px;
-  box-shadow: var(--panel-shadow);
+  background: #dc2626;
+  width: 28px;
+  height: 28px;
 }
 .wp-active {
-  box-shadow: 0 0 0 3px var(--accent), 0 0 0 1px rgb(0 0 0 / 0.5);
+  box-shadow: 0 0 0 3px #ffd83d, 0 0 0 4px #141414;
+}
+.cp {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: #fff;
+  color: #141414;
+  border: 2px solid #141414;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+  cursor: pointer;
+}
+.cp.sel {
+  background: #ffd83d;
+}
+
+/* ---- popups: leg menu, checkpoint editor ---- */
+.maplibregl-popup-content {
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  font: 400 14px/1.4 var(--sans);
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--paper);
+}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--paper);
+}
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--paper);
+}
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--paper);
+}
+.maplibregl-popup-close-button {
+  color: var(--soft);
+  font-size: 18px;
+  width: 28px;
+  height: 28px;
 }
 .ctx-popup .maplibregl-popup-content {
-  padding: 4px;
-  background: var(--bg);
-  color: var(--fg);
+  padding: 5px;
 }
 .ctx button {
   display: block;
   width: 100%;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
   text-align: left;
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
 }
 .ctx button:hover {
-  background: var(--line);
-}
-.cp {
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.6));
+  background: var(--tint);
 }
 .cp-popup .maplibregl-popup-content {
-  background: var(--bg);
-  color: var(--fg);
-  padding: 10px;
+  padding: 12px;
 }
 .cp-edit {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 200px;
+  min-width: 210px;
 }
 .cp-edit select,
 .cp-edit input,
@@ -307,104 +281,181 @@ body {
 .cp-edit button {
   font: inherit;
   color: inherit;
-  background: var(--bg);
+  background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 5px 7px;
+  border-radius: 9px;
+  padding: 7px 9px;
 }
 .cp-edit .danger {
-  color: #d1242f;
+  color: var(--danger);
   cursor: pointer;
+  background: var(--tint);
+  border-color: transparent;
 }
 .cp-edit .muted {
-  color: var(--muted);
+  color: var(--soft);
   font-size: 12px;
 }
-.track button.active {
-  background: var(--accent);
-  border-color: var(--accent);
+
+/* ---- toasts and the editing hint ---- */
+.toast {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  background: var(--tipbg);
+  color: var(--tipink);
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  max-width: calc(100% - 24px);
+  text-align: center;
+}
+.toast.err {
+  background: var(--danger);
   color: #fff;
 }
-.route-name-input {
-  font: inherit;
-  font-weight: 600;
-  color: inherit;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 4px 6px;
+.ehint {
+  position: absolute;
+  top: 66px;
+  left: 12px;
+  z-index: 3;
+  max-width: min(440px, calc(100% - 76px));
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  pointer-events: none;
 }
-.route-name-input:hover,
-.route-name-input:focus {
-  border-color: var(--line);
+.ehint kbd {
+  height: 18px;
+  min-width: 18px;
+  font-size: 11px;
 }
-.seg {
-  display: flex;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  overflow: hidden;
+
+/* ---- phone: map on top, the panel as a bottom sheet ---- */
+@media (max-width: 639px) {
+  body {
+    overflow: auto;
+  }
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+  }
+  .mapcol {
+    height: 52dvh;
+    min-height: 320px;
+    flex: none;
+    --prof-h: 0px !important;
+  }
+  .side {
+    order: 2;
+    height: auto;
+    overflow: visible;
+    box-shadow: 0 -6px 24px rgb(20 20 20 / 0.14);
+    border-radius: 22px 22px 0 0;
+    margin-top: -20px;
+    padding: 6px 16px 36px;
+  }
+  .side::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--line);
+    margin: 0 auto 4px;
+    flex: none;
+  }
+  .toast {
+    top: 62px;
+  }
+  .ehint {
+    top: 60px;
+    left: 10px;
+    max-width: calc(100% - 70px);
+  }
 }
-.routing .seg button {
-  flex: 1;
-  border: 0;
-  border-radius: 0;
-  padding: 5px 6px;
-  font-size: 13px;
+@media (prefers-reduced-motion: no-preference) {
+  button {
+    transition: background-color 0.12s;
+  }
 }
-.routing .seg button + button {
-  border-left: 1px solid var(--line);
+
+/* mountain pass card (lib/passes.ts) */
+.pass-popup .maplibregl-popup-content {
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 28px rgb(20 20 20 / 0.16);
 }
-.routing .seg button.on {
-  background: var(--accent);
-  color: #fff;
-}
-.opts {
+.pass-card {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 6px 8px;
-  align-items: center;
-}
-.opts .lbl {
-  font-size: 12px;
-  color: var(--muted);
-}
-.grade {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  gap: 4px;
   font-size: 13px;
+  line-height: 1.35;
 }
-.grade input {
-  flex: 1;
-}
-.account {
+.pc-head {
+  padding-right: 18px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.pc-head b {
+  font-size: 15px;
+}
+.pc-cat {
+  flex: none;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
-  flex-wrap: wrap;
-}
-.account .who {
   font-weight: 600;
-}
-.account .sync {
-  color: #2b9a52;
-  flex: 1;
-}
-.account .sync.err {
-  color: #d1242f;
-}
-.account .muted {
-  color: var(--muted);
-  flex: 1;
-}
-.account button {
-  border: 1px solid var(--line);
-  background: none;
-  color: inherit;
-  font: inherit;
+  color: #fff;
+  background: #8a8a85;
   border-radius: 6px;
-  padding: 3px 8px;
-  cursor: pointer;
+  padding: 1px 7px;
 }
-.routing small.beta { font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 5px; }
+.pc-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 8px;
+}
+.pc-row span:first-child {
+  color: var(--soft);
+}
+.pc-src {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--soft);
+}
+.pc-src a {
+  color: inherit;
+}
+.pc-help {
+  margin: 6px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.pc-more {
+  justify-self: start;
+  margin-top: 2px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 0;
+}

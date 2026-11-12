@@ -1,4 +1,5 @@
 import { googleAvailable, googleTileUrl, type GoogleMapType } from './google';
+import { t } from './i18n';
 
 export interface LayerDef {
   /** Short stable id, used in the URL. */
@@ -12,6 +13,8 @@ export interface LayerDef {
   maxzoom?: number;
   /** Pixel size of the served tiles; 512 for retina sources. */
   tileSize?: number;
+  /** Drawn by its own module instead of raster tiles. */
+  vector?: 'passes';
   /** Hidden when its key is missing. */
   available?: boolean;
 }
@@ -70,34 +73,34 @@ const ALL: LayerDef[] = [
     attribution: '<a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA), ' + OSM_ATTR,
     maxzoom: 17,
   },
-  mapy('Mo', 'mapy.com туристическая', 'outdoor'),
-  mapy('Mb', 'mapy.com базовая', 'basic'),
-  mapy('Mw', 'mapy.com зимняя', 'winter'),
-  google('G', 'Google карта', 'roadmap'),
-  google('Gs', 'Google спутник', 'satellite'),
-  google('Gh', 'Google гибрид', 'hybrid'),
-  google('Gt', 'Google рельеф', 'terrain'),
+  mapy('Mo', t('layer.mapyOutdoor'), 'outdoor'),
+  mapy('Mb', t('layer.mapyBasic'), 'basic'),
+  mapy('Mw', t('layer.mapyWinter'), 'winter'),
+  google('G', t('layer.googleMap'), 'roadmap'),
+  google('Gs', t('layer.googleSat'), 'satellite'),
+  google('Gh', t('layer.googleHybrid'), 'hybrid'),
+  google('Gt', t('layer.googleTerrain'), 'terrain'),
   {
     id: 'E',
-    title: 'ESRI спутник',
+    title: t('layer.esriSat'),
     kind: 'base',
-    group: 'Спутник',
+    group: t('layerGroup.satellite'),
     tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
     attribution: 'Esri, Maxar, Earthstar Geographics',
     maxzoom: 19,
   },
   {
     id: 'Bs',
-    title: 'Bing спутник',
+    title: t('layer.bingSat'),
     kind: 'base',
-    group: 'Спутник',
+    group: t('layerGroup.satellite'),
     tiles: [0, 1, 2, 3].map((s) => `https://ecn.t${s}.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=14000`),
     attribution: '© Microsoft',
     maxzoom: 19,
   },
   {
     id: 'Bm',
-    title: 'Bing карта',
+    title: t('layer.bingMap'),
     kind: 'base',
     group: 'Bing',
     tiles: [0, 1, 2, 3].map(
@@ -108,39 +111,49 @@ const ALL: LayerDef[] = [
   },
   {
     id: 'Y',
-    title: 'Яндекс карта',
+    title: t('layer.yandexMap'),
     kind: 'base',
-    group: 'Яндекс',
+    group: t('layerGroup.yandex'),
     tiles: ['yandex://map/{z}/{x}/{y}'],
-    attribution: '© Яндекс',
+    attribution: t('layer.yandexAttr'),
     maxzoom: 19,
   },
   {
     id: 'Ys',
-    title: 'Яндекс спутник',
+    title: t('layer.yandexSat'),
     kind: 'base',
-    group: 'Яндекс',
+    group: t('layerGroup.yandex'),
     tiles: ['yandex://sat/{z}/{x}/{y}'],
-    attribution: '© Яндекс',
+    attribution: t('layer.yandexAttr'),
     maxzoom: 19,
   },
   {
     id: 'Wc',
-    title: 'Велосипедные маршруты',
+    title: t('layer.cycleRoutes'),
     kind: 'overlay',
-    group: 'Маршруты',
+    group: t('layerGroup.routes'),
     tiles: ['https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png'],
     attribution: '<a href="https://cycling.waymarkedtrails.org">Waymarked Trails</a>',
     maxzoom: 18,
   },
   {
     id: 'Wh',
-    title: 'Пешие маршруты',
+    title: t('layer.hikeRoutes'),
     kind: 'overlay',
-    group: 'Маршруты',
+    group: t('layerGroup.routes'),
     tiles: ['https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png'],
     attribution: '<a href="https://hiking.waymarkedtrails.org">Waymarked Trails</a>',
     maxzoom: 18,
+  },
+  {
+    // vector layer from public/data/passes.geojson, drawn by lib/passes.ts
+    id: 'P',
+    title: t('layer.passes'),
+    kind: 'overlay',
+    group: t('layerGroup.routes'),
+    tiles: [],
+    attribution: '',
+    vector: 'passes',
   },
 ];
 

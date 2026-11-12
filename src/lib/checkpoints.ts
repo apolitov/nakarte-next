@@ -2,18 +2,9 @@
 // camp...). Shown as markers; a click opens an editor popup.
 import * as maplibregl from 'maplibre-gl';
 
-export const CHECKPOINT_KINDS = [
-  { id: 'water', title: 'Вода', icon: '💧', gpx: 'Drinking Water' },
-  { id: 'food', title: 'Еда, кафе', icon: '🍴', gpx: 'Restaurant' },
-  { id: 'shop', title: 'Магазин', icon: '🛒', gpx: 'Shopping Center' },
-  { id: 'camp', title: 'Ночёвка', icon: '⛺', gpx: 'Campground' },
-  { id: 'view', title: 'Вид', icon: '📷', gpx: 'Scenic Area' },
-  { id: 'danger', title: 'Опасно', icon: '⚠️', gpx: 'Danger Area' },
-  { id: 'summit', title: 'Вершина, перевал', icon: '⛰️', gpx: 'Summit' },
-  { id: 'generic', title: 'Точка', icon: '📍', gpx: 'Flag, Blue' },
-] as const;
-
-export const kindOf = (k: string) => CHECKPOINT_KINDS.find((x) => x.id === k) ?? CHECKPOINT_KINDS.at(-1)!;
+import { CHECKPOINT_KINDS, kindOf, kindSvg } from './checkpointKinds';
+import { t } from './i18n';
+export { CHECKPOINT_KINDS, kindOf, kindSvg } from './checkpointKinds';
 
 export interface CheckpointItem {
   id: string;
@@ -78,8 +69,13 @@ export class CheckpointLayer {
   private decorate(el: HTMLElement, it: CheckpointItem) {
     const k = kindOf(it.kind);
     el.classList.add('cp'); // keep MapLibre's own marker classes
-    el.textContent = k.icon;
+    el.innerHTML = kindSvg(it.kind, 16);
     el.title = it.name || k.title;
+  }
+
+  /** Marks one marker as selected (from the route timeline). */
+  highlight(id: string | null) {
+    for (const [mid, { m }] of this.markers) m.getElement().classList.toggle('sel', mid === id);
   }
 
   /** Popup with kind, name, note and delete. */
@@ -96,9 +92,9 @@ export class CheckpointLayer {
     } else {
       const sel = document.createElement('select');
       for (const kk of CHECKPOINT_KINDS) sel.add(new Option(`${kk.icon} ${kk.title}`, kk.id, false, kk.id === it.kind));
-      const name = Object.assign(document.createElement('input'), { value: it.name, placeholder: 'Название' });
-      const note = Object.assign(document.createElement('textarea'), { value: it.note ?? '', placeholder: 'Заметка', rows: 2 });
-      const del = Object.assign(document.createElement('button'), { textContent: 'Удалить', className: 'danger' });
+      const name = Object.assign(document.createElement('input'), { value: it.name, placeholder: t('cp.name') });
+      const note = Object.assign(document.createElement('textarea'), { value: it.note ?? '', placeholder: t('cp.note'), rows: 2 });
+      const del = Object.assign(document.createElement('button'), { textContent: t('cp.delete'), className: 'danger' });
       const save = () => this.cb.update(it, { kind: sel.value, name: name.value.trim(), note: note.value.trim() || undefined });
       sel.onchange = save;
       name.onchange = save;

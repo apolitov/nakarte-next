@@ -3,6 +3,7 @@
 // Garmin FIT SDK.
 import { Encoder, Profile } from '@garmin/fitsdk';
 import { haversine } from './profile';
+import { t } from './i18n';
 
 export interface CourseInput {
   name: string;
@@ -27,7 +28,7 @@ const COURSE_POINT: Record<string, string> = {
 const semicircles = (deg: number) => Math.round((deg * 2 ** 31) / 180);
 
 export function encodeCourse(c: CourseInput): Uint8Array {
-  if (c.points.length < 2) throw new Error('в курсе меньше двух точек');
+  if (c.points.length < 2) throw new Error(t('err.fitTooShort'));
   const speed = c.speed ?? (c.sport === 'cycling' ? 5.5 : 1.2);
   const start = new Date();
   const dist: number[] = [0];

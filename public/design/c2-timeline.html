@@ -1,0 +1,870 @@
+<meta charset="utf-8">
+<html lang="ru">
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Накарта: Лента (C2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+:root{
+  --ui:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --bg:#edf0f5;--panel:#ffffff;--panel2:#f3f5f9;--line:#d5dbe5;--text:#0f1626;--muted:#4b566b;
+  --acc:#3b4cff;--acc-fg:#fff;--acc-text:#2f3fe6;--focus:#3b4cff;--ok:#0b7a43;--rail:#9aa6bd;
+  --pf-grid:#e3e8ef;--pf-text:#4b566b;--pf-line:#0f1626;--pf-band:#26304a;--pf-cursor:#3b4cff;--pf-font:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#0b0f16;--panel:#141a24;--panel2:#1b2330;--line:#2b3547;--text:#e9eef6;--muted:#a3afc4;
+  --acc:#8da2ff;--acc-fg:#0b0f16;--acc-text:#a9b9ff;--focus:#b6c3ff;--ok:#4cd08a;--rail:#4a566e;
+  --pf-grid:#222c3b;--pf-text:#a3afc4;--pf-line:#f2f5fa;--pf-band:#d3dbea;--pf-cursor:#8da2ff;color-scheme:dark}}
+:root[data-theme=dark]{
+  --bg:#0b0f16;--panel:#141a24;--panel2:#1b2330;--line:#2b3547;--text:#e9eef6;--muted:#a3afc4;
+  --acc:#8da2ff;--acc-fg:#0b0f16;--acc-text:#a9b9ff;--focus:#b6c3ff;--ok:#4cd08a;--rail:#4a566e;
+  --pf-grid:#222c3b;--pf-text:#a3afc4;--pf-line:#f2f5fa;--pf-band:#d3dbea;--pf-cursor:#8da2ff;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:400 14px/1.4 var(--ui);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.app{display:grid;grid-template-rows:56px minmax(0,1fr) 356px;grid-template-columns:316px minmax(0,1fr);height:100%;grid-template-areas:"top top" "side map" "tl tl"}
+/* ---------- шапка ---------- */
+.top{grid-area:top;display:flex;align-items:center;gap:14px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line);min-width:0}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.01em;flex:none}
+.brand svg{width:26px;height:26px}
+.brand i{font-style:normal;color:var(--acc-text);font-weight:600}
+.rname{display:flex;align-items:center;gap:8px;padding-left:14px;border-left:1px solid var(--line);min-width:0;height:28px}
+.rname b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 45%,transparent);border-radius:99px;padding:3px 9px;white-space:nowrap;font-weight:500}
+.sync::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.sp{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:8px 12px;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:7px;min-height:36px}
+.btn:hover{border-color:var(--acc)}
+.btn.mono{font:600 12px var(--mono);letter-spacing:.05em}
+.garmin{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-size:14px;padding:8px 16px;box-shadow:0 4px 16px color-mix(in srgb,var(--acc) 40%,transparent)}
+.garmin:hover{filter:brightness(1.08)}
+.garmin svg{width:18px;height:18px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--text);color:var(--bg);border:0;font:600 12px var(--mono);display:grid;place-items:center;flex:none}
+.login{border-color:var(--acc);color:var(--acc-text)}
+.tg{width:36px;height:36px;padding:0;justify-content:center}
+/* ---------- левая панель ---------- */
+.side{grid-area:side;background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:14px;min-height:0}
+.lab{font:600 11px/1 var(--ui);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.sum{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.sum>div{background:var(--panel2);padding:10px 12px}
+.sum .v{font:600 24px/1.1 var(--mono);margin-top:6px;letter-spacing:-.03em}
+.sum .v small{font:400 12px var(--ui);color:var(--muted);margin-left:3px;letter-spacing:0}
+.sum .km .v{color:var(--acc-text)}
+.surf{margin-top:-4px}
+.sbar{display:flex;height:10px;gap:2px;margin:8px 0 9px}
+.sbar span{display:block;height:100%;border-radius:2px}
+.sw{display:inline-block;width:28px;height:6px;vertical-align:middle}
+.sw.asphalt,.sbar .asphalt{background:var(--text)}
+.sw.compact,.sbar .compact{background:repeating-linear-gradient(90deg,var(--text) 0 9px,transparent 9px 12px)}
+.sw.gravel,.sbar .gravel{background:repeating-linear-gradient(90deg,var(--text) 0 6px,transparent 6px 10px)}
+.sw.trail,.sbar .trail{background:repeating-linear-gradient(90deg,var(--text) 0 2px,transparent 2px 6px)}
+.sw.straight{background:repeating-linear-gradient(90deg,#8b949e 0 4px,transparent 4px 8px)}
+.sl{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;font-size:13px}
+.sl div{display:flex;align-items:center;gap:7px}.sl em{font:500 12px var(--mono);font-style:normal;margin-left:auto}.sl .nm{color:var(--muted)}
+.sec h2{margin:0 0 9px;font:600 11px/1 var(--ui);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.fld{margin-bottom:11px}.fld:last-child{margin-bottom:0}
+.fld>.lab{display:flex;justify-content:space-between;margin-bottom:6px}
+.fld>.lab output{font:600 12px var(--mono);color:var(--acc-text);letter-spacing:0}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:2px;gap:2px}
+.seg label{position:relative;cursor:pointer}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:block;text-align:center;padding:6px 2px;border-radius:7px;font-size:13px;font-weight:500;white-space:nowrap}
+.seg input:checked+span{background:var(--acc);color:var(--acc-fg);font-weight:600}
+.seg input:focus-visible+span{outline:2px solid var(--focus);outline-offset:1px}
+input[type=range]{width:100%;margin:0;accent-color:var(--acc);height:22px}
+.ticks{display:flex;justify-content:space-between;font:11px var(--mono);color:var(--muted)}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tb{border:1px solid var(--line);background:var(--panel2);border-radius:9px;padding:7px 6px;font-size:12px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:52px;justify-content:center;text-align:center;line-height:1.15}
+.tb:hover{border-color:var(--acc)}
+.tb[aria-pressed=true]{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-weight:600}
+.tb .g{font:600 16px var(--mono)}
+.rl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rl li{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:7px 7px 7px 10px;background:var(--panel2)}
+.rl li.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 8%,var(--panel))}
+.rl .dot{width:6px;height:30px;border-radius:3px;flex:none}
+.rl .t{min-width:0;flex:1}.rl .t b{display:block;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rl .t span{font:12px var(--mono);color:var(--muted)}
+.eye{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;flex:none}
+.eye[aria-pressed=false]{opacity:.5}.eye svg{width:18px;height:18px}
+/* ---------- карта ---------- */
+.mapwrap{grid-area:map;position:relative;min-width:0;min-height:0}
+#map{position:absolute;inset:0}
+.lbtn{position:absolute;top:10px;left:10px;z-index:5;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.lbtn svg{width:18px;height:18px}
+.lpop{position:absolute;z-index:6;top:54px;left:10px;width:320px;max-height:calc(100% - 66px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 12px 34px rgba(0,0,0,.35)}
+.lpop[hidden]{display:none}
+.lpop h3{margin:0 0 12px;font:700 14px var(--ui);display:flex;justify-content:space-between;align-items:center}
+.lpop h3 button{border:0;background:none;font-size:20px;line-height:1;padding:2px 6px;color:var(--muted)}
+/* ---------- лента ---------- */
+.tl{grid-area:tl;background:var(--panel);border-top:1px solid var(--line);display:flex;flex-direction:column;min-height:0;min-width:0}
+.tlh{display:flex;align-items:center;gap:16px;padding:9px 20px 0;flex-wrap:wrap}
+.tlh h2{margin:0;font:700 14px var(--ui)}
+.tlh h2 span{font:500 12px var(--mono);color:var(--muted);margin-left:8px}
+.leg{display:flex;flex-wrap:wrap;gap:3px 10px;margin-left:auto;font-size:12px;color:var(--muted)}
+.leg span{display:inline-flex;align-items:center;gap:5px}.leg i{width:12px;height:12px;border-radius:3px;border:1px solid rgba(128,128,128,.5)}
+.plot{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.pfw{position:relative;height:162px;flex:none}
+.pfw canvas{display:block;touch-action:pan-y;cursor:crosshair}
+.ylab{position:absolute;left:20px;top:8px;font:600 11px var(--ui);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.lanes{position:relative;flex:1;min-height:0;margin-top:2px}
+.lane{position:absolute;left:0;right:0}
+.lane>.ln{position:absolute;left:20px;width:84px;font:600 11px/1 var(--ui);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.lane .in{position:absolute;left:112px;right:20px;top:0;bottom:0}
+.l-ev{top:0;height:62px}.l-ev .ln{top:8px}
+.l-cl{top:66px;height:36px}.l-cl .ln{top:12px}
+.l-sf{top:106px;height:42px}.l-sf .ln{top:22px}
+.l-ev .in::before{content:"";position:absolute;left:0;right:0;top:11px;height:3px;border-radius:2px;background:var(--rail)}
+.ev{position:absolute;display:flex;align-items:center;gap:6px;border:0;background:none;padding:0;transform:translateX(-11px);white-space:nowrap;font-size:12px;font-weight:600;color:var(--text)}
+.ev .nd{width:23px;height:23px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--panel);box-shadow:0 0 0 2px var(--rail);background:var(--panel);flex:none;font:700 11px var(--mono);color:#fff}
+.ev.start .nd{background:#1a9850;box-shadow:0 0 0 2px #1a9850}.ev.finish .nd{background:#d7191c;box-shadow:0 0 0 2px #d7191c}
+.ev.mid .nd{background:#1f2933;box-shadow:0 0 0 2px #1f2933}
+.ev.cp .nd{border-radius:7px}
+.ev.start .nd i{border-left:7px solid #fff;border-top:4px solid transparent;border-bottom:4px solid transparent;margin-left:2px}
+.ev.finish .nd i{width:8px;height:8px;background:#fff}
+.ev small{font:500 11px var(--mono);color:var(--muted);margin-left:2px}
+.ev.rev{flex-direction:row-reverse;transform:translateX(calc(-100% + 11px))}
+.ev:hover .tx,.ev:focus-visible .tx{text-decoration:underline}
+.ev.sel .nd{outline:3px solid var(--acc);outline-offset:1px}
+.ev.r1{top:32px}
+.cl{position:absolute;top:2px;height:30px;border:0;border-radius:6px;font:600 12px var(--ui);padding:0 8px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.cl:hover{filter:brightness(1.07)}
+.cl.sel,.sg.sel{outline:3px solid var(--acc);outline-offset:1px}
+.sg{position:absolute;top:0;height:42px;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;border:0;background:none;padding:0;text-align:left;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden}
+.sg .lb{display:block;height:18px;line-height:15px;overflow:hidden;text-overflow:ellipsis;padding-right:4px}
+.sg .st{position:absolute;left:0;right:0;top:20px;height:10px}
+.sg .st.asphalt{background:var(--text)}
+.sg .st.compact{background:repeating-linear-gradient(90deg,var(--text) 0 12px,transparent 12px 16px)}
+.sg .st.gravel{background:repeating-linear-gradient(90deg,var(--text) 0 8px,transparent 8px 13px)}
+.sg .st.trail{background:repeating-linear-gradient(90deg,var(--text) 0 3px,transparent 3px 8px)}
+.sg .st.straight{background:repeating-linear-gradient(90deg,#8b949e 0 5px,transparent 5px 10px)}
+.sg:hover .st{filter:brightness(1.3)}
+.curline{position:absolute;top:22px;bottom:0;width:0;border-left:1.5px dashed var(--acc);pointer-events:none;display:none;z-index:2}
+.pf-tip{background:var(--panel2)}
+.vt{display:none}
+/* ---------- мобильная ---------- */
+.mfoot{display:none}
+@media (max-width:639px){
+  html,body{height:auto}
+  .app{display:flex;flex-direction:column;height:auto;padding-bottom:70px}
+  .top{order:0;height:auto;min-height:52px;padding:8px 12px;flex-wrap:wrap;gap:8px}
+  .rname{order:3;width:100%;border-left:0;padding-left:0;height:auto}
+  .top .gx{display:none}
+  .mapwrap{order:1;flex:none;height:52vh;min-height:300px}
+  .tl{order:2;border-top:0}
+  .side{order:3;border-right:0;overflow:visible}
+  .plot{display:block}
+  .pfw{height:176px}.ylab{left:12px}
+  .lanes{display:none}
+  .vt{display:block;padding:4px 14px 18px}
+  .tlh{padding:12px 14px 0}.leg{margin-left:0;width:100%}
+  .mfoot{display:grid;grid-template-columns:auto auto 1fr;gap:8px;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);padding:8px 10px}
+  .mfoot .garmin{justify-content:center;padding:8px 10px}
+  .lpop{position:fixed;left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:70vh}
+  .brand{flex:1}
+}
+@media (min-width:640px) and (max-width:980px){
+  .app{grid-template-columns:268px minmax(0,1fr)}
+  .rname{display:none}
+  .top .gx.btn:not(.garmin){display:none}
+}
+@media (min-width:640px) and (max-height:780px){
+  .app{grid-template-rows:56px minmax(0,1fr) 316px}.pfw{height:132px}.l-ev{height:60px}.l-cl{top:62px}.l-sf{top:100px}
+}
+/* вертикальная лента */
+.vi{display:grid;grid-template-columns:54px 20px 1fr;align-items:start;width:100%;border:0;background:none;padding:0;text-align:left;position:relative}
+.vi .km{font:500 12px var(--mono);color:var(--muted);padding:8px 8px 0 0;text-align:right}
+.vi .rl2{position:relative;align-self:stretch}
+.vi .rl2::before{content:"";position:absolute;left:8px;top:0;bottom:0;width:3px;background:var(--rail);border-radius:2px}
+.vi:first-child .rl2::before{top:12px}.vi:last-child .rl2::before{bottom:calc(100% - 22px)}
+.vi .nd{position:absolute;left:0;top:5px;width:19px;height:19px;border-radius:50%;display:grid;place-items:center;background:var(--panel);box-shadow:0 0 0 2px var(--rail);font:700 10px var(--mono);color:#fff}
+.vi.start .nd{background:#1a9850;box-shadow:none}.vi.finish .nd{background:#d7191c;box-shadow:none}.vi.mid .nd{background:#1f2933;box-shadow:none}
+.vi.cp .nd{border-radius:6px;width:20px;height:20px}
+.vi.small .nd{width:11px;height:11px;left:4px;top:11px;background:var(--rail);box-shadow:none}
+.vi .bd{padding:5px 0 12px 8px}
+.vi .bd b{display:block;font-weight:600;font-size:14px;line-height:1.3;padding-top:2px}
+.vi .bd span{font:12px var(--mono);color:var(--muted)}
+.vi.small .bd b{font-weight:500;font-size:13px;color:var(--muted)}
+.vi .cb{display:block;border-radius:8px;padding:8px 10px;font-weight:600;font-size:13px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.vi .cb span{display:block;font:500 11px var(--mono);margin-top:2px;color:inherit;opacity:.85}
+.vi.sel .nd{outline:3px solid var(--acc);outline-offset:1px}
+.vi:focus-visible{outline:2px solid var(--focus);outline-offset:-2px;border-radius:8px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:50;max-width:calc(100vw - 32px);text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (max-width:639px){.toast{bottom:84px}}
+</style>
+<style>.mk-anchor{width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.55);display:grid;place-items:center;color:#fff;font:700 13px/1 ui-monospace,Menlo,monospace;cursor:pointer;box-sizing:border-box}
+.mk-anchor b{font-weight:700}
+.mk-anchor.start{background:#1a9850}.mk-anchor.finish{background:#d7191c}.mk-anchor.mid{background:#1f2933}
+.mk-anchor.start i{width:0;height:0;border-left:8px solid #fff;border-top:5px solid transparent;border-bottom:5px solid transparent;margin-left:2px}
+.mk-anchor.finish i{width:9px;height:9px;background:#fff}
+.mk-cp{width:30px;height:30px;border-radius:9px;background:#fff;border:2px solid #1f2933;box-shadow:0 1px 6px rgba(0,0,0,.5);display:grid;place-items:center;cursor:pointer;box-sizing:border-box}
+.mk-hover{width:18px;height:18px;border-radius:50%;background:#ff7a1a;border:3px solid #fff;box-shadow:0 0 0 2px #111,0 2px 8px rgba(0,0,0,.6);box-sizing:border-box;pointer-events:none}
+.pf-tip{position:absolute;pointer-events:none;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:12px/1.2 var(--mono);display:flex;gap:10px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.35);z-index:3}
+.pf-tip[hidden]{display:none}
+.pf-tip b{color:var(--acc-text)}
+.lp-group{margin:0 0 12px}.lp-title{font:600 11px/1 var(--ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 7px}
+.lp-row{display:flex;flex-wrap:wrap;gap:6px}
+.lp-opt{position:relative;cursor:pointer}
+.lp-opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.lp-opt span{display:block;padding:6px 10px;border:1px solid var(--line);border-radius:7px;font:500 13px/1.1 var(--ui);color:var(--text);background:var(--panel2)}
+.lp-opt input:checked+span{background:var(--acc);border-color:var(--acc);color:var(--acc-fg,#111);font-weight:600}
+.lp-opt input:focus-visible+span{outline:2px solid var(--focus);outline-offset:2px}
+.maplibregl-ctrl-attrib{font-size:11px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--acc)"/><path d="M6 21h6l3-8 4 12 3-8h4" fill="none" stroke="var(--acc-fg)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>nakarte<i>·next</i></span></div>
+    <div class="rname"><b>Синтра: Пенинья, гравел</b><span class="sync">Синхронизировано</span></div>
+    <div class="sp"></div>
+    <button class="btn mono gx" data-demo="Файл route.gpx готов к скачиванию">GPX</button>
+    <button class="btn mono gx" data-demo="Файл route.fit готов к скачиванию">FIT</button>
+    <button class="btn garmin gx" data-garmin><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 6v6l3.5 2"/><path d="M9 2.5h6M9 21.5h6"/></svg>Отправить в Garmin</button>
+    <span id="user" style="display:flex;align-items:center;gap:10px"></span>
+    <button class="btn tg" id="theme" title="Сменить тему" aria-label="Сменить тему"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 010 18z" fill="currentColor"/></svg></button>
+  </header>
+
+  <aside class="side">
+    <section aria-label="Сводка">
+      <div class="sum">
+        <div class="km"><div class="lab">Дистанция</div><div class="v">42,3<small>км</small></div></div>
+        <div><div class="lab">Время</div><div class="v">~3<small>ч</small> 10<small>мин</small></div></div>
+        <div><div class="lab">↗ Набор</div><div class="v">812<small>м</small></div></div>
+        <div><div class="lab">↘ Спуск</div><div class="v">790<small>м</small></div></div>
+      </div>
+    </section>
+    <section class="surf" aria-label="Покрытие">
+      <div class="lab">Покрытие</div>
+      <div class="sbar" aria-hidden="true"><span class="asphalt" style="flex:61"></span><span class="compact" style="flex:22"></span><span class="gravel" style="flex:12"></span><span class="trail" style="flex:5"></span></div>
+      <div class="sl">
+        <div><i class="sw asphalt"></i><span class="nm">Асфальт</span><em>61%</em></div>
+        <div><i class="sw compact"></i><span class="nm">Укатанное</span><em>22%</em></div>
+        <div><i class="sw gravel"></i><span class="nm">Гравий</span><em>12%</em></div>
+        <div><i class="sw trail"></i><span class="nm">Тропа</span><em>5%</em></div>
+      </div>
+    </section>
+    <section class="sec" aria-label="Параметры маршрута">
+      <h2>Параметры</h2>
+      <div class="fld"><div class="lab">Тип</div>
+        <div class="seg" role="radiogroup" aria-label="Тип маршрута">
+          <label><input type="radio" name="t"><span>Шоссе</span></label>
+          <label><input type="radio" name="t" checked><span>Гравел</span></label>
+          <label><input type="radio" name="t"><span>Туринг</span></label>
+          <label><input type="radio" name="t"><span>МТБ</span></label>
+          <label><input type="radio" name="t"><span>Пешком</span></label>
+        </div></div>
+      <div class="fld"><div class="lab">Покрытие</div>
+        <div class="seg" role="radiogroup" aria-label="Предпочтение покрытия">
+          <label><input type="radio" name="p"><span>Асфальт</span></label>
+          <label><input type="radio" name="p" checked><span>Всё равно</span></label>
+          <label><input type="radio" name="p"><span>Грунт</span></label>
+        </div></div>
+      <div class="fld"><div class="lab">Подъёмы</div>
+        <div class="seg" role="radiogroup" aria-label="Подъёмы">
+          <label><input type="radio" name="c"><span>Меньше</span></label>
+          <label><input type="radio" name="c" checked><span>Обычно</span></label>
+          <label><input type="radio" name="c"><span>Не избегать</span></label>
+        </div></div>
+      <div class="fld"><div class="lab"><label for="lim">Лимит крутизны</label><output id="limv">8%</output></div>
+        <input id="lim" type="range" min="3" max="20" value="8" step="1">
+        <div class="ticks"><span>3%</span><span>10%</span><span>20%</span></div></div>
+    </section>
+    <section class="sec" aria-label="Правка">
+      <h2>Правка</h2>
+      <div class="tools">
+        <button class="tb" id="edit" aria-pressed="false"><span class="g">✎</span>Режим правки</button>
+        <button class="tb" data-demo="Отменено"><span class="g">↶</span>Отмена</button>
+        <button class="tb" data-demo="Возвращено"><span class="g">↷</span>Повтор</button>
+        <button class="tb" data-demo="Маршрут продлён обратно: 84,6 км"><span class="g">⇄</span>Туда и обратно</button>
+        <button class="tb" data-demo="Добавлен возврат к старту: +1,4 км"><span class="g">⟲</span>К старту</button>
+        <button class="tb" data-demo="Направление изменено"><span class="g">⇅</span>Развернуть</button>
+      </div>
+    </section>
+    <section class="sec" aria-label="Мои маршруты и треки">
+      <h2>Мои маршруты и треки</h2>
+      <ul class="rl" id="rl"></ul>
+    </section>
+  </aside>
+
+  <div class="mapwrap">
+    <div id="map" role="application" aria-label="Карта маршрута"></div>
+    <button class="btn lbtn" id="lbtn" aria-expanded="false" aria-controls="lpop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg>Слои</button>
+    <div class="lpop" id="lpop" hidden><h3>Слои карты <button id="lclose" aria-label="Закрыть">×</button></h3><div id="lbody"></div></div>
+  </div>
+
+  <section class="tl" aria-label="Лента маршрута">
+    <div class="tlh"><h2>Лента маршрута<span>42,3 км</span></h2><div class="leg" aria-label="Уклон"></div></div>
+    <div class="plot" id="plot">
+      <div class="pfw"><canvas id="pf"></canvas><div class="ylab">Высота, м</div></div>
+      <div class="lanes" id="lanes">
+        <div class="lane l-ev"><div class="ln">События</div><div class="in" id="l-ev"></div></div>
+        <div class="lane l-cl"><div class="ln">Подъёмы</div><div class="in" id="l-cl"></div></div>
+        <div class="lane l-sf"><div class="ln">Покрытие</div><div class="in" id="l-sf"></div></div>
+      </div>
+      <div class="curline" id="curline"></div>
+    </div>
+    <div class="vt" id="vt"></div>
+  </section>
+
+  <div class="mfoot"><button class="btn mono" data-demo="Файл route.gpx готов к скачиванию">GPX</button><button class="btn mono" data-demo="Файл route.fit готов к скачиванию">FIT</button><button class="btn garmin" data-garmin>Отправить в Garmin</button></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>/* ===== NK shared: мок-маршрут, слои, профиль ===== */
+(function (G) {
+  const TOTAL = 42.3, N = 300, ASC = 812, START_E = 178, END_E = 200;
+  const fmt = (x, n = 1) => Number(x).toFixed(n).replace('.', ',');
+
+  const GRADE = [
+    { c: '#2c7fb8', n: 'спуск круче 8%' },
+    { c: '#7fcdbb', n: 'спуск 3–8%' },
+    { c: '#d9d9d9', n: 'ровно' },
+    { c: '#fee08b', n: '3–6%' },
+    { c: '#fdae61', n: '6–10%' },
+    { c: '#d73027', n: '10–15%' },
+    { c: '#7f0000', n: 'круче 15%' }
+  ];
+  const gcls = g => g < -8 ? 0 : g < -3 ? 1 : g <= 3 ? 2 : g <= 6 ? 3 : g <= 10 ? 4 : g <= 15 ? 5 : 6;
+
+  const SURF = {
+    asphalt: { n: 'Асфальт', dash: null },
+    compact: { n: 'Укатанное', dash: [6, 2] },
+    gravel: { n: 'Гравий', dash: [3, 2] },
+    trail: { n: 'Тропа', dash: [1, 2] },
+    straight: { n: 'По прямой', dash: [2, 2] }
+  };
+  const SURF_ORDER = ['asphalt', 'compact', 'gravel', 'trail'];
+
+  /* waypoints: lat, lng, высота, метка */
+  const WP = [
+    [38.7983, -9.3869, 178, 'start'],
+    [38.7968, -9.3945, 186],
+    [38.7952, -9.4080, 160],
+    [38.7958, -9.4178, 172],
+    [38.8008, -9.4290, 150],
+    [38.8062, -9.4390, 112, 'water'],
+    [38.8120, -9.4470, 92],
+    [38.8152, -9.4502, 84, 'a1'],
+    [38.8190, -9.4600, 58],
+    [38.8196, -9.4715, 24, 'cafe'],
+    [38.8130, -9.4740, 38],
+    [38.8045, -9.4755, 92, 'a2'],
+    [38.7985, -9.4735, 96],
+    [38.7930, -9.4690, 172],
+    [38.7890, -9.4655, 254],
+    [38.7872, -9.4625, 320],
+    [38.7845, -9.4600, 462, 'view'],
+    [38.7822, -9.4515, 445],
+    [38.7810, -9.4440, 410],
+    [38.7770, -9.4390, 380],
+    [38.7747, -9.4363, 372],
+    [38.7770, -9.4290, 330],
+    [38.7800, -9.4190, 300],
+    [38.7810, -9.4100, 282],
+    [38.7835, -9.4020, 330],
+    [38.7860, -9.3950, 420],
+    [38.7878, -9.3905, 448],
+    [38.7915, -9.3895, 350],
+    [38.7950, -9.3885, 255],
+    [38.7968, -9.3902, 200, 'finish']
+  ];
+
+  /* покрытие по км: итого асфальт 25,8 / укатанное 9,3 / гравий 5,1 / тропа 2,1 */
+  const SURF_RANGES = [
+    [0, 6.5, 'asphalt'], [6.5, 10.0, 'compact'], [10.0, 19.0, 'asphalt'],
+    [19.0, 22.0, 'gravel'], [22.0, 23.5, 'trail'], [23.5, 27.0, 'compact'],
+    [27.0, 33.8, 'asphalt'], [33.8, 35.9, 'gravel'], [35.9, 36.5, 'trail'],
+    [36.5, 38.8, 'compact'], [38.8, 42.3, 'asphalt']
+  ];
+  const STRAIGHT = [30.2, 31.4];
+
+  function pchip(xs, ys) {
+    const n = xs.length, h = [], dl = [], m = new Array(n);
+    for (let i = 0; i < n - 1; i++) { h[i] = xs[i + 1] - xs[i]; dl[i] = (ys[i + 1] - ys[i]) / h[i]; }
+    m[0] = dl[0]; m[n - 1] = dl[n - 2];
+    for (let i = 1; i < n - 1; i++) {
+      if (dl[i - 1] * dl[i] <= 0) m[i] = 0;
+      else { const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1]; m[i] = (w1 + w2) / (w1 / dl[i - 1] + w2 / dl[i]); }
+    }
+    return x => {
+      let k = 0; while (k < n - 2 && x > xs[k + 1]) k++;
+      const t = (x - xs[k]) / h[k], t2 = t * t, t3 = t2 * t;
+      return (2 * t3 - 3 * t2 + 1) * ys[k] + (t3 - 2 * t2 + t) * h[k] * m[k] + (-2 * t3 + 3 * t2) * ys[k + 1] + (t3 - t2) * h[k] * m[k + 1];
+    };
+  }
+
+  function build() {
+    const lat0 = 38.79, kx = 111.32 * Math.cos(lat0 * Math.PI / 180), ky = 110.57;
+    const P = WP.map(w => [w[1], w[0]]);
+    const SUB = 24, fine = [], nodeIdx = [];
+    for (let i = 0; i < P.length - 1; i++) {
+      const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
+      nodeIdx.push(fine.length);
+      for (let s = 0; s < SUB; s++) {
+        const t = s / SUB, t2 = t * t, t3 = t2 * t;
+        const f = k => 0.5 * ((2 * p1[k]) + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3);
+        fine.push([f(0), f(1)]);
+      }
+    }
+    nodeIdx.push(fine.length); fine.push(P[P.length - 1]);
+    /* лёгкая «дорожная» извилистость */
+    for (let i = 1; i < fine.length - 1; i++) {
+      const a = fine[i - 1], b = fine[i + 1];
+      let dx = (b[0] - a[0]) * kx, dy = (b[1] - a[1]) * ky; const L = Math.hypot(dx, dy) || 1;
+      const nx = -dy / L, ny = dx / L;
+      const env = Math.min(1, Math.min(i, fine.length - 1 - i) / 6);
+      const off = env * 0.017 * (Math.sin(i * 0.41) + 0.55 * Math.sin(i * 1.13 + 1.2));
+      fine[i] = [fine[i][0] + off * nx / kx, fine[i][1] + off * ny / ky];
+    }
+    const cum = [0];
+    for (let i = 1; i < fine.length; i++) cum[i] = cum[i - 1] + Math.hypot((fine[i][0] - fine[i - 1][0]) * kx, (fine[i][1] - fine[i - 1][1]) * ky);
+    const sc = TOTAL / cum[cum.length - 1];
+    const dOf = i => cum[i] * sc;
+    const wpKm = nodeIdx.map(i => dOf(i));
+    const pos = d => {
+      let lo = 0, hi = fine.length - 1; const t = d / sc;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] <= t) lo = mid; else hi = mid; }
+      const f = (t - cum[lo]) / ((cum[hi] - cum[lo]) || 1);
+      return [fine[lo][0] + (fine[hi][0] - fine[lo][0]) * f, fine[lo][1] + (fine[hi][1] - fine[lo][1]) * f];
+    };
+    /* высота: PCHIP по waypoints + «бугры», подогнанные под суммарный набор 812 м */
+    const base = pchip(wpKm, WP.map(w => w[2]));
+    const step = TOTAL / (N - 1);
+    const roll = (d, A) => A * Math.min(1, d / 1.2, (TOTAL - d) / 1.2) * (Math.sin(d * 2 * Math.PI / 1.7 + 0.6) + 0.6 * Math.sin(d * 2 * Math.PI / 0.9 + 2.1));
+    const asc = A => { let s = 0, prev = null; for (let i = 0; i < N; i++) { const d = i * step, e = base(d) + roll(d, A); if (prev !== null && e > prev) s += e - prev; prev = e; } return s; };
+    let lo = 0, hi = 40;
+    for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (asc(m) < ASC) lo = m; else hi = m; }
+    const A = (lo + hi) / 2;
+    const S = [];
+    for (let i = 0; i < N; i++) {
+      const d = i * step, ll = pos(d);
+      S.push({ d, lng: ll[0], lat: ll[1], ele: base(d) + roll(d, A) });
+    }
+    /* привязка концов к 178 и 200 */
+    const e0 = S[0].ele, e1 = S[N - 1].ele;
+    S.forEach(s => { s.ele += (START_E - e0) + (END_E - START_E - (e1 - e0)) * (s.d / TOTAL); });
+    for (let i = 0; i < N; i++) {
+      const a = S[Math.max(0, i - 3)], b = S[Math.min(N - 1, i + 3)];
+      S[i].g = (b.ele - a.ele) / ((b.d - a.d) * 10);
+      S[i].c = gcls(S[i].g);
+    }
+    const surfAt = d => { if (d >= STRAIGHT[0] && d < STRAIGHT[1]) return 'straight'; for (const r of SURF_RANGES) if (d >= r[0] && d <= r[1]) return r[2]; return 'asphalt'; };
+    S.forEach(s => { s.s = surfAt(s.d); });
+
+    let ascent = 0, descent = 0;
+    for (let i = 1; i < N; i++) { const dz = S[i].ele - S[i - 1].ele; if (dz > 0) ascent += dz; else descent -= dz; }
+
+    /* сегменты для карты */
+    const feats = []; let cur = null;
+    for (let i = 0; i < N - 1; i++) {
+      const mid = (S[i].g + S[i + 1].g) / 2, c = gcls(mid), s = (S[i].s === 'straight' || S[i + 1].s === 'straight') ? 'straight' : S[i].s;
+      if (cur && cur.c === c && cur.s === s) cur.coords.push([S[i + 1].lng, S[i + 1].lat]);
+      else { cur = { c, s, coords: [[S[i].lng, S[i].lat], [S[i + 1].lng, S[i + 1].lat]] }; feats.push(cur); }
+    }
+    const geo = { type: 'FeatureCollection', features: feats.map(f => ({ type: 'Feature', properties: { c: f.c, s: f.s, st: f.s === 'straight' ? 1 : 0 }, geometry: { type: 'LineString', coordinates: f.coords } })) };
+
+    /* подъёмы */
+    const climbs = []; let run = null;
+    for (let i = 0; i < N; i++) {
+      if (S[i].g >= 2.2) { if (!run) run = { a: i, b: i }; else run.b = i; }
+      else if (run && i - run.b > 5) { climbs.push(run); run = null; }
+    }
+    if (run) climbs.push(run);
+    const merged = [];
+    climbs.forEach(r => { const l = merged[merged.length - 1]; if (l && r.a - l.b <= 6) l.b = r.b; else merged.push({ a: r.a, b: r.b }); });
+    const CL = merged.map(r => {
+      const a = S[r.a], b = S[r.b], len = b.d - a.d, gain = b.ele - a.ele;
+      return { d0: a.d, d1: b.d, len, gain, grade: gain / (len * 10) };
+    }).filter(c => c.len >= 0.8 && c.grade >= 3.2);
+    CL.forEach(c => { c.cls = gcls(c.grade); });
+
+    const ptAt = d => { const i = Math.max(0, Math.min(N - 1, Math.round(d / step))); return S[i]; };
+    const tagKm = {}; WP.forEach((w, i) => { if (w[3]) tagKm[w[3]] = wpKm[i]; });
+
+    const anchors = [
+      { id: 'start', kind: 'start', d: 0, name: 'Старт: вокзал Синтры' },
+      { id: 'a1', kind: 'mid', n: 1, d: tagKm.a1, name: 'Колареш' },
+      { id: 'a2', kind: 'mid', n: 2, d: tagKm.a2, name: 'Алмосажеме' },
+      { id: 'finish', kind: 'finish', d: TOTAL, name: 'Финиш: старый город Синтры' }
+    ];
+    const checkpoints = [
+      { id: 'water', kind: 'water', d: tagKm.water, name: 'Питьевой фонтан' },
+      { id: 'cafe', kind: 'cafe', d: tagKm.cafe, name: 'Кафе «Praia Grande»' },
+      { id: 'view', kind: 'view', d: tagKm.view, name: 'Смотровая Пенинья' }
+    ];
+    [...anchors, ...checkpoints].forEach(o => { const p = ptAt(o.d); o.lng = p.lng; o.lat = p.lat; o.ele = p.ele; });
+
+    /* список покрытий для ленты (с «по прямой») */
+    const segs = [];
+    SURF_RANGES.forEach(r => {
+      if (STRAIGHT[0] > r[0] && STRAIGHT[1] < r[1]) { segs.push([r[0], STRAIGHT[0], r[2]], [STRAIGHT[0], STRAIGHT[1], 'straight'], [STRAIGHT[1], r[1], r[2]]); }
+      else segs.push(r.slice());
+    });
+    return { S, geo, climbs: CL, anchors, checkpoints, segs, ascent, descent, total: TOTAL, step, emin: Math.min(...S.map(s => s.ele)), emax: Math.max(...S.map(s => s.ele)), ptAt, wpKm };
+  }
+
+  const R = build();
+
+  /* ---------- иконки ---------- */
+  const ICON = {
+    water: 'M12 2.5S5.5 10 5.5 14.8a6.5 6.5 0 0013 0C18.5 10 12 2.5 12 2.5z',
+    cafe: 'M3.5 7h12v6.5a4.5 4.5 0 01-4.5 4.5H8a4.5 4.5 0 01-4.5-4.5V7zM15.5 8.5h1.8a2.6 2.6 0 010 5.2h-1.8v-1.7h1.6a.9.9 0 000-1.8h-1.6zM4.5 20h11v1.5h-11z',
+    view: 'M12 5C6.5 5 2.5 10.2 1.5 12c1 1.8 5 7 10.5 7s9.5-5.2 10.5-7C21.5 10.2 17.5 5 12 5zm0 11.2a4.2 4.2 0 110-8.4 4.2 4.2 0 010 8.4zm0-6.4a2.2 2.2 0 100 4.4 2.2 2.2 0 000-4.4z'
+  };
+  const ICON_COLOR = { water: '#1e88e5', cafe: '#b5651d', view: '#7b3fa0' };
+  const svgIcon = (k, size = 16, color) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path fill="${color || ICON_COLOR[k]}" fill-rule="evenodd" d="${ICON[k]}"/></svg>`;
+
+  /* ---------- базовые слои ---------- */
+  const T = (u, o = {}) => Object.assign({ tiles: [u], tileSize: 256, maxzoom: 19 }, o);
+  const OSMA = '© участники OpenStreetMap';
+  const BASES = [
+    { g: 'OpenStreetMap', items: [
+      { id: 'osm', n: 'OSM', ...T('https://tile.openstreetmap.org/{z}/{x}/{y}.png'), attr: OSMA },
+      { id: 'cyclosm', n: 'CyclOSM', ...T('https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png'), attr: OSMA + ', CyclOSM' },
+      { id: 'topo', n: 'OpenTopoMap', ...T('https://a.tile.opentopomap.org/{z}/{x}/{y}.png', { maxzoom: 17 }), attr: OSMA + ', SRTM, OpenTopoMap' } ] },
+    { g: 'mapy.com', items: [
+      { id: 'mapy-t', n: 'Туристическая', ...T('https://mapserver.mapy.cz/turist-m/{z}-{x}-{y}', { maxzoom: 18 }), attr: '© Seznam.cz, OSM' },
+      { id: 'mapy-w', n: 'Зимняя', ...T('https://mapserver.mapy.cz/winter-m/{z}-{x}-{y}', { maxzoom: 18 }), attr: '© Seznam.cz, OSM' } ] },
+    { g: 'Google', items: [
+      { id: 'g-m', n: 'Карта', ...T('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'), attr: '© Google' },
+      { id: 'g-s', n: 'Спутник', ...T('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'), attr: '© Google' },
+      { id: 'g-y', n: 'Гибрид', ...T('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'), attr: '© Google' },
+      { id: 'g-p', n: 'Рельеф', ...T('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}'), attr: '© Google' } ] },
+    { g: 'Спутник', items: [
+      { id: 'esri', n: 'ESRI', ...T('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'), attr: '© Esri, Maxar' },
+      { id: 'bing', n: 'Bing', ...T('https://ecn.t0.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=1', { maxzoom: 19 }), attr: '© Microsoft' } ] },
+    { g: 'Яндекс', items: [
+      { id: 'ya-m', n: 'Карта', ...T('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU'), attr: '© Яндекс' },
+      { id: 'ya-s', n: 'Спутник', ...T('https://core-renderer-tiles.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=ru_RU'), attr: '© Яндекс' } ] }
+  ];
+  const OVERLAYS = [
+    { id: 'wm-cyc', n: 'Waymarked: вело', ...T('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png', { maxzoom: 18 }), attr: '© waymarkedtrails.org', op: 0.85 },
+    { id: 'wm-hik', n: 'Waymarked: пешие', ...T('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', { maxzoom: 18 }), attr: '© waymarkedtrails.org', op: 0.85 },
+    { id: 'strava', n: 'Хитмап Strava', ...T('https://heatmap-external-a.strava.com/tiles/ride/hot/{z}/{x}/{y}.png', { maxzoom: 15 }), attr: '© Strava', op: 0.8 }
+  ];
+
+  /* ---------- карта ---------- */
+  function initMap(el, o = {}) {
+    const map = new maplibregl.Map({
+      container: el, center: o.center || [-9.40, 38.79], zoom: o.zoom || 12, attributionControl: false,
+      style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': o.bg || '#cfd6cf' } }] }
+    });
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), o.navPos || 'top-right');
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+    const state = { base: o.base || 'osm', overlays: new Set(), dim: false };
+    const markers = {};
+    map.on('load', () => {
+      BASES.forEach(g => g.items.forEach(b => {
+        map.addSource(b.id, { type: 'raster', tiles: b.tiles, tileSize: 256, maxzoom: b.maxzoom, attribution: b.attr });
+        map.addLayer({ id: 'b-' + b.id, type: 'raster', source: b.id, layout: { visibility: b.id === state.base ? 'visible' : 'none' } });
+      }));
+      OVERLAYS.forEach(b => {
+        map.addSource(b.id, { type: 'raster', tiles: b.tiles, tileSize: 256, maxzoom: b.maxzoom, attribution: b.attr });
+        map.addLayer({ id: 'o-' + b.id, type: 'raster', source: b.id, layout: { visibility: 'none' }, paint: { 'raster-opacity': b.op } });
+      });
+      map.addSource('route', { type: 'geojson', data: R.geo });
+      const wZ = (a, b, c) => ['interpolate', ['linear'], ['zoom'], 10, a * 0.8, 12, a, 14, b, 17, c];
+      map.addLayer({ id: 'rt-halo', type: 'line', source: 'route', filter: ['==', ['get', 'st'], 0], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffffff', 'line-opacity': 0.55, 'line-width': wZ(8, 10, 14) } });
+      map.addLayer({ id: 'rt-casing', type: 'line', source: 'route', filter: ['==', ['get', 'st'], 0], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#0b0e11', 'line-width': wZ(6.5, 8, 11) } });
+      const colorExpr = ['match', ['get', 'c']];
+      GRADE.forEach((g, i) => { colorExpr.push(i, g.c); }); colorExpr.push('#d9d9d9');
+      SURF_ORDER.forEach(s => {
+        const paint = { 'line-color': colorExpr, 'line-width': wZ(3.6, 5, 7.5) };
+        if (SURF[s].dash) paint['line-dasharray'] = SURF[s].dash;
+        map.addLayer({ id: 'rt-' + s, type: 'line', source: 'route', filter: ['all', ['==', ['get', 's'], s]], layout: { 'line-join': 'round', 'line-cap': 'butt' }, paint });
+      });
+      map.addLayer({ id: 'rt-straight-c', type: 'line', source: 'route', filter: ['==', ['get', 'st'], 1], paint: { 'line-color': '#ffffff', 'line-opacity': 0.7, 'line-width': wZ(4, 6, 9) } });
+      map.addLayer({ id: 'rt-straight', type: 'line', source: 'route', filter: ['==', ['get', 'st'], 1], paint: { 'line-color': '#6b7280', 'line-width': wZ(2, 3, 4.5), 'line-dasharray': [2, 2] } });
+      /* маркеры */
+      R.anchors.forEach(a => {
+        const e = document.createElement('div'); e.className = 'mk-anchor ' + a.kind; e.title = a.name;
+        e.innerHTML = a.kind === 'mid' ? '<b>' + a.n + '</b>' : '<i></i>';
+        e.addEventListener('click', ev => { ev.stopPropagation(); o.onPick && o.onPick(a); });
+        markers[a.id] = new maplibregl.Marker({ element: e }).setLngLat([a.lng, a.lat]).addTo(map);
+      });
+      R.checkpoints.forEach(a => {
+        const e = document.createElement('div'); e.className = 'mk-cp'; e.title = a.name; e.innerHTML = svgIcon(a.kind, 17);
+        e.addEventListener('click', ev => { ev.stopPropagation(); o.onPick && o.onPick(a); });
+        markers[a.id] = new maplibregl.Marker({ element: e }).setLngLat([a.lng, a.lat]).addTo(map);
+      });
+      const h = document.createElement('div'); h.className = 'mk-hover'; h.style.display = 'none';
+      markers.hover = new maplibregl.Marker({ element: h }).setLngLat([-9.4, 38.79]).addTo(map);
+      applyDim();
+      if (map.getContainer().clientWidth < 640) { const b = new maplibregl.LngLatBounds(); R.S.forEach(s => b.extend([s.lng, s.lat])); map.fitBounds(b, { padding: { top: 40, bottom: 40, left: 36, right: 48 }, duration: 0 }); }
+      o.onReady && o.onReady();
+    });
+    function applyDim() {
+      if (!map.getStyle()) return;
+      BASES.forEach(g => g.items.forEach(b => { if (!map.getLayer('b-' + b.id)) return;
+        map.setPaintProperty('b-' + b.id, 'raster-brightness-max', state.dim ? 0.58 : 1);
+        map.setPaintProperty('b-' + b.id, 'raster-saturation', state.dim ? -0.35 : 0);
+        map.setPaintProperty('b-' + b.id, 'raster-contrast', state.dim ? 0.1 : 0); }));
+    }
+    const api = {
+      map, markers, state,
+      setBase(id) { state.base = id; BASES.forEach(g => g.items.forEach(b => map.getLayer('b-' + b.id) && map.setLayoutProperty('b-' + b.id, 'visibility', b.id === id ? 'visible' : 'none'))); },
+      setOverlay(id, on) { on ? state.overlays.add(id) : state.overlays.delete(id); map.getLayer('o-' + id) && map.setLayoutProperty('o-' + id, 'visibility', on ? 'visible' : 'none'); },
+      setDim(on) { state.dim = on; applyDim(); },
+      hover(d) {
+        const h = markers.hover; if (!h) return;
+        if (d == null) { h.getElement().style.display = 'none'; return; }
+        const p = R.ptAt(d); h.setLngLat([p.lng, p.lat]); h.getElement().style.display = 'block';
+      },
+      focus(d0, d1) {
+        const p = R.ptAt(d0);
+        if (d1 == null) { map.flyTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 14), duration: 700 }); return; }
+        const b = new maplibregl.LngLatBounds();
+        R.S.filter(s => s.d >= d0 && s.d <= d1).forEach(s => b.extend([s.lng, s.lat]));
+        map.fitBounds(b, { padding: o.padding || 80, duration: 700, maxZoom: 15 });
+      }
+    };
+    return api;
+  }
+
+  /* переключатель слоёв: рендерит в контейнер */
+  function buildLayerPanel(box, api, o = {}) {
+    let h = '';
+    BASES.forEach(g => {
+      h += '<div class="lp-group"><div class="lp-title">' + g.g + '</div><div class="lp-row">';
+      g.items.forEach(b => { h += '<label class="lp-opt"><input type="radio" name="nk-base" value="' + b.id + '"' + (b.id === api.state.base ? ' checked' : '') + '><span>' + b.n + '</span></label>'; });
+      h += '</div></div>';
+    });
+    h += '<div class="lp-group"><div class="lp-title">Оверлеи</div><div class="lp-row">';
+    OVERLAYS.forEach(b => { h += '<label class="lp-opt"><input type="checkbox" value="' + b.id + '"><span>' + b.n + '</span></label>'; });
+    h += '</div></div>';
+    if (o.dim) h += '<div class="lp-group"><div class="lp-title">Вид</div><div class="lp-row"><label class="lp-opt"><input type="checkbox" id="nk-dim"><span>Притушить карту</span></label></div></div>';
+    box.innerHTML = h;
+    box.addEventListener('change', e => {
+      const t = e.target;
+      if (t.name === 'nk-base') api.setBase(t.value);
+      else if (t.id === 'nk-dim') api.setDim(t.checked);
+      else if (t.type === 'checkbox') api.setOverlay(t.value, t.checked);
+    });
+  }
+
+  /* ---------- профиль высот ---------- */
+  class Profile {
+    constructor(canvas, o = {}) {
+      this.cv = canvas; this.o = Object.assign({ padL: 44, padR: 14, padT: 22, padB: 20, band: 0, markers: true, onHover: null }, o);
+      this.hd = null;
+      this.tip = document.createElement('div'); this.tip.className = 'pf-tip'; this.tip.hidden = true;
+      canvas.parentElement.appendChild(this.tip);
+      const mv = e => { const r = canvas.getBoundingClientRect(); this.hoverX(e.clientX - r.left); };
+      canvas.addEventListener('pointermove', mv);
+      canvas.addEventListener('pointerdown', mv);
+      canvas.addEventListener('pointerleave', () => this.hoverX(null));
+      canvas.addEventListener('pointercancel', () => this.hoverX(null));
+      new ResizeObserver(() => this.draw()).observe(canvas.parentElement);
+      this.icons = {}; Object.keys(ICON).forEach(k => this.icons[k] = new Path2D(ICON[k]));
+    }
+    x(d) { return this.o.padL + (d / TOTAL) * (this.W - this.o.padL - this.o.padR); }
+    hoverX(px) {
+      if (px == null) { this.hd = null; this.tip.hidden = true; this.draw(); this.o.onHover && this.o.onHover(null); return; }
+      const d = Math.max(0, Math.min(TOTAL, (px - this.o.padL) / (this.W - this.o.padL - this.o.padR) * TOTAL));
+      this.hd = d; this.draw(); this.o.onHover && this.o.onHover(d);
+      const p = R.ptAt(d), sg = SURF[p.s];
+      this.tip.innerHTML = '<b>' + fmt(d, 1) + ' км</b><span>' + Math.round(p.ele) + ' м</span><span>' + (p.g > 0 ? '+' : p.g < 0 ? '−' : '') + fmt(Math.abs(p.g), 1) + '%</span><span>' + sg.n.toLowerCase() + '</span>';
+      this.tip.hidden = false;
+      const tw = this.tip.offsetWidth, x = this.x(d), left = x + 12 + tw > this.W ? x - 12 - tw : x + 12;
+      this.tip.style.left = Math.max(0, left) + 'px'; this.tip.style.top = this.o.padT + 22 + 'px';
+    }
+    draw() {
+      const cv = this.cv, par = cv.parentElement, dpr = window.devicePixelRatio || 1;
+      const W = par.clientWidth, H = par.clientHeight; if (!W || !H) return;
+      this.W = W; this.H = H;
+      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.width = W + 'px'; cv.style.height = H + 'px'; }
+      const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+      const cs = getComputedStyle(par), v = n => cs.getPropertyValue(n).trim();
+      const colGrid = v('--pf-grid') || '#333', colTxt = v('--pf-text') || '#aaa', colLine = v('--pf-line') || '#fff', colBand = v('--pf-band') || '#aaa', colCur = v('--pf-cursor') || '#ff7a1a', font = v('--pf-font') || 'ui-monospace, monospace';
+      const { padL, padR, padT, padB, band } = this.o;
+      const plotB = H - padB, plotH = plotB - padT;
+      const step = R.emax - R.emin > 380 ? 100 : 50;
+      const lo = Math.floor((R.emin - 8) / step) * step, hi = Math.ceil((R.emax + 8) / step) * step;
+      const y = e => plotB - (e - lo) / (hi - lo) * plotH;
+      c.font = '11px ' + font; c.textBaseline = 'middle';
+      /* сетка */
+      c.lineWidth = 1; c.strokeStyle = colGrid; c.fillStyle = colTxt; c.textAlign = 'right';
+      for (let e = lo; e <= hi; e += step) { const yy = Math.round(y(e)) + 0.5; c.beginPath(); c.moveTo(padL, yy); c.lineTo(W - padR, yy); c.stroke(); c.fillText(e + '', padL - 6, yy); }
+      c.textAlign = 'center'; c.textBaseline = 'top';
+      const tk = W < 520 ? 10 : 5;
+      for (let k = 0; k <= TOTAL; k += tk) { const xx = Math.round(this.x(k)) + 0.5; c.beginPath(); c.moveTo(xx, plotB); c.lineTo(xx, plotB + 4); c.strokeStyle = colTxt; c.stroke(); c.fillText(k + (k === 0 ? ' км' : ''), xx + (k === 0 ? 8 : 0), plotB + 6); }
+      /* заливка по уклону */
+      const S = R.S;
+      for (let i = 0; i < S.length - 1; i++) {
+        const x0 = this.x(S[i].d), x1 = this.x(S[i + 1].d), g = (S[i].g + S[i + 1].g) / 2;
+        c.fillStyle = GRADE[gcls(g)].c; c.globalAlpha = 0.92;
+        c.beginPath(); c.moveTo(x0, y(S[i].ele)); c.lineTo(x1 + 0.6, y(S[i + 1].ele)); c.lineTo(x1 + 0.6, plotB); c.lineTo(x0, plotB); c.closePath(); c.fill();
+      }
+      c.globalAlpha = 1;
+      c.beginPath(); S.forEach((s, i) => i ? c.lineTo(this.x(s.d), y(s.ele)) : c.moveTo(this.x(s.d), y(s.ele)));
+      c.lineWidth = 2; c.strokeStyle = colLine; c.lineJoin = 'round'; c.stroke();
+      /* полоса покрытия */
+      if (band) {
+        const by = plotB + 22, lw = band;
+        R.segs.forEach(r => {
+          const x0 = this.x(r[0]), x1 = this.x(r[1]); const s = SURF[r[2]];
+          c.save(); c.beginPath(); c.rect(x0, by - 1, x1 - x0, lw + 2); c.clip();
+          c.strokeStyle = r[2] === 'straight' ? '#8b949e' : colBand; c.lineWidth = lw;
+          c.setLineDash(s.dash ? s.dash.map(q => q * lw * 0.8) : []); c.beginPath(); c.moveTo(x0, by + lw / 2); c.lineTo(x1, by + lw / 2); c.stroke(); c.restore();
+        });
+      }
+      /* отметки */
+      if (this.o.markers) {
+        R.checkpoints.forEach(p => {
+          const xx = this.x(p.d), yy = y(p.ele);
+          c.strokeStyle = colTxt; c.globalAlpha = 0.7; c.lineWidth = 1; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(xx + 0.5, padT - 2); c.lineTo(xx + 0.5, yy); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+          c.fillStyle = '#fff'; c.strokeStyle = ICON_COLOR[p.kind]; c.lineWidth = 2; c.beginPath(); c.arc(xx, padT - 2, 9, 0, 7); c.fill(); c.stroke();
+          c.save(); c.translate(xx - 6.5, padT - 8.5); c.scale(13 / 24, 13 / 24); c.fillStyle = ICON_COLOR[p.kind]; c.fill(this.icons[p.kind], 'evenodd'); c.restore();
+        });
+        R.anchors.forEach(p => {
+          const xx = this.x(p.d), yy = y(p.ele);
+          c.beginPath(); c.arc(xx, yy, 5, 0, 7);
+          c.fillStyle = p.kind === 'start' ? '#1a9850' : p.kind === 'finish' ? '#d7191c' : '#fff'; c.fill(); c.lineWidth = 2; c.strokeStyle = p.kind === 'mid' ? '#222' : '#fff'; c.stroke();
+        });
+      }
+      /* курсор */
+      if (this.hd != null) {
+        const p = R.ptAt(this.hd), xx = this.x(this.hd);
+        c.strokeStyle = colCur; c.lineWidth = 1.5; c.beginPath(); c.moveTo(xx, padT - 2); c.lineTo(xx, plotB + (band ? 22 + band : 0)); c.stroke();
+        c.beginPath(); c.arc(xx, y(p.ele), 5.5, 0, 7); c.fillStyle = colCur; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
+      }
+    }
+  }
+
+  /* цвет текста на блоке уклона */
+  function inkOn(hex) { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; const l = [r, g, b].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return (0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]) > 0.3 ? '#111' : '#fff'; }
+
+  G.NK = { R, GRADE, SURF, SURF_ORDER, BASES, OVERLAYS, TOTAL, fmt, svgIcon, ICON_COLOR, initMap, buildLayerPanel, Profile, inkOn };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+(function(){
+const $=s=>document.querySelector(s), fmt=NK.fmt, R=NK.R, T=NK.TOTAL;
+const root=document.documentElement;
+const isDark=()=>{const t=root.dataset.theme;return t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)}
+$('.leg').innerHTML=NK.GRADE.map(g=>'<span><i style="background:'+g.c+'"></i>'+g.n+'</span>').join('');
+const mobile=()=>innerWidth<640;
+let selKey=null;
+const api=NK.initMap('map',{base:'osm',bg:'#e5e3dc',padding:60,onPick:p=>select('p:'+p.id,()=>api.focus(p.d)),onReady:()=>{api.setDim(isDark());const c=$('#nk-dim');if(c)c.checked=isDark()}});
+NK.buildLayerPanel($('#lbody'),api,{dim:true});
+$('#nk-dim').checked=isDark();
+$('#lbtn').onclick=()=>{const h=$('#lpop').hidden;$('#lpop').hidden=!h;$('#lbtn').setAttribute('aria-expanded',h)};
+$('#lclose').onclick=()=>{$('#lpop').hidden=true;$('#lbtn').setAttribute('aria-expanded',false)};
+/* профиль */
+const PAD=()=>mobile()?{l:38,r:12}:{l:112,r:20};
+const cur=$('#curline'),plot=$('#plot');
+const pf=new NK.Profile($('#pf'),{padL:112,padR:20,padT:26,padB:22,band:0,onHover:d=>{
+  api.hover(d);
+  if(d==null||mobile()){cur.style.display='none';return}
+  const p=PAD(),w=$('#pf').parentElement.clientWidth;
+  cur.style.display='block';cur.style.left=(p.l+d/T*(w-p.l-p.r))+'px';
+}});
+function setPad(){const p=PAD();pf.o.padL=p.l;pf.o.padR=p.r;pf.o.padT=mobile()?24:26}
+/* ----- лента ----- */
+const sname={asphalt:'асфальт',compact:'укатанное',gravel:'гравий',trail:'тропа',straight:'по прямой'};
+const pct=d=>d/T*100;
+function select(key,fn){selKey=key;document.querySelectorAll('[data-k]').forEach(e=>e.classList.toggle('sel',e.dataset.k===key));fn&&fn()}
+function renderH(){
+  const w=$('#l-ev').clientWidth||900, pxkm=w/T;
+  let h='';
+  R.anchors.forEach(a=>{
+    const rev=a.d>T*0.82, lab=a.kind==='mid'?a.name:(a.kind==='start'?'Старт':'Финиш');
+    h+='<button class="ev '+a.kind+(rev?' rev':'')+'" data-k="p:'+a.id+'" style="left:'+pct(a.d)+'%" title="'+a.name+', '+fmt(a.d,1)+' км"><span class="nd">'+(a.kind==='mid'?a.n:'<i></i>')+'</span><span class="tx">'+lab+' <small>'+fmt(a.d,1)+'</small></span></button>';
+  });
+  R.checkpoints.forEach(a=>{
+    const nm={water:'Фонтан',cafe:'Кафе',view:'Смотровая'}[a.kind];
+    h+='<button class="ev cp r1" data-k="p:'+a.id+'" style="left:'+pct(a.d)+'%" title="'+a.name+', '+fmt(a.d,1)+' км"><span class="nd" style="box-shadow:0 0 0 2px '+NK.ICON_COLOR[a.kind]+'">'+NK.svgIcon(a.kind,14)+'</span><span class="tx">'+nm+' <small>'+fmt(a.d,1)+'</small></span></button>';
+  });
+  $('#l-ev').innerHTML=h;
+  h='';
+  R.climbs.forEach((c,i)=>{
+    const g=NK.GRADE[c.cls], ww=(c.d1-c.d0)*pxkm, gr=Math.round(c.grade);
+    const full='Подъём '+fmt(c.len,1)+' км, '+gr+'%';
+    const txt=ww>=128?full:ww>=84?'↗ '+fmt(c.len,1)+' км, '+gr+'%':'↗ '+gr+'%';
+    h+='<button class="cl" data-k="c:'+i+'" style="left:'+pct(c.d0)+'%;width:'+pct(c.d1-c.d0)+'%;background:'+g.c+';color:'+NK.inkOn(g.c)+'" title="'+full+', набор '+Math.round(c.gain)+' м (км '+fmt(c.d0,1)+' – '+fmt(c.d1,1)+')">'+txt+'</button>';
+  });
+  $('#l-cl').innerHTML=h;
+  h='';
+  R.segs.forEach((s,i)=>{
+    const ww=(s[1]-s[0])*pxkm, l=fmt(s[1]-s[0],1)+' км';
+    const txt=ww>=110?sname[s[2]]+', '+l:ww>=60?sname[s[2]]:'';
+    h+='<button class="sg" data-k="s:'+i+'" style="left:'+pct(s[0])+'%;width:'+pct(s[1]-s[0])+'%" title="'+sname[s[2]][0].toUpperCase()+sname[s[2]].slice(1)+', '+l+' (км '+fmt(s[0],1)+' – '+fmt(s[1],1)+')"><span class="lb">'+txt+'</span><span class="st '+s[2]+'"></span></button>';
+  });
+  $('#l-sf').innerHTML=h;
+  document.querySelectorAll('[data-k]').forEach(e=>e.classList.toggle('sel',e.dataset.k===selKey));
+}
+function findItem(k){
+  const [t,v]=k.split(':');
+  if(t==='p'){const p=R.anchors.concat(R.checkpoints).find(x=>x.id===v);return{d:p.d,name:p.name}}
+  if(t==='c'){const c=R.climbs[+v];return{d0:c.d0,d1:c.d1,name:'Подъём '+fmt(c.len,1)+' км'}}
+  const s=R.segs[+v];return{d0:s[0],d1:s[1],name:sname[s[2]]}
+}
+function renderV(){
+  const it=[];
+  R.anchors.concat(R.checkpoints).forEach(p=>it.push({d:p.d,o:1,k:'p:'+p.id,t:'p',p}));
+  R.climbs.forEach((c,i)=>it.push({d:c.d0,o:0,k:'c:'+i,t:'c',c}));
+  R.segs.forEach((s,i)=>{if(i>0)it.push({d:s[0],o:2,k:'s:'+i,t:'s',s})});
+  it.sort((a,b)=>a.d-b.d||a.o-b.o);
+  $('#vt').innerHTML=it.map(x=>{
+    if(x.t==='p'){const p=x.p,isCp=!!NK.ICON_COLOR[p.kind];
+      const cls=isCp?'cp':p.kind;
+      const nd=isCp?NK.svgIcon(p.kind,13):p.kind==='mid'?p.n:'';
+      const sty=isCp?' style="color:#000;box-shadow:0 0 0 2px '+NK.ICON_COLOR[p.kind]+'"':'';
+      return '<button class="vi '+cls+'" data-k="'+x.k+'"><span class="km">'+fmt(p.d,1)+'</span><span class="rl2"><span class="nd"'+sty+'>'+nd+'</span></span><span class="bd"><b>'+p.name+'</b><span>'+Math.round(p.ele)+' м</span></span></button>';}
+    if(x.t==='c'){const c=x.c,g=NK.GRADE[c.cls];
+      return '<button class="vi" data-k="'+x.k+'"><span class="km">'+fmt(c.d0,1)+'</span><span class="rl2"><span class="nd" style="background:'+g.c+';box-shadow:0 0 0 2px '+g.c+'"></span></span><span class="bd"><span class="cb" style="background:'+g.c+';color:'+NK.inkOn(g.c)+'">Подъём '+fmt(c.len,1)+' км, '+Math.round(c.grade)+'%<span>+'+Math.round(c.gain)+' м, до км '+fmt(c.d1,1)+'</span></span></span></button>';}
+    const s=x.s;
+    return '<button class="vi small" data-k="'+x.k+'"><span class="km">'+fmt(s[0],1)+'</span><span class="rl2"><span class="nd"></span></span><span class="bd"><b>'+(s[2]==='straight'?'По прямой':'Покрытие: '+sname[s[2]])+', '+fmt(s[1]-s[0],1)+' км</b></span></button>';
+  }).join('');
+  document.querySelectorAll('[data-k]').forEach(e=>e.classList.toggle('sel',e.dataset.k===selKey));
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-k]');if(!b)return;
+  const k=b.dataset.k,it=findItem(k);
+  select(k,()=>{
+    if(it.d!=null)api.focus(it.d);else api.focus(it.d0,it.d1);
+    if(mobile())$('.mapwrap').scrollIntoView({behavior:'smooth',block:'start'});
+  });
+});
+function layout(){setPad();pf.draw();if(!mobile())renderH();}
+new ResizeObserver(()=>{layout()}).observe($('#plot'));
+renderV();layout();
+/* тема */
+$('#theme').onclick=()=>{const n=isDark()?'light':'dark';root.dataset.theme=n;api.setDim(n==='dark');const c=$('#nk-dim');if(c)c.checked=n==='dark';pf.draw()};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(!root.dataset.theme){api.setDim(isDark());pf.draw()}});
+$('#nk-dim').addEventListener('change',()=>pf.draw());
+/* вход */
+let signed=true;
+function user(){
+  $('#user').innerHTML=signed?'<button class="avatar" id="av" title="Профиль" aria-label="Профиль: Мария К.">МК</button>':'<button class="btn login" id="login">Войти</button>';
+  const b=$('#av')||$('#login');b.onclick=()=>{signed=!signed;user();document.querySelectorAll('.sync').forEach(s=>s.style.display=signed?'':'none');toast(signed?'Вы вошли, маршруты синхронизированы':'Вы вышли из аккаунта')};
+}
+user();
+const routes=[
+ {n:'Синтра: Пенинья, гравел',m:'42,3 км · ↗ 812 м',c:'#3b4cff',on:1,cur:1},
+ {n:'Кашкайш – Кабу-да-Рока',m:'31,8 км · ↗ 540 м',c:'#0f9bb0',on:1},
+ {n:'Серра-да-Арраби, круг',m:'56,7 км · ↗ 1 120 м',c:'#a855f7',on:0},
+ {n:'Трек: Синтра пешком',m:'11,4 км · ↗ 460 м',c:'#3f9b2e',on:1}];
+const eye='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+$('#rl').innerHTML=routes.map(r=>'<li class="'+(r.cur?'on':'')+'"><span class="dot" style="background:'+r.c+'"></span><div class="t"><b>'+r.n+'</b><span>'+r.m+'</span></div><button class="eye" aria-pressed="'+!!r.on+'" aria-label="Показать на карте: '+r.n+'">'+eye+'</button></li>').join('');
+$('#rl').addEventListener('click',e=>{const b=e.target.closest('.eye');if(b)b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true')});
+$('#lim').oninput=e=>{$('#limv').textContent=e.target.value+'%'};
+$('#edit').onclick=e=>{const b=e.currentTarget;const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);toast(on?'Правка включена: кликайте по карте, чтобы добавить точку':'Правка выключена')};
+document.querySelectorAll('[data-demo]').forEach(b=>b.addEventListener('click',()=>toast(b.dataset.demo)));
+document.querySelectorAll('[data-garmin]').forEach(b=>b.addEventListener('click',()=>toast('Маршрут отправлен в Garmin Connect')));
+window.__nk={api,pf};
+})();
+</script>
+</body>
+</html>

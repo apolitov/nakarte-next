@@ -2,12 +2,13 @@
 // dragging a point recalculates only the two legs around it.
 import type { Position } from 'geojson';
 import { straightWithElevation } from './dem';
+import { t } from './i18n';
 
 export const PROFILES = [
-  { id: 'nk-road', title: 'Шоссе' },
-  { id: 'nk-gravel', title: 'Гравел' },
-  { id: 'nk-mtb', title: 'МТБ' },
-  { id: 'nk-hike', title: 'Пешком' },
+  { id: 'nk-road', title: t('profile.road') },
+  { id: 'nk-gravel', title: t('profile.gravel') },
+  { id: 'nk-mtb', title: t('profile.mtb') },
+  { id: 'nk-hike', title: t('profile.hike') },
 ] as const;
 
 /** Profiles of the first version, kept so old routes and links still open. */
@@ -101,7 +102,7 @@ function parseTags(s: string): Record<string, string> {
 /** Parses BRouter's geojson answer: coordinates with elevation and the `messages` table with way tags. */
 export function parseBrouter(json: any): Leg {
   const f = json?.features?.[0];
-  if (!f) throw new Error('пустой ответ BRouter');
+  if (!f) throw new Error(t('err.brouterEmpty'));
   const coords: Position[] = f.geometry.coordinates;
   const points = coords.map(([lng, lat, ele]) => ({ lng, lat, ele: ele ?? null }));
   fillElevation(points);

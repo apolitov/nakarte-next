@@ -1,6 +1,7 @@
 import { gpx, kml } from '@tmcw/togeojson';
 import { CHECKPOINT_KINDS, kindOf } from './checkpoints';
 import type { Feature, FeatureCollection, LineString, MultiLineString, Point, Position } from 'geojson';
+import { t } from './i18n';
 
 export interface Track {
   id: string;
@@ -14,7 +15,7 @@ const newId = () => `t${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 export function parseTrackFile(name: string, text: string): Track {
   const doc = new DOMParser().parseFromString(text, 'application/xml');
-  if (doc.querySelector('parsererror')) throw new Error(`${name}: не XML`);
+  if (doc.querySelector('parsererror')) throw new Error(t('err.notXml', { name }));
   const fc = (/\.kml$/i.test(name) ? kml(doc) : gpx(doc)) as FeatureCollection;
   const lines: Position[][] = [];
   const points: Track['points'] = [];
@@ -31,7 +32,7 @@ export function parseTrackFile(name: string, text: string): Track {
         note: f.properties?.desc ? String(f.properties.desc) : undefined,
       });
   }
-  if (!lines.length && !points.length) throw new Error(`${name}: нет треков и точек`);
+  if (!lines.length && !points.length) throw new Error(t('err.noTracks', { name }));
   const title = String(fc.features[0]?.properties?.name ?? '') || name.replace(/\.(gpx|kml)$/i, '');
   return { id: newId(), name: title, lines, points };
 }

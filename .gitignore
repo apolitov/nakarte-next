@@ -8,3 +8,5 @@ dist/
 PLAN.md
 .claude/
 public/data/
+public/design/shots/
+tools/passes/__pycache__/

@@ -1,0 +1,771 @@
+<meta charset="utf-8">
+<html lang="ru">
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>nakarte next – планировщик маршрутов (лист)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+:root{
+  --bg:#f1f4f3;--surface:#fff;--surface-2:#e9eeed;--ink:#14212b;--ink-2:#4a5a64;--line:#d3dbda;--grid:rgba(20,33,43,.13);
+  --accent:#2447d1;--accent-ink:#fff;--accent-soft:#e3e9fc;--strip:#26343e;--straight:#6b747c;
+  --tip-bg:#14212b;--tip-ink:#f3f7f8;--shadow:0 6px 24px rgba(16,30,40,.18);--ok:#12703a;--ok-bg:#dcf3e5;--warn-bg:#fdeacc;--warn:#7a4300;
+  --font-ui:'Onest',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--font-num:'Onest',system-ui,sans-serif;
+  --sheet-w:392px;--coll:136px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e161b;--surface:#16222a;--surface-2:#203039;--ink:#ebf2f5;--ink-2:#9db0bb;--line:#2b3b45;--grid:rgba(235,242,245,.14);
+  --accent:#8ea3ff;--accent-ink:#0a1130;--accent-soft:#25305f;--strip:#d3dee4;--straight:#98a3ab;
+  --tip-bg:#ebf2f5;--tip-ink:#14212b;--shadow:0 6px 28px rgba(0,0,0,.55);--ok:#7fdca2;--ok-bg:#16402a;--warn-bg:#4a3512;--warn:#ffd08a;
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font:400 14px/1.4 var(--font-ui)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+#app{position:fixed;inset:0}
+#map{position:absolute;inset:0}
+.maplibregl-ctrl-attrib{background:rgba(255,255,255,.85)!important;color:#333}
+.maplibregl-ctrl-attrib a{color:#1a4f9c}
+.maplibregl-ctrl-bottom-left{bottom:var(--sheet-vis,0px);transition:bottom .25s}
+
+/* верхняя панель */
+.top{position:absolute;z-index:5;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;align-items:center;gap:8px;pointer-events:none}
+.top>*{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:8px;height:42px;padding:0 14px 0 8px;border-radius:21px;background:var(--surface);box-shadow:var(--shadow);font-weight:700;letter-spacing:-.01em}
+.brand i{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-style:normal}
+.brand span small{font-weight:500;color:var(--ink-2)}
+.sp{flex:1}
+.sync{display:flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 8px;border-radius:17px;background:var(--ok-bg);color:var(--ok);font-weight:600;font-size:12.5px;box-shadow:var(--shadow);white-space:nowrap}
+.sync i{display:grid;place-items:center}
+body[data-auth=out] .sync{background:var(--warn-bg);color:var(--warn)}
+.sync .t-out,body[data-auth=out] .sync .t-in{display:none}body[data-auth=out] .sync .t-out{display:inline}
+.avatar{display:flex;align-items:center;gap:8px;height:42px;padding:0 4px;border:0;border-radius:21px;background:var(--surface);box-shadow:var(--shadow);cursor:pointer}
+.avatar b{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b5bdb,#12a594);color:#fff;font-size:13px;font-weight:700}
+.avatar span{display:none}
+body[data-auth=out] .avatar{padding:0 16px;font-weight:700;color:var(--accent)}
+body[data-auth=out] .avatar b{display:none}body[data-auth=out] .avatar span.out{display:inline}
+body[data-auth=in] .avatar span.out{display:none}
+
+/* кнопки карты */
+.mapctl{position:absolute;z-index:5;right:10px;top:calc(max(10px,env(safe-area-inset-top)) + 54px);display:flex;flex-direction:column;gap:8px}
+.mc{display:grid;place-items:center;width:42px;height:42px;border:0;border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow);cursor:pointer}
+.mc:hover{background:var(--surface-2)}
+.mc[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.mc-pair{display:flex;flex-direction:column;border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}
+.mc-pair .mc{box-shadow:none;background:transparent;border-radius:12px 12px 0 0;height:40px}
+.mc-pair .mc+.mc{border-top:1px solid var(--line);border-radius:0 0 12px 12px}
+#lyrpop{position:absolute;z-index:7;right:62px;top:calc(max(10px,env(safe-area-inset-top)) + 54px);width:340px;max-height:calc(100% - 100px);display:flex;flex-direction:column;border-radius:16px;background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
+#lyrpop[hidden]{display:none}
+.pop-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;font-weight:700}
+.pop-h button{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:8px;background:transparent;cursor:pointer}
+.pop-h button:hover{background:var(--surface-2)}
+#lyrpop .lyr-scroll{padding:0 14px 14px;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 170px)}
+
+/* лист */
+#sheet{position:absolute;z-index:6;left:0;right:0;bottom:0;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:0 -6px 30px rgba(10,20,30,.28);display:flex;flex-direction:column;touch-action:none;will-change:transform}
+#sheet.anim{transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+.grab{display:block;width:100%;height:26px;flex:none;border:0;background:transparent;cursor:grab;touch-action:none;position:relative;padding:0}
+.grab::before{content:"";position:absolute;left:50%;top:9px;width:42px;height:5px;margin-left:-21px;border-radius:3px;background:var(--ink-2);opacity:.55}
+.grab:active{cursor:grabbing}
+.sheet-scroll{flex:1;min-height:0;overflow:hidden;padding:0 16px calc(24px + env(safe-area-inset-bottom));touch-action:pan-y;overscroll-behavior:contain}
+#sheet[data-state="2"] .sheet-scroll{overflow-y:auto}
+.hd{touch-action:none;cursor:grab}
+.sum-t{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
+.sum-t h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+.sum-t small{color:var(--ink-2);font-size:12.5px;white-space:nowrap}
+.stats{display:flex;justify-content:space-between;gap:4px 12px;align-items:flex-end}
+.st b{display:block;font-size:28px;line-height:1;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.st b u{text-decoration:none;font-size:13px;font-weight:600;color:var(--ink-2);letter-spacing:0;margin-left:3px}
+.st.s b{white-space:nowrap;font-size:16.5px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:4px}
+.st.s b u{margin-left:1px}
+.st span{display:block;font-size:11.5px;color:var(--ink-2);margin-top:3px}
+.ribbon{margin:12px 0 0;border-radius:4px;overflow:hidden;height:6px}
+.ribbon svg{display:block}
+.blk{margin-top:18px}
+.blk h2{margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
+.surf-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2);gap:2px}
+.surf-bar i{display:block;height:100%}
+.sb-a{background:var(--strip)}
+.sb-c{background:repeating-linear-gradient(90deg,var(--strip) 0 6px,transparent 6px 8px)}
+.sb-g{background:repeating-linear-gradient(90deg,var(--strip) 0 3px,transparent 3px 5px)}
+.sb-t{background:repeating-linear-gradient(90deg,var(--strip) 0 1px,transparent 1px 3px)}
+.surf-leg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px;font-size:12px;color:var(--ink-2)}
+.surf-leg b{display:block;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.prof{height:176px;margin:0 -4px;position:relative}
+.legend{margin-top:6px;display:flex;flex-direction:column;gap:5px}
+.export{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);font-weight:600;cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn-garmin{grid-column:1/-1;min-height:58px;justify-content:flex-start;padding:0 16px;border:0;background:var(--accent);color:var(--accent-ink);font-size:16px;font-weight:700;box-shadow:0 6px 16px -4px color-mix(in srgb,var(--accent) 65%,transparent)}
+.btn-garmin:hover{background:var(--accent);filter:brightness(1.08)}
+.btn-garmin small{display:block;font-size:12px;font-weight:500;opacity:.88}
+.btn-garmin span.ico{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.18)}
+body .btn-garmin .ico{background:color-mix(in srgb,var(--accent-ink) 16%,transparent)}
+.field{margin-bottom:16px}
+.field>label,.field>.lb{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;font-weight:600;font-size:13px}
+.field>.lb output{color:var(--accent);font-weight:800;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-height:36px;padding:0 13px;border:1.5px solid var(--line);border-radius:18px;background:var(--surface);cursor:pointer;font-weight:500}
+.chip[aria-pressed=true],.seg button[aria-checked=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:3px;border-radius:12px;background:var(--surface-2)}
+.seg button{min-height:38px;border:0;border-radius:9px;background:transparent;cursor:pointer;font-weight:500}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;margin:0;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:9px;border-radius:5px;background:linear-gradient(90deg,#fee08b 0 17.6%,#fdae61 17.6% 41%,#d73027 41% 70.6%,#7f0000 70.6%)}
+input[type=range]::-moz-range-track{height:9px;border-radius:5px;background:linear-gradient(90deg,#fee08b 0 17.6%,#fdae61 17.6% 41%,#d73027 41% 70.6%,#7f0000 70.6%)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:50%;background:var(--surface);border:3px solid var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--surface);border:3px solid var(--ink)}
+.scale{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:1px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;text-align:left}
+.switch .tx b{display:block;font-weight:600}.switch .tx span{font-size:12px;color:var(--ink-2)}
+.tg{flex:none;position:relative;width:44px;height:26px;border-radius:13px;background:var(--surface-2);box-shadow:inset 0 0 0 1.5px var(--ink-2);transition:background .2s}
+.tg::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:var(--ink-2);transition:transform .2s,background .2s}
+.switch[aria-checked=true] .tg{background:var(--accent);box-shadow:none}
+.switch[aria-checked=true] .tg::after{transform:translateX(18px);background:var(--accent-ink)}
+.undo{display:flex;gap:8px;margin-top:8px}
+.undo .btn{flex:1}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.actions .btn{justify-content:flex-start;min-height:46px;font-size:13px;font-weight:600;padding:0 12px}
+.actions .btn:last-child{grid-column:1/-1}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.list li{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.list li:first-child{border-top:0}
+.list .nm{flex:1;min-width:0}.list .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.list .nm span{font-size:12.5px;color:var(--ink-2)}
+.list .km{font-weight:700;font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}
+.cpi{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:10px;color:#fff}
+.cpi.water{background:#1a6fb4}.cpi.cafe{background:#8a4b21}.cpi.view{background:#5d3fa8}
+.mk{flex:none;width:14px;height:34px;border-radius:7px}
+.eyeb{display:grid;place-items:center;flex:none;width:40px;height:40px;border:0;border-radius:10px;background:transparent;cursor:pointer;color:var(--ink)}
+.eyeb:hover{background:var(--surface-2)}
+.eyeb[aria-pressed=false]{color:var(--ink-2)}
+li.off .nm b{color:var(--ink-2)}
+.add{margin-top:6px;width:100%;border-style:dashed}
+.foot{margin-top:20px;font-size:12px;color:var(--ink-2)}
+#toast{position:fixed;z-index:20;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 58px);transform:translate(-50%,-12px);padding:10px 16px;border-radius:12px;background:var(--tip-bg);color:var(--tip-ink);font-weight:500;font-size:13.5px;opacity:0;pointer-events:none;transition:.25s;max-width:calc(100% - 24px);text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+.only-d{display:none}
+
+/* десктоп: лист превращается в панель */
+@media (min-width:640px){
+  #sheet{top:0;left:auto;width:var(--sheet-w);border-radius:0;transform:none!important;height:auto!important;box-shadow:-4px 0 24px rgba(10,20,30,.16);touch-action:auto}
+  .grab{display:none}
+  .sheet-scroll{overflow-y:auto!important;padding-top:20px;touch-action:auto}
+  .hd{cursor:default;touch-action:auto}
+  .top{right:calc(var(--sheet-w) + 14px);left:14px;top:14px}
+  .mapctl{right:calc(var(--sheet-w) + 14px);top:70px}
+  #lyrpop{right:calc(var(--sheet-w) + 68px);top:70px}
+  .maplibregl-ctrl-bottom-left{bottom:0!important}
+  .avatar span.out{display:inline}
+  .avatar{padding:0 14px 0 4px}body[data-auth=in] .avatar span.name{display:inline;font-weight:600}
+  .prof{height:200px}
+  .only-d{display:block}
+  #toast{left:calc((100% - var(--sheet-w))/2)}
+}
+@media (max-width:640px){
+  #lyrpop{left:10px;right:10px;width:auto;top:calc(max(10px,env(safe-area-inset-top)) + 54px);max-height:calc(100% - 200px)}
+  #lyrpop .lyr-scroll{max-height:calc(100vh - 340px)}
+  .brand span small{display:none}
+  .sync .t-in,.sync .t-out{font-size:12px}
+}
+@media (max-width:400px){.sync .lbl-long{display:none}.brand{padding-right:10px}}
+@media (prefers-reduced-motion:reduce){#sheet.anim,.maplibregl-ctrl-bottom-left,#toast{transition:none}}
+.nkp{position:relative;width:100%;user-select:none;overflow:visible}
+.nkp-svg{position:absolute;left:0;top:0}
+.nkp-svg{display:block;touch-action:pan-y;cursor:crosshair}
+.nkp-t{font:500 10.5px/1 var(--font-num,inherit);fill:var(--ink-2);font-variant-numeric:tabular-nums}
+.nkp-cp{cursor:help}
+.nkp-tip{position:absolute;top:2px;z-index:3;display:flex;flex-wrap:wrap;gap:2px 10px;max-width:230px;padding:6px 9px;border-radius:8px;background:var(--tip-bg);color:var(--tip-ink);font-size:12px;line-height:1.35;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.28);font-variant-numeric:tabular-nums;white-space:nowrap}
+.nkp-tip[hidden]{display:none}
+.nkp-tip b{font-weight:700}
+.nkp-tip em{flex-basis:100%;font-style:normal;opacity:.85}
+.sq{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.sq-flat{box-shadow:inset 0 0 0 1.5px #3b4249}
+.hover-dot{width:16px;height:16px;border-radius:50%;background:#fff;border:3.5px solid #111;box-shadow:0 0 0 3px rgba(255,255,255,.7),0 2px 6px rgba(0,0,0,.4);pointer-events:none}
+.wp{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;color:#fff;font:700 13px/1 var(--font-ui,sans-serif);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.wp-start{background:#167a3e}.wp-end{background:#c8281a}.wp-mid{background:#1f2a33}
+.cp{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;border:2px solid #fff;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4);cursor:pointer}
+.cp-water{background:#1a6fb4}.cp-cafe{background:#8a4b21}.cp-view{background:#5d3fa8}
+.lg{display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px;font-size:11.5px;color:var(--ink-2)}
+.lg-t{font-weight:600;color:var(--ink);margin-right:2px}
+.lg-i{display:inline-flex;align-items:center;white-space:nowrap;font-variant-numeric:tabular-nums}
+.lg-i svg{margin-right:5px;color:var(--strip)}
+.lyr-scroll{overflow:auto;max-height:inherit}
+.lyr-group h4{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.lyr-group h4 small{font-weight:500;text-transform:none;letter-spacing:0;margin-left:6px}
+.lyr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.lyr{display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:4px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:12px;cursor:pointer;text-align:left}
+.lyr:hover{border-color:var(--ink-2)}
+.lyr[aria-checked=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.lyr-sw{display:block;height:30px;border-radius:7px}
+.lyr-nm{padding:0 3px 2px;font-weight:500}
+.lyr-ovs{display:flex;flex-direction:column;gap:6px}
+.lyr-ov{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);cursor:pointer}
+.lyr-ov input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.maplibregl-ctrl-attrib{font-size:11px !important}
+
+</style>
+</head>
+<body data-auth="in">
+<div id="app">
+  <div id="map"></div>
+
+  <header class="top">
+    <div class="brand"><i data-i="route" data-s="16"></i><span>nakarte <small>next</small></span></div>
+    <div class="sp"></div>
+    <div class="sync" role="status"><i data-i="check" data-s="15" data-w="2.6"></i><span class="t-in">Синхронизировано<span class="lbl-long"></span></span><span class="t-out">Не сохранено</span></div>
+    <button class="avatar" id="auth" aria-label="Аккаунт"><b>МЛ</b><span class="name only-d" style="display:none">Мария Л.</span><span class="out">Войти</span></button>
+  </header>
+
+  <div class="mapctl">
+    <button class="mc" id="btn-layers" aria-label="Слои карты" aria-pressed="false" aria-controls="lyrpop"><span data-i="layers" data-s="21"></span></button>
+    <div class="mc-pair"><button class="mc" id="zin" aria-label="Приблизить"><span data-i="plus" data-s="20"></span></button><button class="mc" id="zout" aria-label="Отдалить"><span data-i="minus" data-s="20"></span></button></div>
+    <button class="mc" id="fit" aria-label="Показать весь маршрут"><span data-i="fit" data-s="20"></span></button>
+  </div>
+
+  <div id="lyrpop" role="dialog" aria-label="Слои карты" hidden>
+    <div class="pop-h"><span>Слои карты</span><button id="lyrclose" aria-label="Закрыть"><span data-i="close" data-s="18"></span></button></div>
+    <div id="lyrbody"></div>
+  </div>
+
+  <aside id="sheet" class="anim" data-state="0" aria-label="Маршрут">
+    <button class="grab" id="grab" aria-label="Потянуть, чтобы раскрыть панель" aria-expanded="false"></button>
+    <div class="sheet-scroll" id="scroll">
+      <div class="hd" id="hd">
+        <div class="sum-t"><h1>Круг по Синтре</h1><small>Гравел · 4 точки</small></div>
+        <div class="stats">
+          <div class="st"><b>42,3<u>км</u></b></div>
+          <div class="st s"><b><span data-i="up" data-s="16" data-w="2.4"></span>812<u>м</u></b><span>набор</span></div>
+          <div class="st s"><b><span data-i="down" data-s="16" data-w="2.4"></span>790<u>м</u></b><span>спуск</span></div>
+          <div class="st s"><b>~3 ч 10<u>мин</u></b><span>в пути</span></div>
+        </div>
+        <div class="ribbon" id="ribbon" title="Уклон вдоль маршрута"></div>
+      </div>
+
+      <section class="blk" aria-label="Покрытие">
+        <h2>Покрытие</h2>
+        <div class="surf-bar" role="img" aria-label="Асфальт 61%, укатанное 22%, гравий 12%, тропа 5%"><i class="sb-a" style="flex:61"></i><i class="sb-c" style="flex:22"></i><i class="sb-g" style="flex:12"></i><i class="sb-t" style="flex:5"></i></div>
+        <div class="surf-leg"><div><b>61%</b>Асфальт</div><div><b>22%</b>Укатанное</div><div><b>12%</b>Гравий</div><div><b>5%</b>Тропа</div></div>
+      </section>
+
+      <section class="blk" aria-label="Профиль высот">
+        <h2>Профиль высот</h2>
+        <div class="prof" id="prof"></div>
+        <div class="legend" id="legend"></div>
+      </section>
+
+      <section class="blk" aria-label="Экспорт">
+        <h2>Экспорт</h2>
+        <div class="export">
+          <button class="btn btn-garmin" id="garmin"><span class="ico" data-i="watch" data-s="22"></span><span>Отправить в Garmin<small>Fenix 8 · через Garmin Connect</small></span></button>
+          <button class="btn" data-toast="GPX сохранён: krug-po-sintre.gpx"><span data-i="download" data-s="17"></span>GPX</button>
+          <button class="btn" data-toast="FIT сохранён: krug-po-sintre.fit"><span data-i="download" data-s="17"></span>FIT</button>
+        </div>
+      </section>
+
+      <section class="blk" aria-label="Параметры маршрута">
+        <h2>Параметры маршрута</h2>
+        <div class="field"><div class="lb">Тип маршрута</div>
+          <div class="chips" data-group="single"><button class="chip" aria-pressed="false">Шоссе</button><button class="chip" aria-pressed="true">Гравел</button><button class="chip" aria-pressed="false">Туринг</button><button class="chip" aria-pressed="false">МТБ</button><button class="chip" aria-pressed="false">Пешком</button></div></div>
+        <div class="field"><div class="lb">Покрытие</div>
+          <div class="seg" role="radiogroup" aria-label="Предпочтение покрытия"><button role="radio" aria-checked="false">Асфальт</button><button role="radio" aria-checked="true">Всё равно</button><button role="radio" aria-checked="false">Грунт</button></div></div>
+        <div class="field"><div class="lb">Подъёмы</div>
+          <div class="seg" role="radiogroup" aria-label="Подъёмы"><button role="radio" aria-checked="false">Меньше</button><button role="radio" aria-checked="true">Обычно</button><button role="radio" aria-checked="false">Не избегать</button></div></div>
+        <div class="field"><div class="lb"><label for="lim">Лимит крутизны</label><output id="limo" for="lim">8%</output></div>
+          <input type="range" id="lim" min="3" max="20" step="1" value="8"><div class="scale"><span>3%</span><span>6%</span><span>10%</span><span>15%</span><span>20%</span></div></div>
+        <button class="switch" id="edit" role="switch" aria-checked="false"><span class="tx"><b>Режим правки</b><span>Двигайте точки и добавляйте новые</span></span><i class="tg"></i></button>
+        <div class="undo"><button class="btn" data-toast="Отменено: перенос точки 2"><span data-i="undo" data-s="18"></span>Отменить</button><button class="btn" data-toast="Повторено: перенос точки 2"><span data-i="redo" data-s="18"></span>Повторить</button></div>
+        <div class="actions">
+          <button class="btn" data-toast="Маршрут туда и обратно: 84,6 км"><span data-i="roundtrip" data-s="18"></span>Туда и обратно</button>
+          <button class="btn" data-toast="Финиш перенесён на старт"><span data-i="restart" data-s="18"></span>Вернуться к старту</button>
+          <button class="btn" data-toast="Маршрут развёрнут"><span data-i="reverse" data-s="18"></span>Развернуть маршрут</button>
+        </div>
+      </section>
+
+      <section class="blk" aria-label="Чекпоинты">
+        <h2>Чекпоинты</h2>
+        <ul class="list" id="cps"></ul>
+        <button class="btn add" data-toast="Нажмите на карту, чтобы поставить чекпоинт"><span data-i="plus" data-s="17"></span>Добавить чекпоинт</button>
+      </section>
+
+      <section class="blk" aria-label="Мои маршруты и треки">
+        <h2>Мои маршруты и треки</h2>
+        <ul class="list" id="mine"></ul>
+      </section>
+      <p class="foot">Данные карты © участники OpenStreetMap. Высоты: SRTM.</p>
+    </div>
+  </aside>
+  <div id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+/* ===== данные мок-маршрута ===== */
+const GRADE_COLORS = ['#2c7fb8', '#7fcdbb', '#d9d9d9', '#fee08b', '#fdae61', '#d73027', '#7f0000'];
+const GRADE_LABELS = ['< -8', '-8…-3', '-3…3', '3…6', '6…10', '10…15', '> 15'];
+const SURF = {
+  asphalt: { name: 'Асфальт', dash: null },
+  compact: { name: 'Укатанное', dash: [6, 2] },
+  gravel: { name: 'Гравий', dash: [3, 2] },
+  trail: { name: 'Тропа', dash: [1, 2] },
+};
+function gradeClass(g) { return g < -8 ? 0 : g < -3 ? 1 : g < 3 ? 2 : g < 6 ? 3 : g < 10 ? 4 : g <= 15 ? 5 : 6; }
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function cr(p0, p1, p2, p3, t) { const t2 = t * t, t3 = t2 * t; return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3); }
+function splineAt(P, u) {
+  const n = P.length; const i = Math.min(Math.floor(u), n - 2); const t = u - i;
+  const a = P[Math.max(i - 1, 0)], b = P[i], c = P[i + 1], d = P[Math.min(i + 2, n - 1)];
+  return [cr(a[0], b[0], c[0], d[0], t), cr(a[1], b[1], c[1], d[1], t)];
+}
+function pchip(xs, ys) {
+  const n = xs.length, h = [], d = [], m = new Array(n);
+  for (let i = 0; i < n - 1; i++) { h[i] = xs[i + 1] - xs[i]; d[i] = (ys[i + 1] - ys[i]) / h[i]; }
+  m[0] = d[0]; m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (d[i - 1] * d[i] <= 0) m[i] = 0;
+    else { const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1]; m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]); }
+  }
+  return x => {
+    let i = 0; while (i < n - 2 && x > xs[i + 1]) i++;
+    const t = (x - xs[i]) / h[i], t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * ys[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * ys[i + 1] + (t3 - t2) * h[i] * m[i + 1];
+  };
+}
+function buildData() {
+  const rnd = mulberry32(11);
+  const ctrl = [[38.7978, -9.3868], [38.7905, -9.3720], [38.7780, -9.3650], [38.7655, -9.3770], [38.7560, -9.3950], [38.7520, -9.4150], [38.7600, -9.4350], [38.7700, -9.4520], [38.7850, -9.4620], [38.8010, -9.4580], [38.8130, -9.4400], [38.8230, -9.4200], [38.8200, -9.4010], [38.8110, -9.3925], [38.7967, -9.3905]];
+  const NV = 60;
+  const V = [];
+  for (let j = 0; j < NV; j++) {
+    const u = j / (NV - 1) * (ctrl.length - 1);
+    const p = splineAt(ctrl, u);
+    const w = Math.sin(Math.PI * j / (NV - 1));
+    const nz = (Math.sin(j * 1.37) + 0.6 * Math.sin(j * 2.91 + 1) + (rnd() - 0.5) * 0.8) * 0.00042 * w;
+    const nz2 = (Math.cos(j * 1.71) + 0.5 * Math.sin(j * 3.3) + (rnd() - 0.5) * 0.8) * 0.00052 * w;
+    V.push([p[0] + nz, p[1] + nz2]);
+  }
+  // плотная кривая и равномерная передискретизация (нормируем на 42,3 км)
+  const dense = [];
+  for (let j = 0; j < (NV - 1) * 12; j++) dense.push(splineAt(V, j / 12));
+  dense.push(V[NV - 1]);
+  const cum = [0];
+  for (let j = 1; j < dense.length; j++) {
+    const dy = (dense[j][0] - dense[j - 1][0]) * 110574, dx = (dense[j][1] - dense[j - 1][1]) * 111320 * Math.cos(dense[j][0] * Math.PI / 180);
+    cum.push(cum[j - 1] + Math.hypot(dx, dy));
+  }
+  const total = cum[cum.length - 1];
+  const N = 424; const pts = []; let k = 0;
+  for (let i = 0; i < N; i++) {
+    const s = total * i / (N - 1);
+    while (k < cum.length - 2 && cum[k + 1] < s) k++;
+    const f = (s - cum[k]) / (cum[k + 1] - cum[k] || 1);
+    pts.push([dense[k][1] + (dense[k + 1][1] - dense[k][1]) * f, dense[k][0] + (dense[k + 1][0] - dense[k][0]) * f]);
+  }
+  const km = pts.map((_, i) => i * 0.1);
+  const EC = [[0,190],[1.5,205],[3,240],[4.5,265],[6,245],[7.5,200],[9,152],[10.8,128],[12.5,100],[14.1,92],[15.5,118],[17,150],[18.2,160],[18.6,205],[19,262],[19.4,296],[20.2,250],[21,170],[22.5,118],[24,98],[24.6,128],[25.3,176],[26,226],[27,262],[28,280],[29,292],[30,262],[31.5,214],[33,192],[34.5,232],[36,258],[37,244],[38.2,205],[39.5,170],[41,176],[42.3,190]];
+  const f = pchip(EC.map(e => e[0]), EC.map(e => e[1]));
+  const ele = km.map(x => Math.round((190 + 1.408 * (f(x) + 2.2 * Math.sin(x * 3.1) + 1.3 * Math.sin(x * 7.7 + 1) - 190) + 25 * x / 42.3) * 10) / 10);
+  const grade = ele.map((_, i) => { const lo = Math.max(i - 3, 0), hi = Math.min(i + 3, N - 1); return (ele[hi] - ele[lo]) / ((hi - lo) * 100) * 100; });
+  // покрытие по участкам: A 25,8 / C 9,3 / G 5,1 / T 2,1
+  const SR = [['asphalt', 7.0], ['compact', 3.0], ['gravel', 2.2], ['asphalt', 6.0], ['trail', 1.2], ['gravel', 1.6], ['compact', 3.1], ['asphalt', 5.3], ['trail', 0.9], ['gravel', 1.3], ['compact', 3.2], ['asphalt', 7.5]];
+  const surf = new Array(N - 1); { let a = 0; SR.forEach(([s, l]) => { const b = a + l; for (let i = 0; i < N - 1; i++) { const m = i * 0.1 + 0.05; if (m >= a - 1e-9 && m < b - 1e-9) surf[i] = s; } a = b; }); }
+  const straight = new Array(N - 1).fill(false);
+  for (let i = 260; i < 272; i++) straight[i] = true; // 26,0–27,2 км
+  let up = 0, down = 0; for (let i = 1; i < N; i++) { const d = ele[i] - ele[i - 1]; if (d > 0) up += d; else down -= d; }
+  const wps = [0, 141, 280, 423].map(i => ({ i, km: km[i], lon: pts[i][0], lat: pts[i][1] }));
+  const cps = [{ type: 'water', name: 'Питьевой фонтан, Сан-Педру', i: 108 }, { type: 'cafe', name: 'Кафе «Кошта», Колареш', i: 215 }, { type: 'view', name: 'Смотровая Пенинья', i: 331 }]
+    .map(c => ({ ...c, km: km[c.i], ele: ele[c.i], lon: pts[c.i][0], lat: pts[c.i][1] }));
+  return { N, pts, km, ele, grade, surf, straight, wps, cps, up, down, total: 42.3 };
+}
+
+/* ===== интерфейсные помощники ===== */
+const DATA = buildData();
+const fmt = (n, d = 1) => n.toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
+const ICON_INNER = {
+  water: '<path d="M12 3c3 4.2 6 7.4 6 11a6 6 0 0 1-12 0c0-3.6 3-6.8 6-11z"/>',
+  cafe: '<path d="M5 9h11v5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V9z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2"/><path d="M8 3v3M12 3v3"/>',
+  view: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/>',
+  start: '<path d="M6 21V4"/><path d="M6 4h12l-3 4.5L18 13H6" fill="currentColor"/>',
+  finish: '<path d="M6 21V4"/><path d="M6 4h12v9H6z"/><path d="M6 8.5h12M12 4v9"/>',
+};
+const cpNames = { water: 'Вода', cafe: 'Кафе', view: 'Смотровая' };
+function icon(name, size = 16, sw = 2) {
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON_INNER[name] + '</svg>';
+}
+const sw = (a, b, c) => 'linear-gradient(135deg,' + a + ' 0 45%,' + b + ' 45% 70%,' + c + ' 70%)';
+const MAPY_KEY = window.NK_MAPY_KEY || '';
+const LAYER_GROUPS = [
+  { name: 'OpenStreetMap', items: [
+    { id: 'osm', name: 'OSM', url: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], max: 19, sw: sw('#f2efe9', '#aad3df', '#c8facc') },
+    { id: 'cyclosm', name: 'CyclOSM', url: ['https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', 'https://b.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png'], max: 19, sw: sw('#f3f1d6', '#9ec8e8', '#b8dca0') },
+    { id: 'otm', name: 'OpenTopoMap', url: ['https://a.tile.opentopomap.org/{z}/{x}/{y}.png', 'https://b.tile.opentopomap.org/{z}/{x}/{y}.png'], max: 17, sw: sw('#e8dfc5', '#a8d1e0', '#b9d9a6') },
+  ] },
+  { name: 'mapy.com', note: 'нужен ключ API', items: [
+    { id: 'mapy-outdoor', name: 'Туристическая', url: ['https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=' + MAPY_KEY], max: 19, sw: sw('#f4f0dd', '#8fc7e8', '#a9d68b'), key: true },
+    { id: 'mapy-winter', name: 'Зимняя', url: ['https://api.mapy.cz/v1/maptiles/winter/256/{z}/{x}/{y}?apikey=' + MAPY_KEY], max: 19, sw: sw('#f2f6f9', '#b4d6ee', '#dfe9ef'), key: true },
+  ] },
+  { name: 'Google', items: [
+    { id: 'g-map', name: 'Карта', url: ['https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'], max: 20, sw: sw('#f5f3ee', '#a5d0f0', '#c6e6c2') },
+    { id: 'g-sat', name: 'Спутник', url: ['https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'], max: 20, sw: sw('#4c5a3b', '#1f3a52', '#6b6a4a') },
+    { id: 'g-hyb', name: 'Гибрид', url: ['https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'], max: 20, sw: sw('#4c5a3b', '#e8e8e8', '#6b6a4a') },
+    { id: 'g-ter', name: 'Рельеф', url: ['https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}'], max: 15, sw: sw('#d9cfb2', '#a5c8e4', '#aac79a') },
+  ] },
+  { name: 'Спутник', items: [
+    { id: 'esri', name: 'ESRI', url: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], max: 19, sw: sw('#59663f', '#233f55', '#7a7455') },
+    { id: 'bing', name: 'Bing', url: ['bing://{z}/{x}/{y}'], max: 19, sw: sw('#526140', '#2b4a60', '#807a5a') },
+  ] },
+  { name: 'Яндекс', items: [
+    { id: 'ya-map', name: 'Карта', url: ['https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU'], max: 19, sw: sw('#f3f0e8', '#bcd9ef', '#cfe5b8') },
+    { id: 'ya-sat', name: 'Спутник', url: ['https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}'], max: 19, sw: sw('#566341', '#25425a', '#7d775a') },
+  ] },
+];
+const OVERLAYS = [
+  { id: 'wm-cycle', name: 'Waymarked: вело', url: ['https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png'], max: 18, opacity: 0.85 },
+  { id: 'wm-hike', name: 'Waymarked: пешие', url: ['https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png'], max: 18, opacity: 0.85 },
+  { id: 'strava', name: 'Хитмап Strava', url: ['https://heatmap-external-a.strava.com/tiles/all/hot/{z}/{x}/{y}.png'], max: 15, opacity: 0.8 },
+];
+const ALL_LAYERS = {}; LAYER_GROUPS.forEach(g => g.items.forEach(i => ALL_LAYERS[i.id] = i)); OVERLAYS.forEach(o => ALL_LAYERS[o.id] = o);
+
+function routeFeatures() {
+  const D = DATA, out = [], vals = [];
+  let cur = null;
+  for (let i = 0; i < D.N - 1; i++) {
+    const gc = gradeClass((D.grade[i] + D.grade[i + 1]) / 2);
+    const kind = D.straight[i] ? 'straight' : 'routed';
+    const s = D.straight[i] ? 'straight' : D.surf[i];
+    const key = gc + '|' + s;
+    if (!cur || cur.key !== key) { cur = { key, gc, s, kind, coords: [D.pts[i]] }; out.push(cur); }
+    cur.coords.push(D.pts[i + 1]);
+  }
+  return {
+    type: 'FeatureCollection',
+    features: out.map(o => ({ type: 'Feature', properties: { gc: o.gc, color: GRADE_COLORS[o.gc], s: o.s, kind: o.kind }, geometry: { type: 'LineString', coordinates: o.coords } })),
+  };
+}
+
+function initMap(el, opts = {}) {
+  maplibregl.addProtocol('bing', async (params) => {
+    const [z, x, y] = params.url.match(/bing:\/\/(\d+)\/(\d+)\/(\d+)/).slice(1).map(Number);
+    let q = ''; for (let i = z; i > 0; i--) { let d = 0; const m = 1 << (i - 1); if (x & m) d++; if (y & m) d += 2; q += d; }
+    const r = await fetch('https://ecn.t' + ((x + y) % 4) + '.tiles.virtualearth.net/tiles/a' + q + '.jpeg?g=1');
+    return { data: await r.arrayBuffer() };
+  });
+  const map = new maplibregl.Map({
+    container: el, center: [-9.40, 38.79], zoom: 12, /* 12 в MapLibre = 13 в Leaflet (тайлы 256 px) */ maxZoom: 19, dragRotate: false, pitchWithRotate: false, attributionControl: false,
+    style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#e6e3dc' } }] },
+  });
+  map.touchZoomRotate.disableRotation();
+  map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '© участники OpenStreetMap' }), 'bottom-left');
+  const api = { map, base: 'osm', overlays: new Set(), hoverCbs: [], hoverIdx: null };
+  const w = ['interpolate', ['linear'], ['zoom'], 9, 2.5, 13, 5, 17, 8];
+  const wh = ['interpolate', ['linear'], ['zoom'], 9, 5, 13, 9, 17, 13];
+  const wc = ['interpolate', ['linear'], ['zoom'], 9, 4, 13, 7, 17, 10.5];
+  const gcol = ['get', 'color'];
+  function ensure(id) {
+    const L = ALL_LAYERS[id]; if (map.getSource(id)) return;
+    map.addSource(id, { type: 'raster', tiles: L.url, tileSize: 256, maxzoom: L.max, attribution: '' });
+    map.addLayer({ id: 'l-' + id, type: 'raster', source: id, layout: { visibility: 'none' }, paint: { 'raster-opacity': L.opacity || 1, 'raster-fade-duration': 150 } }, map.getLayer('route-halo') ? 'route-halo' : undefined);
+  }
+  api.setBase = id => {
+    ensure(id); LAYER_GROUPS.forEach(g => g.items.forEach(i => { if (map.getLayer('l-' + i.id)) map.setLayoutProperty('l-' + i.id, 'visibility', i.id === id ? 'visible' : 'none'); }));
+    api.base = id; if (opts.onBase) opts.onBase(id);
+  };
+  api.setOverlay = (id, on) => {
+    ensure(id); map.setLayoutProperty('l-' + id, 'visibility', on ? 'visible' : 'none');
+    on ? api.overlays.add(id) : api.overlays.delete(id); if (opts.onOverlay) opts.onOverlay(id, on);
+  };
+  api.fit = (pad) => {
+    const b = new maplibregl.LngLatBounds(); DATA.pts.forEach(p => b.extend(p)); map.fitBounds(b, { padding: pad || 40, duration: 600 });
+  };
+  api.setEdit = on => { map.getLayer('route-verts') && map.setLayoutProperty('route-verts', 'visibility', on ? 'visible' : 'none'); };
+  api.onHover = cb => api.hoverCbs.push(cb);
+  const hm = document.createElement('div'); hm.className = 'hover-dot'; hm.hidden = true;
+  const hmark = new maplibregl.Marker({ element: hm }).setLngLat([-9.4, 38.79]).addTo(map);
+  api.setHover = (i, silent) => {
+    api.hoverIdx = i;
+    if (i == null) hm.hidden = true; else { hm.hidden = false; hmark.setLngLat(DATA.pts[i]); }
+    if (!silent) api.hoverCbs.forEach(cb => cb(i));
+  };
+  map.on('load', () => {
+    map.addSource('route', { type: 'geojson', data: routeFeatures() });
+    map.addSource('verts', { type: 'geojson', data: { type: 'FeatureCollection', features: DATA.pts.filter((_, i) => i % 7 === 0 && i > 0 && i < DATA.N - 1).map(p => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: p } })) } });
+    const rl = { 'line-cap': 'round', 'line-join': 'round' }, bl = { 'line-cap': 'butt', 'line-join': 'round' };
+    map.addLayer({ id: 'route-halo', type: 'line', source: 'route', layout: rl, paint: { 'line-color': '#ffffff', 'line-width': wh, 'line-opacity': 0.9 } });
+    map.addLayer({ id: 'route-flat-casing', type: 'line', source: 'route', filter: ['all', ['==', ['get', 'gc'], 2], ['!=', ['get', 'kind'], 'straight']], layout: rl, paint: { 'line-color': '#3b4249', 'line-width': wc } });
+    [['asphalt', null], ['compact', [6, 2]], ['gravel', [3, 2]], ['trail', [1, 2]]].forEach(([s, dash]) => {
+      const paint = { 'line-color': gcol, 'line-width': w }; if (dash) paint['line-dasharray'] = dash;
+      map.addLayer({ id: 'route-' + s, type: 'line', source: 'route', filter: ['==', ['get', 's'], s], layout: dash ? bl : rl, paint });
+    });
+    map.addLayer({ id: 'route-straight', type: 'line', source: 'route', filter: ['==', ['get', 'kind'], 'straight'], layout: bl, paint: { 'line-color': '#6b747c', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 13, 4, 17, 6], 'line-dasharray': [2, 2] } });
+    map.addLayer({ id: 'route-verts', type: 'circle', source: 'verts', layout: { visibility: 'none' }, paint: { 'circle-radius': 4, 'circle-color': '#fff', 'circle-stroke-color': '#1b2227', 'circle-stroke-width': 1.5 } });
+    api.setBase('osm');
+    // метки
+    DATA.wps.forEach((p, k) => {
+      const last = k === DATA.wps.length - 1, e = document.createElement('div');
+      e.className = 'wp ' + (k === 0 ? 'wp-start' : last ? 'wp-end' : 'wp-mid');
+      e.innerHTML = k === 0 ? icon('start', 15, 2.2) : last ? icon('finish', 15, 2.2) : '<span>' + k + '</span>';
+      e.title = k === 0 ? 'Старт' : last ? 'Финиш' : 'Точка ' + k;
+      new maplibregl.Marker({ element: e }).setLngLat([p.lon, p.lat]).addTo(map);
+    });
+    DATA.cps.forEach(c => {
+      const e = document.createElement('div'); e.className = 'cp cp-' + c.type; e.innerHTML = icon(c.type, 15, 2.1); e.title = cpNames[c.type] + ': ' + c.name + ', ' + fmt(c.km) + ' км';
+      e.addEventListener('click', () => map.flyTo({ center: [c.lon, c.lat], zoom: Math.max(map.getZoom(), 14) }));
+      new maplibregl.Marker({ element: e }).setLngLat([c.lon, c.lat]).addTo(map);
+    });
+    if (opts.onLoad) opts.onLoad(api);
+  });
+  // ховер по линии на карте
+  map.on('mousemove', e => {
+    if (!map.getLayer('route-halo')) return;
+    let best = -1, bd = 14 * 14;
+    for (let i = 0; i < DATA.N; i += 1) { const p = map.project(DATA.pts[i]); const d = (p.x - e.point.x) ** 2 + (p.y - e.point.y) ** 2; if (d < bd) { bd = d; best = i; } }
+    if (best >= 0) { if (api.hoverIdx !== best) api.setHover(best); } else if (api.hoverIdx != null) api.setHover(null);
+  });
+  map.getCanvas().addEventListener('mouseleave', () => api.setHover(null));
+  return api;
+}
+
+function buildLayersUI(root, api) {
+  let h = '<div class="lyr-scroll">';
+  LAYER_GROUPS.forEach(g => {
+    h += '<section class="lyr-group"><h4>' + g.name + (g.note ? ' <small>' + g.note + '</small>' : '') + '</h4><div class="lyr-grid" role="radiogroup" aria-label="' + g.name + '">';
+    g.items.forEach(i => { h += '<button type="button" class="lyr" role="radio" aria-checked="' + (i.id === 'osm') + '" data-id="' + i.id + '"><span class="lyr-sw" style="background:' + i.sw + '"></span><span class="lyr-nm">' + i.name + '</span></button>'; });
+    h += '</div></section>';
+  });
+  h += '<section class="lyr-group"><h4>Оверлеи</h4><div class="lyr-ovs">';
+  OVERLAYS.forEach(o => { h += '<label class="lyr-ov"><input type="checkbox" data-ov="' + o.id + '"><span>' + o.name + '</span></label>'; });
+  h += '</div></section></div>';
+  root.innerHTML = h;
+  root.querySelectorAll('.lyr').forEach(b => b.addEventListener('click', () => {
+    root.querySelectorAll('.lyr').forEach(x => x.setAttribute('aria-checked', x === b));
+    api.setBase(b.dataset.id);
+  }));
+  root.querySelectorAll('[data-ov]').forEach(c => c.addEventListener('change', () => api.setOverlay(c.dataset.ov, c.checked)));
+}
+
+function createProfile(root, opt = {}) {
+  root.classList.add('nkp');
+  root.innerHTML = '<svg class="nkp-svg" role="img" aria-label="Профиль высот маршрута"></svg><div class="nkp-tip" hidden></div>';
+  const svg = root.querySelector('svg'), tip = root.querySelector('.nkp-tip');
+  const D = DATA, NS = 'http://www.w3.org/2000/svg';
+  const cls = []; for (let i = 0; i < D.N - 1; i++) cls.push(gradeClass((D.grade[i] + D.grade[i + 1]) / 2));
+  const emin = Math.floor((Math.min(...D.ele) - 15) / 50) * 50, emax = Math.ceil((Math.max(...D.ele) + 12) / 50) * 50;
+  let geo = null, cursor = null;
+  const el = (n, a, p) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); (p || svg).appendChild(e); return e; };
+  function draw() {
+    const W = root.clientWidth, H = root.clientHeight; if (!W || !H) return;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', W); svg.setAttribute('height', H); svg.innerHTML = '';
+    const ml = opt.ml ?? 34, mr = 8, mt = opt.mt ?? 22, strip = 8, axis = 17;
+    const pw = W - ml - mr, ph = H - mt - strip - axis - 4;
+    const x = i => ml + i / (D.N - 1) * pw, y = e => mt + (1 - (e - emin) / (emax - emin)) * ph;
+    geo = { ml, mt, pw, ph, strip, x, y };
+    const step = ph > 170 ? 50 : 100;
+    for (let e = emin; e <= emax; e += step) {
+      el('line', { x1: ml, x2: ml + pw, y1: y(e), y2: y(e), stroke: 'var(--grid)', 'stroke-width': 1 });
+      const t = el('text', { x: ml - 5, y: y(e) + 3.5, 'text-anchor': 'end', class: 'nkp-t' }); t.textContent = e;
+    }
+    for (let k = 0; k <= 40; k += (pw < 330 ? 10 : 5)) {
+      const i = k * 10; el('line', { x1: x(i), x2: x(i), y1: mt, y2: mt + ph + 3 + strip, stroke: 'var(--grid)', 'stroke-width': 1 });
+      const t = el('text', { x: x(i), y: H - 4, 'text-anchor': k === 0 ? 'start' : 'middle', class: 'nkp-t' }); t.textContent = k + (k === 40 ? ' км' : '');
+    }
+    const yb = mt + ph;
+    let a = 0;
+    for (let i = 0; i < D.N - 1; i++) {
+      if (i === D.N - 2 || cls[i + 1] !== cls[i]) {
+        let d = 'M' + x(a) + ',' + yb + 'L' + x(a) + ',' + y(D.ele[a]);
+        for (let j = a + 1; j <= i + 1; j++) d += 'L' + x(j).toFixed(1) + ',' + y(D.ele[j]).toFixed(1);
+        d += 'L' + x(i + 1) + ',' + yb + 'Z';
+        el('path', { d, fill: GRADE_COLORS[cls[i]], stroke: GRADE_COLORS[cls[i]], 'stroke-width': 0.6 });
+        a = i + 1;
+      }
+    }
+    el('polyline', { points: D.ele.map((e, i) => x(i).toFixed(1) + ',' + y(e).toFixed(1)).join(' '), fill: 'none', stroke: 'var(--ink)', 'stroke-width': 1.5, 'stroke-linejoin': 'round' });
+    // полоса покрытия
+    const ys = yb + 3 + strip / 2, u = 2.4;
+    let s0 = 0; const sk = i => D.straight[i] ? 'straight' : D.surf[i];
+    for (let i = 0; i < D.N - 1; i++) {
+      if (i === D.N - 2 || sk(i + 1) !== sk(i)) {
+        const k = sk(i), at = { x1: x(s0), x2: x(i + 1), y1: ys, y2: ys, stroke: k === 'straight' ? 'var(--straight)' : 'var(--strip)', 'stroke-width': k === 'straight' ? 3 : strip };
+        const dash = k === 'straight' ? [2, 2] : SURF[k].dash; if (dash) at['stroke-dasharray'] = dash.map(v => v * u).join(' ');
+        el('line', at); s0 = i + 1;
+      }
+    }
+    // чекпоинты
+    D.cps.forEach(c => {
+      const cx = x(c.i), cy = Math.max(10, mt - 10);
+      el('line', { x1: cx, x2: cx, y1: cy, y2: y(c.ele), stroke: 'var(--ink-2)', 'stroke-width': 1, 'stroke-dasharray': '2 2' });
+      const g = el('g', { class: 'nkp-cp' }); el('title', {}, g).textContent = cpNames[c.type] + ': ' + c.name + ', ' + fmt(c.km) + ' км';
+      el('circle', { cx, cy, r: 9.5, fill: 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 1.3 }, g);
+      const ig = el('g', { transform: 'translate(' + (cx - 6.5) + ',' + (cy - 6.5) + ') scale(0.54)', fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g); ig.innerHTML = ICON_INNER[c.type];
+    });
+    // опорные точки
+    D.wps.forEach((p, k) => el('circle', { cx: x(p.i), cy: y(D.ele[p.i]), r: 3.4, fill: k === 0 ? '#1a9850' : k === D.wps.length - 1 ? '#d7301f' : 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 1.4 }));
+    // курсор
+    el('line', { id: 'cur-l', x1: 0, x2: 0, y1: mt - 2, y2: mt + ph + 3 + strip, stroke: 'var(--ink)', 'stroke-width': 1, visibility: 'hidden' });
+    el('circle', { id: 'cur-d', r: 5, fill: 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 2.2, visibility: 'hidden' });
+    if (cursor != null) show(cursor);
+  }
+  function show(i) {
+    cursor = i; if (!geo) return;
+    const l = svg.querySelector('#cur-l'), d = svg.querySelector('#cur-d'); if (!l) return;
+    if (i == null) { l.setAttribute('visibility', 'hidden'); d.setAttribute('visibility', 'hidden'); tip.hidden = true; return; }
+    const cx = geo.x(i), cy = geo.y(D.ele[i]);
+    l.setAttribute('x1', cx); l.setAttribute('x2', cx); l.setAttribute('visibility', 'visible');
+    d.setAttribute('cx', cx); d.setAttribute('cy', cy); d.setAttribute('visibility', 'visible');
+    const g = (D.grade[i] + D.grade[Math.min(i + 1, D.N - 1)]) / 2, gc = gradeClass(g), sk = D.straight[Math.min(i, D.N - 2)] ? 'по прямой' : SURF[D.surf[Math.min(i, D.N - 2)]].name;
+    const near = D.cps.find(c => Math.abs(c.i - i) <= 3);
+    tip.innerHTML = '<b>' + fmt(D.km[i]) + ' км</b><span>' + Math.round(D.ele[i]) + ' м</span><span><i class="sq" style="background:' + GRADE_COLORS[gc] + '"></i>' + (g > 0 ? '+' : '') + fmt(g) + '%</span><span>' + sk + '</span>' + (near ? '<em>' + near.name + '</em>' : '');
+    tip.hidden = false;
+    const tw = tip.offsetWidth, W = root.clientWidth;
+    let left = cx + 12; if (left + tw > W - 4) left = cx - 12 - tw; tip.style.left = Math.max(4, left) + 'px';
+  }
+  function at(ev) {
+    const r = svg.getBoundingClientRect(); const px = ev.clientX - r.left;
+    const i = Math.round((px - geo.ml) / geo.pw * (D.N - 1)); return Math.max(0, Math.min(D.N - 1, i));
+  }
+  svg.addEventListener('pointermove', e => { if (geo) { const i = at(e); show(i); opt.onHover && opt.onHover(i); } });
+  svg.addEventListener('pointerdown', e => { if (geo) { const i = at(e); show(i); opt.onHover && opt.onHover(i); } });
+  svg.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') { show(null); opt.onHover && opt.onHover(null); } });
+  new ResizeObserver(draw).observe(root); draw();
+  return { setHover: show, redraw: draw };
+}
+
+function buildLegend(root, o = {}) {
+  let h = '';
+  if (o.grades !== false) {
+    h += '<div class="lg lg-g"><span class="lg-t">Уклон, %</span>' + GRADE_COLORS.map((c, i) => '<span class="lg-i"><i class="sq' + (i === 2 ? ' sq-flat' : '') + '" style="background:' + c + '"></i>' + GRADE_LABELS[i] + '</span>').join('') + '</div>';
+  }
+  if (o.surf !== false) {
+    h += '<div class="lg lg-s"><span class="lg-t">Покрытие</span>';
+    Object.keys(SURF).forEach(k => {
+      const d = SURF[k].dash, da = d ? ' stroke-dasharray="' + d.map(v => v * 2).join(' ') + '"' : '';
+      h += '<span class="lg-i"><svg width="22" height="6" aria-hidden="true"><line x1="0" y1="3" x2="22" y2="3" stroke="currentColor" stroke-width="4"' + da + '/></svg>' + SURF[k].name + '</span>';
+    });
+    h += '<span class="lg-i"><svg width="22" height="6" aria-hidden="true"><line x1="0" y1="3" x2="22" y2="3" stroke="var(--straight)" stroke-width="3" stroke-dasharray="4 4"/></svg>По прямой</span></div>';
+  }
+  root.innerHTML = h;
+}
+
+function sections() {
+  const D = DATA, out = [];
+  for (let k = 0; k < D.wps.length - 1; k++) {
+    const a = D.wps[k].i, b = D.wps[k + 1].i; let up = 0, dn = 0, mx = -99, mn = 99; const mix = { asphalt: 0, compact: 0, gravel: 0, trail: 0 }; let st = 0;
+    for (let i = a; i < b; i++) { const d = D.ele[i + 1] - D.ele[i]; d > 0 ? up += d : dn -= d; mix[D.surf[i]] += 0.1; if (D.straight[i]) st += 0.1; mx = Math.max(mx, D.grade[i]); mn = Math.min(mn, D.grade[i]); }
+    out.push({ k, a, b, len: (b - a) / 10, up, dn, mx, mn, mix, st });
+  }
+  return out;
+}
+
+const UI_ICONS = {
+  layers: '<path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="m3 13 9 5 9-5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>',
+  fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>',
+  roundtrip: '<path d="m17 3 4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="m7 21-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/>',
+  restart: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  reverse: '<path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="m13.5 6.5 4 4"/>',
+  eye: ICON_INNER.view,
+  eyeoff: '<path d="m3 3 18 18"/><path d="M10.6 6.1A9.7 9.7 0 0 1 12 6c6.4 0 10 6 10 6a16 16 0 0 1-3.2 3.9M6.2 7.7A16 16 0 0 0 2 12s3.6 6 10 6c1.5 0 2.8-.3 4-.8"/>',
+  check: '<path d="m5 12.5 5 5L19 7"/>',
+  download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/>',
+  watch: '<rect x="7" y="6" width="10" height="12" rx="3"/><path d="m9 6 .7-3h4.6L15 6M9 18l.7 3h4.6l.7-3"/><path d="M12 10v2.5l1.5 1"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  route: '<circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/>',
+  up: '<path d="M7 17 17 7M9 7h8v8"/>', down: '<path d="m7 7 10 10M17 9v8H9"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>', chevron: '<path d="m6 15 6-6 6 6"/>',
+  water: ICON_INNER.water, cafe: ICON_INNER.cafe, view: ICON_INNER.view,
+  keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+};
+function hydrateIcons(root) {
+  (root || document).querySelectorAll('[data-i]').forEach(e => { const n = e.dataset.i; e.innerHTML = '<svg width="' + (e.dataset.s || 18) + '" height="' + (e.dataset.s || 18) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (e.dataset.w || 2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + UI_ICONS[n] + '</svg>'; });
+}
+function ribbonSVG(h = 6) {
+  const D = DATA; let a = 0, s = '';
+  for (let i = 0; i < D.N - 1; i++) {
+    const c = gradeClass((D.grade[i] + D.grade[i + 1]) / 2), nx = i < D.N - 2 ? gradeClass((D.grade[i + 1] + D.grade[i + 2]) / 2) : -1;
+    if (c !== nx) { s += '<rect x="' + a + '" y="0" width="' + (i + 1 - a + 0.6) + '" height="' + h + '" fill="' + GRADE_COLORS[c] + '"/>'; a = i + 1; }
+  }
+  return '<svg viewBox="0 0 ' + (D.N - 1) + ' ' + h + '" preserveAspectRatio="none" width="100%" height="' + h + '" aria-hidden="true">' + s + '</svg>';
+}
+const SURF_PCT = { asphalt: 61, compact: 22, gravel: 12, trail: 5 };
+const toastEl = () => document.getElementById('toast');
+let toastT;
+function toast(msg) { const t = toastEl(); if (!t) return; t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
+
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  hydrateIcons();
+  $('#ribbon').innerHTML=ribbonSVG(6);
+  buildLegend($('#legend'));
+  $('#cps').innerHTML=DATA.cps.map(c=>'<li><span class="cpi '+c.type+'">'+icon(c.type,18)+'</span><div class="nm"><b>'+c.name+'</b><span>'+cpNames[c.type]+'</span></div><span class="km">'+fmt(c.km)+' км</span></li>').join('');
+  const MINE=[['#2447d1','Круг по Синтре','42,3 км · гравел · сегодня',true],['#d6336c','Кабу-да-Рока – Азенья-ду-Мар','28,6 км · туринг · 3 нояб.',true],['#0c8599','Серра-де-Синтра (трек Strava)','17,9 км · пешком · 26 окт.',false],['#e67700','Мафра – Эрисейра','36,1 км · шоссе · 12 окт.',false]];
+  $('#mine').innerHTML=MINE.map((m,i)=>'<li class="'+(m[3]?'':'off')+'"><span class="mk" style="background:'+m[0]+'"></span><div class="nm"><b>'+m[1]+'</b><span>'+m[2]+'</span></div><button class="eyeb" aria-pressed="'+m[3]+'" aria-label="Показать на карте: '+m[1]+'"><span data-i="'+(m[3]?'eye':'eyeoff')+'" data-s="20"></span></button></li>').join('');
+  hydrateIcons($('#mine'));
+  $$('.eyeb').forEach(b=>b.addEventListener('click',()=>{const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);b.parentElement.classList.toggle('off',!on);b.firstElementChild.dataset.i=on?'eye':'eyeoff';hydrateIcons(b);}));
+
+  const desktop=()=>matchMedia('(min-width:640px)').matches;
+  const api=initMap($('#map'),{onLoad(a){ if(desktop()) a.map.setPadding({right:392}); else { a.map.setPadding({bottom:vis[0]}); a.fit({top:90,bottom:30,left:24,right:60}); } }});
+  const prof=createProfile($('#prof'),{onHover:i=>api.setHover(i)});
+  api.onHover(i=>prof.setHover(i));
+  buildLayersUI($('#lyrbody'),api);
+
+  // слои
+  const pop=$('#lyrpop'),lb=$('#btn-layers');
+  function lay(on){pop.hidden=!on;lb.setAttribute('aria-pressed',on);}
+  lb.addEventListener('click',()=>lay(pop.hidden)); $('#lyrclose').addEventListener('click',()=>lay(false));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')lay(false);});
+  api.map.getContainer().addEventListener('pointerdown',()=>lay(false));
+  $('#lyrbody').addEventListener('click',e=>{const b=e.target.closest('.lyr');if(b&&ALL_LAYERS[b.dataset.id].key)toast('mapy.com требует ключ API, без него плитки не загрузятся');});
+  $('#zin').onclick=()=>api.map.zoomIn(); $('#zout').onclick=()=>api.map.zoomOut();
+  $('#fit').onclick=()=>desktop()?api.fit({top:60,bottom:60,left:60,right:60}):api.fit({top:90,bottom:30,left:24,right:60});
+
+  // профиль и прочее
+  $$('[data-toast]').forEach(b=>b.addEventListener('click',()=>toast(b.dataset.toast)));
+  $('#garmin').addEventListener('click',()=>toast('Маршрут «Круг по Синтре» отправлен на Fenix 8'));
+  $$('.chips[data-group=single]').forEach(g=>g.addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;g.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x===c));}));
+  $$('.seg').forEach(g=>g.addEventListener('click',e=>{const c=e.target.closest('button');if(!c)return;g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-checked',x===c));}));
+  $('#lim').addEventListener('input',e=>{$('#limo').textContent=e.target.value+'%';});
+  $('#edit').addEventListener('click',e=>{const b=e.currentTarget,on=b.getAttribute('aria-checked')!=='true';b.setAttribute('aria-checked',on);api.setEdit(on);});
+  $('#auth').addEventListener('click',()=>{const b=document.body;b.dataset.auth=b.dataset.auth==='in'?'out':'in';});
+
+  // нижний лист: три состояния
+  const sheet=$('#sheet'),grab=$('#grab'),root=document.documentElement;
+  let state=0,snaps=[0,0,0],fullH=0,vis=[0,0,0];
+  function measure(){
+    if(desktop()){sheet.style.height='';sheet.style.transform='';root.style.setProperty('--sheet-vis','0px');return;}
+    const vh=innerHeight;fullH=vh-64;sheet.style.height=fullH+'px';
+    const inset=parseFloat(getComputedStyle(root).getPropertyValue('--sai'))||0;
+    vis=[136+inset,Math.min(Math.round(vh*.6),fullH),fullH];
+    snaps=vis.map(v=>fullH-v);
+    set(state,false);
+  }
+  function set(s,anim=true){
+    state=s;sheet.dataset.state=s;grab.setAttribute('aria-expanded',s>0);
+    sheet.classList.toggle('anim',anim);sheet.style.transform='translateY('+snaps[s]+'px)';
+    root.style.setProperty('--sheet-vis',(vis[Math.min(s,1)]+6)+'px');
+    if(api.map.loaded()&&!desktop())api.map.easeTo({padding:{bottom:vis[Math.min(s,1)]},duration:anim?300:0});
+    if(s<2)$('#scroll').scrollTop=0;
+  }
+  let drag=null;
+  function down(e){ if(desktop())return; if(e.target.closest('button:not(.grab)'))return;
+    drag={y:e.clientY,t:snaps[state],last:e.clientY,lt:performance.now(),v:0,moved:false,id:e.pointerId,el:e.currentTarget};
+    sheet.classList.remove('anim');}
+  function move(e){ if(!drag)return; const dy=e.clientY-drag.y; if(Math.abs(dy)>4&&!drag.moved){drag.moved=true;drag.el.setPointerCapture(drag.id);}
+    if(!drag.moved)return; const now=performance.now();drag.v=(e.clientY-drag.last)/Math.max(1,now-drag.lt);drag.last=e.clientY;drag.lt=now;
+    const t=Math.max(0,Math.min(snaps[0],drag.t+dy));sheet.style.transform='translateY('+t+'px)';drag.cur=t;}
+  function up(e){ if(!drag)return; const d=drag;drag=null;
+    if(!d.moved){ if(d.el===grab) set((state+1)%3); else sheet.classList.add('anim'); return; }
+    const proj=d.cur+d.v*110; let best=0;snaps.forEach((s,i)=>{if(Math.abs(s-proj)<Math.abs(snaps[best]-proj))best=i;});
+    d.moved=false; set(best);}
+  [grab,$('#hd')].forEach(el=>{el.addEventListener('pointerdown',down);el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);});
+  grab.addEventListener('keydown',e=>{if(e.key==='ArrowUp'){e.preventDefault();set(Math.min(2,state+1));}if(e.key==='ArrowDown'){e.preventDefault();set(Math.max(0,state-1));}});
+  addEventListener('resize',measure); measure();
+  window.__nk={api,set:s=>set(s),prof};
+})();
+</script>
+</body>
+</html>

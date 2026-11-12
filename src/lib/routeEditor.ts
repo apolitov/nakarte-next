@@ -5,6 +5,7 @@ import * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { RouteState } from './route.svelte';
 import { gradeColor, SURFACE_STYLE, SURFACE_DASH, type SurfaceClass } from './profile';
+import { t } from './i18n';
 
 export type ColorMode = 'grade' | 'surface' | 'plain';
 
@@ -57,7 +58,7 @@ export class RouteEditor {
       id: 'route-hover',
       type: 'circle',
       source: 'route-hover',
-      paint: { 'circle-radius': 7, 'circle-color': '#fff', 'circle-stroke-color': '#111', 'circle-stroke-width': 3 },
+      paint: { 'circle-radius': 7, 'circle-color': '#ffd83d', 'circle-stroke-color': '#141414', 'circle-stroke-width': 3 },
     });
 
     map.on('click', (e) => {
@@ -115,7 +116,7 @@ export class RouteEditor {
       };
       el.append(b);
     };
-    btn(straight ? 'Этот отрезок по дорогам' : 'Этот отрезок по прямой', () => this.route.setLegStraight(leg, !straight));
+    btn(straight ? t('leg.roads') : t('leg.straight'), () => this.route.setLegStraight(leg, !straight));
     this.popup?.remove();
     this.popup = new maplibregl.Popup({ closeButton: false, className: 'ctx-popup' }).setLngLat(at).setDOMContent(el).addTo(this.map);
   }
@@ -203,14 +204,16 @@ export class RouteEditor {
       } else {
         m.setLngLat([w.lng, w.lat]);
         const el = m.getElement();
-        el.className = `wp wp-${kind}`;
+        // keep MapLibre's own marker classes: replacing className breaks positioning
+        el.classList.remove('wp-start', 'wp-via', 'wp-end');
+        el.classList.add('wp', `wp-${kind}`);
         el.textContent = label;
       }
       const active = this.editing && ((kind === 'start' && this.route.prepend) || (kind === 'end' && !this.route.prepend));
       m.getElement().classList.toggle('wp-active', active);
       m.setDraggable(this.editing);
       m.getElement().title = this.editing
-        ? 'Тащите, чтобы сдвинуть. Двойной щелчок или правая кнопка удаляют. Щелчок по крайней точке продолжает маршрут от неё.'
+        ? t('wp.tip')
         : '';
     });
     for (const [id, m] of this.markers) {
@@ -253,7 +256,7 @@ export class RouteEditor {
       run.push([p.lng, p.lat]);
     }
     flush();
-    // legs still loading: draw a dashed straight line? keep it simple — a thin straight segment
+    // legs still loading or failed: a thin straight segment
     this.route.legs.forEach((l, i) => {
       if (l.status === 'ok') return;
       const a = this.route.waypoints[i], b = this.route.waypoints[i + 1];

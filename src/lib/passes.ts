@@ -155,7 +155,11 @@ function passCard(p: Record<string, unknown>, onHelp?: () => void): HTMLElement 
   const badge = document.createElement('span');
   badge.className = 'pc-cat';
   badge.textContent = cat ? cat.title : 'no grade';
-  if (cat) badge.style.background = cat.color;
+  if (cat) {
+    badge.style.background = cat.color;
+    // dark text on the light grades (yellow, orange) for contrast
+    badge.style.color = ['1Б', '2А'].includes(cat.id) ? '#141414' : '#ffffff';
+  }
   const title = document.createElement('b');
   title.textContent = s('n') || 'Unnamed pass';
   h.append(title, badge);

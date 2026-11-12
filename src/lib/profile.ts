@@ -1,6 +1,7 @@
 // Elevation profile maths: cumulative distance, smoothed grade, ascent/descent,
 // and colour scales for grade and surface.
 import type { LegPoint, WaySpan } from './brouter';
+import { t } from './i18n';
 
 const R = 6371008.8;
 export function haversine(a: LegPoint, b: LegPoint): number {
@@ -48,12 +49,12 @@ export function surfaceClass(s: Pick<WaySpan, 'surface' | 'highway' | 'tracktype
 }
 
 export const SURFACE_STYLE: Record<SurfaceClass, { color: string; title: string }> = {
-  paved: { color: '#5b6b7a', title: 'Асфальт' },
-  compact: { color: '#c9a227', title: 'Укатанное, брусчатка' },
-  unpaved: { color: '#d4772c', title: 'Гравий, грунтовка' },
-  ground: { color: '#8c5a2b', title: 'Грунт' },
-  path: { color: '#3d9a46', title: 'Тропа' },
-  unknown: { color: '#b3b3b8', title: 'Нет данных' },
+  paved: { color: '#5b6b7a', title: t('surfLong.paved') },
+  compact: { color: '#c9a227', title: t('surfLong.compact') },
+  unpaved: { color: '#d4772c', title: t('surfLong.unpaved') },
+  ground: { color: '#8c5a2b', title: t('surfLong.ground') },
+  path: { color: '#3d9a46', title: t('surfLong.path') },
+  unknown: { color: '#b3b3b8', title: t('surfLong.unknown') },
 };
 
 /**
@@ -62,11 +63,11 @@ export const SURFACE_STYLE: Record<SurfaceClass, { color: string; title: string 
  */
 export const GRADE_CLASSES: { min: number; color: string; title: string }[] = [
   { min: -Infinity, color: '#2c7fb8', title: '↓ >8%' },
-  { min: -8, color: '#7fcdbb', title: '↓ 3–8%' },
-  { min: -3, color: '#c9c9cc', title: '±3%' },
-  { min: 3, color: '#fee08b', title: '↑ 3–6%' },
-  { min: 6, color: '#fdae61', title: '↑ 6–10%' },
-  { min: 10, color: '#d73027', title: '↑ 10–15%' },
+  { min: -8, color: '#7fcdbb', title: '↓ 3-8%' },
+  { min: -3, color: '#c9c9cc', title: t('grade.flat') },
+  { min: 3, color: '#fee08b', title: '↑ 3-6%' },
+  { min: 6, color: '#fdae61', title: '↑ 6-10%' },
+  { min: 10, color: '#d73027', title: '↑ 10-15%' },
   { min: 15, color: '#7f0000', title: '↑ >15%' },
 ];
 
@@ -131,5 +132,5 @@ export function buildProfile(points: LegPoint[], spans: WaySpan[] = [], win = 10
 }
 
 export function formatKm(m: number) {
-  return m < 1000 ? `${Math.round(m)} м` : `${(m / 1000).toFixed(m < 10000 ? 2 : 1)} км`;
+  return m < 1000 ? `${Math.round(m)} ${t('unit.m')}` : `${(m / 1000).toFixed(m < 10000 ? 2 : 1)} ${t('unit.km')}`;
 }

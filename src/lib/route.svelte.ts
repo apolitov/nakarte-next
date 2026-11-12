@@ -3,6 +3,7 @@
 import { fetchLeg, normalizeProfile, optionsToParams, paramsToOptions, type Leg, type LegPoint, type ProfileId, type RouteOptions } from './brouter';
 import { buildProfile, type Profile } from './profile';
 import { newId, type Checkpoint, type RouteDoc } from './store';
+import { t, LOCALE } from './i18n';
 
 export interface Waypoint {
   id: number;
@@ -96,8 +97,8 @@ export class RouteState {
 
   autoName() {
     const km = this.profileData.length / 1000;
-    const d = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-    return km > 0 ? `Маршрут ${km.toFixed(km < 10 ? 1 : 0)} км, ${d}` : `Маршрут, ${d}`;
+    const d = new Date().toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' });
+    return km > 0 ? t('route.autoName', { km: km.toFixed(km < 10 ? 1 : 0), date: d }) : t('route.autoNameEmpty', { date: d });
   }
 
   // ---- history ----
