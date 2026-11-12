@@ -22,13 +22,32 @@ export async function whoami(): Promise<User | null> {
   }
 }
 
-/** Goes through the Authelia portal and back to the map. */
+/** Sign in with Google, then back to the same map view. */
 export function login() {
-  location.href = `${API}/login`;
+  const to = `${import.meta.env.BASE_URL}${location.hash}`;
+  location.href = `${API}/auth/google/start?to=${encodeURIComponent(to)}`;
 }
 
-export function logout() {
-  location.href = `https://auth.alexe.pt/logout?rd=${encodeURIComponent(location.origin + import.meta.env.BASE_URL)}`;
+/** Alternative: an alexe.pt account (Authelia). */
+export function loginAuthelia() {
+  location.href = `${API}/login/authelia`;
+}
+
+export async function logout() {
+  await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+  location.reload();
+}
+
+/** Deletes the account and everything stored for it on the server. */
+export async function deleteAccount() {
+  const r = await fetch(`${API}/account`, { method: 'DELETE', credentials: 'same-origin' });
+  if (!r.ok) throw new Error(`delete account: ${r.status}`);
+  try {
+    localStorage.removeItem('nk-last-sync');
+  } catch {
+    /* ignore */
+  }
+  location.reload();
 }
 
 async function api(path: string, init?: RequestInit) {

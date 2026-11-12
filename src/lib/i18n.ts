@@ -118,6 +118,8 @@ const en = {
   'mine.confirmDeleteTrack': 'Delete track “{name}”?',
 
   // account
+  'sheet.expand': 'Show route panel',
+  'sheet.collapse': 'Hide route panel',
   'acc.label': 'Account: {status}',
   'acc.dialog': 'Account',
   'acc.syncing': 'syncing…',
@@ -126,7 +128,12 @@ const en = {
   'acc.sync': 'Sync now',
   'acc.logout': 'Log out',
   'acc.login': 'Log in',
-  'acc.local': 'Routes are kept in this browser. Log in to have them on all your devices.',
+  'acc.google': 'Continue with Google',
+  'acc.alt': 'Sign in with an alexe.pt account',
+  'acc.delete': 'Delete account',
+  'acc.deleteConfirm': 'Delete your account and all routes, tracks and short links stored on the server? Routes in this browser stay.',
+  'acc.signinFailed': 'Sign-in did not complete. Please try again.',
+  'acc.local': 'Routes are kept in this browser. Sign in to keep them on all your devices.',
 
   // toolbar
   'tb.label': 'Map tools',

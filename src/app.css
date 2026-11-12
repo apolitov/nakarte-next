@@ -340,41 +340,57 @@ kbd {
   font-size: 11px;
 }
 
-/* ---- phone: map on top, the panel as a bottom sheet ---- */
+/* ---- phone: full-screen map, the panel as a bottom sheet (collapsed strip or open) ---- */
 @media (max-width: 639px) {
-  body {
-    overflow: auto;
-  }
   .app {
-    display: flex;
-    flex-direction: column;
-    height: auto;
-    min-height: 100dvh;
+    display: block;
+    height: 100dvh;
   }
   .mapcol {
-    height: 52dvh;
-    min-height: 320px;
-    flex: none;
+    position: fixed;
+    inset: 0;
+    height: auto;
     --prof-h: 0px !important;
   }
   .side {
-    order: 2;
+    position: fixed;
+    z-index: 10;
+    left: 0;
+    right: 0;
+    bottom: 0;
     height: auto;
-    overflow: visible;
-    box-shadow: 0 -6px 24px rgb(20 20 20 / 0.14);
-    border-radius: 22px 22px 0 0;
-    margin-top: -20px;
-    padding: 6px 16px 36px;
+    max-height: 80dvh;
+    overflow: hidden;
+    box-shadow: 0 -6px 24px rgb(20 20 20 / 0.16);
+    border-radius: 18px 18px 0 0;
+    padding: 0 16px 18px;
+    /* collapsed: only the handle, the account and the route name show */
+    transform: translateY(calc(100% - 62px - env(safe-area-inset-bottom)));
+    transition: transform 0.22s ease;
   }
-  .side::before {
-    content: '';
-    display: block;
-    width: 40px;
+  .side.sheet-open {
+    transform: none;
+    overflow-y: auto;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+  .grab {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: calc(100% + 32px);
+    margin: 0 -16px;
+    height: 26px;
+    background: var(--paper);
+    touch-action: none;
+    cursor: grab;
+  }
+  .grab span {
+    width: 44px;
     height: 5px;
     border-radius: 3px;
     background: var(--line);
-    margin: 0 auto 4px;
-    flex: none;
   }
   .toast {
     top: 62px;

@@ -39,7 +39,7 @@ th{font-weight:600;color:var(--soft);font-size:13px}
 
 <h1>Help</h1>
 <p>How the planner picks roads, what the colours on the line mean and how to read mountain passes.</p>
-<nav><a href="#routing">How routing works</a><a href="#line">Colours and dashes</a><a href="#passes">Mountain passes</a><a href="#limits">Limitations</a></nav>
+<nav><a href="#routing">How routing works</a><a href="#line">Colours and dashes</a><a href="#passes">Mountain passes</a><a href="#limits">Limitations</a><a href="#privacy">Account and data</a></nav>
 
 <h2 id="routing">How routing works</h2>
 <p>You place points, and the planner connects each pair of neighbouring points with its own leg. Legs are calculated by <a href="https://github.com/abrensch/brouter">BRouter</a> running on our server. Roads, trails, surfaces and cycle routes come from <a href="https://www.openstreetmap.org">OpenStreetMap</a>, elevation from a built-in terrain model.</p>
@@ -116,6 +116,13 @@ th{font-weight:600;color:var(--soft);font-size:13px}
 <li>The grade limit is soft: it steers around steep parts when it can, but does not forbid them.</li>
 <li>Riding time and surfaces without an OpenStreetMap tag are estimates.</li>
 </ul>
+<h2 id="privacy">Account and data</h2>
+<p>The map, routing and links work without an account. Your routes are then kept only in this browser.</p>
+<p><b>Signing in</b> with Google or with an alexe.pt account lets you keep routes on our server and open them on any device. From Google we receive only your name, email address and a stable account identifier; we do not get your contacts, files or anything else.</p>
+<p><b>What we store:</b> your name and email; the routes, tracks and checkpoints you save; short links you create; if you connect Garmin, an encrypted access token for it (your Garmin password is used once to connect and is not stored); a session cookie that keeps you signed in for 30 days. We do not sell or share this data and do not use it for advertising. There are no third-party trackers in the planner.</p>
+<p><b>Limits:</b> up to 2,000 routes and tracks or 50 MB per account, 100 short links and 30 Garmin sends a day.</p>
+<p><b>Deleting:</b> “Delete account” in the account menu removes your account and everything stored for it at once. Short links you shared stop working. For questions write to the support address shown on the Google sign-in screen.</p>
+<p><b>Where:</b> the server is in the European Union (OVH).</p>
 <p class="small">Map data © OpenStreetMap contributors. Passes: OpenStreetMap and the FSTR classifier. Routing: BRouter. On your first visit the map opens on your approximate city, found on our server with <a href="https://db-ip.com">IP Geolocation by DB-IP</a>; the address is not stored.</p>
 </main>
 </body>

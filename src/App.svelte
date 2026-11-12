@@ -13,7 +13,7 @@
   import { routeToParam, paramToRoute } from './lib/share';
   import { showPasses, hidePasses } from './lib/passes';
   import { CheckpointLayer, type CheckpointItem } from './lib/checkpoints';
-  import { whoami, login, logout, sync, remote, shareShort, loadShort, type User } from './lib/account';
+  import { whoami, login, logout, sync, remote, shareShort, loadShort, type User, loginAuthelia, deleteAccount } from './lib/account';
   import type { Doc } from './lib/store';
   import { encodeCourse } from './lib/fit';
   import { buildTimeline, nearestPoint, segmentClasses, type TimelineEvent } from './lib/timeline';
@@ -67,9 +67,21 @@
   let fileInput: HTMLInputElement;
   let accountMenu: AccountMenu | undefined = $state();
 
-  // phone layout: map on top, the panel below it as a sheet
+  // phone layout: full-screen map, the panel as a bottom sheet that collapses to a strip
   const mq = matchMedia('(max-width: 639px)');
   let mobile = $state(mq.matches);
+  let sheetOpen = $state(false);
+  /** Swipe on the handle: up opens, down collapses; a short move counts as a tap. */
+  function grabStart(e: PointerEvent) {
+    const y0 = e.clientY;
+    const up = (ev: PointerEvent) => {
+      removeEventListener('pointerup', up);
+      const dy = ev.clientY - y0;
+      if (dy < -30) sheetOpen = true;
+      else if (dy > 30) sheetOpen = false;
+    };
+    addEventListener('pointerup', up);
+  }
   $effect(() => {
     const f = () => (mobile = mq.matches);
     mq.addEventListener('change', f);
@@ -335,6 +347,7 @@
       /* ignore */
     }
     const hp = new URLSearchParams(location.hash.slice(1));
+    if (hp.get('signin') === 'failed') say(t('acc.signinFailed'), true);
     const shared = hp.get('r');
     const fromLink = shared ? paramToRoute(shared) : null;
     const short = hp.get('s') ? await loadShort(hp.get('s')!) : null;
@@ -389,6 +402,15 @@
     deleteDoc(r.id);
     savedRoutes = savedRoutes.filter((x) => x.id !== r.id);
     if (r.id === route.docId) route.reset();
+  }
+
+  async function removeAccount() {
+    if (!confirm(t('acc.deleteConfirm'))) return;
+    try {
+      await deleteAccount();
+    } catch (e) {
+      say((e as Error).message, true);
+    }
   }
 
   /** Deletes the route being edited (saved copy too), then starts a new one. */
@@ -855,13 +877,18 @@
 
 <svelte:window onkeydown={onKey} />
 <div class="app" role="application" ondragover={(e) => e.preventDefault()} ondrop={onDrop}>
-  <aside class="side" aria-label={t('route.panel')}>
+  <aside class="side" class:sheet-open={sheetOpen} aria-label={t('route.panel')}>
+    {#if mobile}
+      <button class="grab" aria-label={sheetOpen ? t('sheet.collapse') : t('sheet.expand')} aria-expanded={sheetOpen}
+        onclick={() => (sheetOpen = !sheetOpen)}
+        onpointerdown={grabStart}><span></span></button>
+    {/if}
     <div class="head">
       <picture class="logo">
         <source srcset="{import.meta.env.BASE_URL}brand/symbol-colour-dark.svg" media="(prefers-color-scheme: dark)" />
         <img src="{import.meta.env.BASE_URL}brand/symbol-colour.svg" alt="Na Carta" width="81" height="28" />
       </picture>
-      <AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={login} onlogout={logout} onsync={runSync} />
+      <AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={login} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />
     </div>
     <div class="titlerow">
     <input
@@ -1144,6 +1171,21 @@
   @media (max-width: 639px) {
     .mine-scroll {
       max-height: none;
+    }
+    .logo {
+      display: none;
+    }
+    /* collapsed sheet: the account button sits on the title row */
+    .head {
+      position: absolute;
+      top: 20px;
+      right: 8px;
+      min-height: 0;
+      z-index: 3;
+    }
+    .titlerow {
+      padding-right: 36px;
+      min-height: 40px;
     }
   }
 </style>

@@ -204,6 +204,8 @@
     .tbar {
       overflow-x: auto;
       scrollbar-width: none;
+      /* leave room for the zoom buttons on the right */
+      max-width: calc(100vw - 72px);
     }
     .tb {
       width: 36px;
