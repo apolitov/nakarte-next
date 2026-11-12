@@ -88,6 +88,7 @@ const en = {
 
   // actions
   'route.delete': 'Delete route',
+  'route.legTooLong': 'This leg is too long to calculate. Add a point in between.',
   'route.deleted': 'Route deleted',
   'act.garmin': 'Send to Garmin',
   'act.beta': 'beta',

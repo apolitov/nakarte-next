@@ -156,6 +156,24 @@ export function fillElevation(points: LegPoint[]) {
 
 const cache = new Map<string, Promise<Leg>>();
 
+/**
+ * One leg from the router. Under load BRouter cancels the oldest running requests
+ * ("killed by thread-priority-watchdog"): such a leg is retried after a short pause.
+ * A leg that does not finish in the router's 60 s gets a hint to add a point.
+ */
+async function requestLeg(url: string, attempt = 0): Promise<Leg> {
+  const r = await fetch(url);
+  const text = await r.text();
+  if (r.ok) return parseBrouter(JSON.parse(text));
+  const msg = text.trim().split('\n')[0];
+  if (/killed/i.test(msg) && attempt < 3) {
+    await new Promise((res) => setTimeout(res, 400 + Math.random() * 600 * (attempt + 1)));
+    return requestLeg(url, attempt + 1);
+  }
+  if (/timeout/i.test(msg)) throw new Error(t('route.legTooLong'));
+  throw new Error(msg || `BRouter ${r.status}`);
+}
+
 type LngLat = { lng: number; lat: number };
 
 export type Params = Record<string, string | number | boolean>;
@@ -177,11 +195,7 @@ export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Param
   let p = cache.get(key);
   if (!p) {
     const url = `${API}?lonlats=${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=${profile}${extra}&alternativeidx=0&format=geojson`;
-    p = fetch(url).then(async (r) => {
-      const text = await r.text();
-      if (!r.ok) throw new Error(text.trim().split('\n')[0] || `BRouter ${r.status}`);
-      return parseBrouter(JSON.parse(text));
-    });
+    p = requestLeg(url);
     p.catch(() => cache.delete(key));
     cache.set(key, p);
   }
