@@ -325,3 +325,55 @@ body {
   border-color: var(--accent);
   color: #fff;
 }
+.route-name-input {
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+.route-name-input:hover,
+.route-name-input:focus {
+  border-color: var(--line);
+}
+.seg {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.routing .seg button {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  padding: 5px 6px;
+  font-size: 13px;
+}
+.routing .seg button + button {
+  border-left: 1px solid var(--line);
+}
+.routing .seg button.on {
+  background: var(--accent);
+  color: #fff;
+}
+.opts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 8px;
+  align-items: center;
+}
+.opts .lbl {
+  font-size: 12px;
+  color: var(--muted);
+}
+.grade {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.grade input {
+  flex: 1;
+}

@@ -8,7 +8,7 @@
   import { parseTrackFile, toGpx, trackToGeoJSON, bboxOf, type Track } from './lib/gpx';
   import { RouteState } from './lib/route.svelte';
   import { RouteEditor, type ColorMode } from './lib/routeEditor';
-  import { PROFILES, type ProfileId } from './lib/brouter';
+  import { PROFILES, type ProfileId, type RouteOptions } from './lib/brouter';
   import ElevationProfile from './ElevationProfile.svelte';
   import { store, newId, type RouteDoc, type TrackDoc } from './lib/store';
   import { routeToParam, paramToRoute } from './lib/share';
@@ -30,6 +30,10 @@
   let editing = $state(false);
   let colorMode = $state<ColorMode>('grade');
   let showProfile = $state(true);
+  let showOptions = $state(false);
+  function setOpt(patch: Partial<RouteOptions>) {
+    route.setOptions({ ...route.options, ...patch });
+  }
   let savedRoutes = $state<RouteDoc[]>([]);
   let toast = $state('');
   /** Next map click places a checkpoint on this owner ('route' or a track id). */
@@ -466,14 +470,50 @@
   </div>
 
   <div class="panel routing">
+    {#if route.waypoints.length}
+      <input
+        class="route-name-input"
+        value={route.name}
+        placeholder={route.autoName()}
+        aria-label="Название маршрута"
+        onchange={(e) => route.rename((e.currentTarget as HTMLInputElement).value)}
+        onkeydown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+      />
+    {/if}
     <div class="row">
       <button class:active={editing} onclick={() => (editing = !editing)}>
         {editing ? 'Готово' : route.waypoints.length ? 'Править маршрут' : 'Построить маршрут'}
       </button>
-      <select value={route.profile} onchange={(e) => route.setProfile((e.currentTarget as HTMLSelectElement).value as ProfileId)} aria-label="Профиль">
-        {#each PROFILES as p (p.id)}<option value={p.id}>{p.title}</option>{/each}
-      </select>
+      <button onclick={() => (showOptions = !showOptions)} aria-expanded={showOptions} title="Настройки маршрутизации">⚙</button>
     </div>
+    <div class="seg" role="radiogroup" aria-label="Тип">
+      {#each PROFILES as p (p.id)}
+        <button role="radio" aria-checked={route.profile === p.id} class:on={route.profile === p.id} onclick={() => route.setProfile(p.id as ProfileId)}>{p.title}</button>
+      {/each}
+    </div>
+    {#if showOptions}
+      {@const o = route.options}
+      <div class="opts">
+        <span class="lbl">Покрытие</span>
+        <div class="seg">
+          {#each [[-1, 'Асфальт'], [0, 'Всё равно'], [1, 'Грунт']] as [v, t] (v)}
+            <button class:on={o.surface === v} onclick={() => setOpt({ surface: v as RouteOptions['surface'] })}>{t}</button>
+          {/each}
+        </div>
+        <span class="lbl">Подъёмы</span>
+        <div class="seg">
+          {#each [['less', 'Меньше'], ['normal', 'Обычно'], ['any', 'Не избегать']] as [v, t] (v)}
+            <button class:on={o.climbs === v} disabled={o.maxGrade > 0} onclick={() => setOpt({ climbs: v as RouteOptions['climbs'] })}>{t}</button>
+          {/each}
+        </div>
+        <span class="lbl">Не круче</span>
+        <div class="grade">
+          <input type="range" min="0" max="20" step="1" value={o.maxGrade} aria-label="Лимит крутизны"
+            onchange={(e) => setOpt({ maxGrade: Number((e.currentTarget as HTMLInputElement).value) })} />
+          <span>{o.maxGrade ? `${o.maxGrade}%` : 'без лимита'}</span>
+        </div>
+      </div>
+    {/if}
     {#if editing}
       <div class="hint">
         Щелчок по карте добавляет точку{route.prepend ? ' в начало' : ''}. Точку можно тащить, двойной щелчок удаляет её,
@@ -512,7 +552,7 @@
     <div class="panel profile-panel" class:collapsed={!showProfile}>
       <button class="collapse" onclick={() => (showProfile = !showProfile)}>{showProfile ? 'Скрыть профиль' : 'Профиль высот'}</button>
       {#if showProfile}
-        <ElevationProfile profile={route.profileData} marks={profileMarks} onhover={(i) => editor?.hover(i)} />
+        <ElevationProfile profile={route.profileData} marks={profileMarks} maxGrade={route.options.maxGrade} onhover={(i) => editor?.hover(i)} />
       {/if}
     </div>
   {/if}

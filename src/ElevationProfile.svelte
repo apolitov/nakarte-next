@@ -5,8 +5,30 @@
   let {
     profile,
     marks = [],
+    maxGrade = 0,
     onhover,
-  }: { profile: Profile; marks?: { d: number; kind: string; name: string }[]; onhover: (i: number | null) => void } = $props();
+  }: {
+    profile: Profile;
+    marks?: { d: number; kind: string; name: string }[];
+    maxGrade?: number;
+    onhover: (i: number | null) => void;
+  } = $props();
+
+  /** Climbing stretches steeper than the limit (the router avoids them only softly). */
+  const steep = $derived.by(() => {
+    if (!maxGrade) return { ranges: [] as [number, number][], length: 0 };
+    const { dist, grade } = profile;
+    const ranges: [number, number][] = [];
+    let length = 0;
+    for (let i = 1; i < dist.length; i++) {
+      if ((grade[i] ?? 0) <= maxGrade) continue;
+      length += dist[i] - dist[i - 1];
+      const last = ranges.at(-1);
+      if (last && last[1] === dist[i - 1]) last[1] = dist[i];
+      else ranges.push([dist[i - 1], dist[i]]);
+    }
+    return { ranges, length };
+  });
 
   let canvas: HTMLCanvasElement;
   let wrap: HTMLDivElement;
@@ -93,6 +115,12 @@
       ctx.fillRect(x(dist[i - 1]), bottom + 1, Math.max(1, x(dist[i]) - x(dist[i - 1]) + 0.5), STRIP);
     }
 
+    // stretches over the grade limit: hatched band along the top
+    if (steep.ranges.length) {
+      ctx.fillStyle = 'rgba(215,38,45,.85)';
+      for (const [a, b] of steep.ranges) ctx.fillRect(x(a), PAD.t - 4, Math.max(2, x(b) - x(a)), 3);
+    }
+
     // checkpoints: a thin line and the icon at the top
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -118,7 +146,7 @@
   }
 
   $effect(() => {
-    void profile; void width; void hoverIdx; void marks;
+    void profile; void width; void hoverIdx; void marks; void steep;
     draw();
   });
 
@@ -171,6 +199,9 @@
     <span>↗ {Math.round(profile.ascent)} м</span>
     <span>↘ {Math.round(profile.descent)} м</span>
     {#if profile.maxEle != null}<span class="muted">{Math.round(profile.minEle!)}–{Math.round(profile.maxEle)} м</span>{/if}
+    {#if maxGrade && steep.length > 0}
+      <span class="steep">круче {maxGrade}%: {formatKm(steep.length)}</span>
+    {/if}
     {#if info}
       <span class="hover">{info.d} · {info.e} · {info.g} · {info.s}</span>
     {/if}
@@ -207,6 +238,10 @@
     gap: 12px;
     padding: 0 4px 4px;
     font-variant-numeric: tabular-nums;
+  }
+  .steep {
+    color: #d7262d;
+    font-weight: 600;
   }
   .head .hover {
     margin-left: auto;

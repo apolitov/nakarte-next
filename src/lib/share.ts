@@ -68,7 +68,7 @@ export function paramToRoute(v: string): Pick<RouteDoc, 'profile' | 'waypoints' 
       const [k, val] = kv.split(':');
       if (k) p[k] = isNaN(Number(val)) ? val : Number(val);
     }
-    return { profile: profile || 'trekking', waypoints, params: p };
+    return { profile: profile || 'nk-gravel', waypoints, params: p };
   } catch {
     return null;
   }

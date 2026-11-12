@@ -4,15 +4,64 @@ import type { Position } from 'geojson';
 import { straightWithElevation } from './dem';
 
 export const PROFILES = [
-  { id: 'trekking', title: 'Велотуризм' },
-  { id: 'gravel', title: 'Гравел' },
-  { id: 'fastbike', title: 'Шоссе' },
-  { id: 'mtb', title: 'МТБ' },
-  { id: 'hiking-mountain', title: 'Пешком' },
-  { id: 'shortest', title: 'Кратчайший' },
-  { id: 'straight', title: 'По прямой' },
+  { id: 'nk-road', title: 'Шоссе' },
+  { id: 'nk-gravel', title: 'Гравел' },
+  { id: 'nk-mtb', title: 'МТБ' },
+  { id: 'nk-hike', title: 'Пешком' },
 ] as const;
-export type ProfileId = (typeof PROFILES)[number]['id'];
+
+/** Profiles of the first version, kept so old routes and links still open. */
+const LEGACY: Record<string, string> = {
+  trekking: 'nk-gravel',
+  'nk-touring': 'nk-gravel',
+  fastbike: 'nk-road',
+  gravel: 'nk-gravel',
+  mtb: 'nk-mtb',
+  'hiking-mountain': 'nk-hike',
+  shortest: 'nk-gravel',
+};
+export const normalizeProfile = (p: string): ProfileId =>
+  (PROFILES.some((x) => x.id === p) ? p : LEGACY[p] ?? 'nk-gravel') as ProfileId;
+
+export type Surface = -1 | 0 | 1;
+export type Climbs = 'less' | 'normal' | 'any';
+export interface RouteOptions {
+  surface: Surface;
+  climbs: Climbs;
+  /** max comfortable grade, %; 0 = no limit */
+  maxGrade: number;
+}
+export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', maxGrade: 0 };
+
+/** Options → BRouter profile parameters of the nk-* profiles (see vps/stacks/brouter/profiles/gen.py). */
+export function optionsToParams(o: RouteOptions): Record<string, number> {
+  const p: Record<string, number> = {};
+  if (o.surface) p.nk_surface = o.surface;
+  if (o.maxGrade > 0) {
+    // climbing above the limit costs a lot; below it, as the climbs option says
+    p.nk_uphillcutoff = o.maxGrade;
+    p.nk_uphillcost = 600;
+  } else if (o.climbs === 'less') {
+    p.nk_uphillcost = 120;
+    p.nk_uphillcutoff = 1.5;
+  } else if (o.climbs === 'any') {
+    p.nk_uphillcost = 0;
+  }
+  return p;
+}
+
+export function paramsToOptions(p: Record<string, string | number | boolean> = {}): RouteOptions {
+  const n = (k: string) => (p[k] == null ? undefined : Number(p[k]));
+  const cost = n('nk_uphillcost');
+  const cutoff = n('nk_uphillcutoff');
+  return {
+    surface: (Math.sign(n('nk_surface') ?? 0) as Surface),
+    maxGrade: cost != null && cost >= 600 && cutoff ? cutoff : 0,
+    climbs: cost == null ? 'normal' : cost === 0 ? 'any' : cost >= 600 ? 'normal' : 'less',
+  };
+}
+
+export type ProfileId = (typeof PROFILES)[number]['id'] | 'straight';
 
 const API = `${import.meta.env.BASE_URL}api/route`;
 

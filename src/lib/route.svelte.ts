@@ -1,6 +1,6 @@
 // Route being edited: waypoints, per-leg mode (road or straight), routing
 // profile, legs between waypoints, undo/redo.
-import { fetchLeg, type Leg, type LegPoint, type ProfileId } from './brouter';
+import { fetchLeg, normalizeProfile, optionsToParams, paramsToOptions, type Leg, type LegPoint, type ProfileId, type RouteOptions } from './brouter';
 import { buildProfile, type Profile } from './profile';
 import { newId, type Checkpoint, type RouteDoc } from './store';
 
@@ -23,7 +23,7 @@ export class RouteState {
   name = $state('');
   waypoints = $state<Waypoint[]>([]);
   checkpoints = $state<Checkpoint[]>([]);
-  profile = $state<ProfileId>('trekking');
+  profile = $state<ProfileId>('nk-gravel');
   params = $state<Record<string, string | number | boolean>>({});
   legs = $state<LegState[]>([]);
   /** Bumped on every change, so effects can react without deep tracking. */
@@ -80,7 +80,7 @@ export class RouteState {
   load(doc: RouteDoc) {
     this.docId = doc.id;
     this.name = doc.name;
-    this.profile = (doc.profile as ProfileId) ?? 'trekking';
+    this.profile = normalizeProfile(doc.profile ?? '');
     this.params = { ...(doc.params ?? {}) };
     this.checkpoints = doc.checkpoints ?? [];
     this.undoStack = [];
@@ -319,6 +319,17 @@ export class RouteState {
   setProfile(p: ProfileId) {
     this.profile = p;
     this.rebuild(this.snapshot().waypoints);
+  }
+
+  options = $derived(paramsToOptions(this.params));
+
+  setOptions(o: RouteOptions) {
+    this.setParams(optionsToParams(o));
+  }
+
+  rename(name: string) {
+    this.name = name.trim();
+    this.changed();
   }
 
   setParams(params: Record<string, string | number | boolean>) {
