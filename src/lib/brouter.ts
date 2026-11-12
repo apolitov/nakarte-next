@@ -30,13 +30,16 @@ export interface RouteOptions {
   climbs: Climbs;
   /** max comfortable grade, %; 0 = no limit */
   maxGrade: number;
+  /** prefer cycleways, cycle lanes and signed cycle routes */
+  cycleways: boolean;
 }
-export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', maxGrade: 0 };
+export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', maxGrade: 0, cycleways: false };
 
 /** Options → BRouter profile parameters of the nk-* profiles (see vps/stacks/brouter/profiles/gen.py). */
 export function optionsToParams(o: RouteOptions): Record<string, number> {
   const p: Record<string, number> = {};
   if (o.surface) p.nk_surface = o.surface;
+  if (o.cycleways) p.nk_cycle = 1;
   if (o.maxGrade > 0) {
     // climbing above the limit costs a lot; below it, as the climbs option says
     p.nk_uphillcutoff = o.maxGrade;
@@ -56,6 +59,7 @@ export function paramsToOptions(p: Record<string, string | number | boolean> = {
   const cutoff = n('nk_uphillcutoff');
   return {
     surface: (Math.sign(n('nk_surface') ?? 0) as Surface),
+    cycleways: n('nk_cycle') === 1,
     maxGrade: cost != null && cost >= 600 && cutoff ? cutoff : 0,
     climbs: cost == null ? 'normal' : cost === 0 ? 'any' : cost >= 600 ? 'normal' : 'less',
   };

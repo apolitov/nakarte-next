@@ -4,10 +4,10 @@ import { optionsToParams, paramsToOptions, normalizeProfile } from './brouter';
 describe('route options', () => {
   it('round-trips through profile parameters', () => {
     for (const o of [
-      { surface: 0, climbs: 'normal', maxGrade: 0 },
-      { surface: 1, climbs: 'less', maxGrade: 0 },
-      { surface: -1, climbs: 'any', maxGrade: 0 },
-      { surface: 0, climbs: 'normal', maxGrade: 8 },
+      { surface: 0, climbs: 'normal', maxGrade: 0, cycleways: false },
+      { surface: 1, climbs: 'less', maxGrade: 0, cycleways: true },
+      { surface: -1, climbs: 'any', maxGrade: 0, cycleways: false },
+      { surface: 0, climbs: 'normal', maxGrade: 8, cycleways: true },
     ] as const) {
       expect(paramsToOptions(optionsToParams(o))).toEqual(o);
     }
