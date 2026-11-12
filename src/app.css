@@ -138,7 +138,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-width: 330px;
+  max-width: 380px;
 }
 .routing .row {
   display: flex;
@@ -154,6 +154,10 @@ body {
   border-radius: 6px;
   padding: 5px 9px;
   cursor: pointer;
+  white-space: nowrap;
+}
+.routing .row {
+  flex-wrap: wrap;
 }
 .routing button.active {
   background: var(--accent);
@@ -279,4 +283,45 @@ body {
 }
 .ctx button:hover {
   background: var(--line);
+}
+.cp {
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.6));
+}
+.cp-popup .maplibregl-popup-content {
+  background: var(--bg);
+  color: var(--fg);
+  padding: 10px;
+}
+.cp-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+}
+.cp-edit select,
+.cp-edit input,
+.cp-edit textarea,
+.cp-edit button {
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 7px;
+}
+.cp-edit .danger {
+  color: #d1242f;
+  cursor: pointer;
+}
+.cp-edit .muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+.track button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }

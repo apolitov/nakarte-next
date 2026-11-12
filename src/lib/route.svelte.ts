@@ -286,7 +286,34 @@ export class RouteState {
 
   clear() {
     this.record();
+    this.checkpoints = [];
     this.rebuild([]);
+  }
+
+  // ---- checkpoints ----
+
+  addCheckpoint(lng: number, lat: number, kind = 'generic'): string {
+    this.record();
+    const id = newId('c');
+    this.checkpoints = [...this.checkpoints, { id, lng, lat, kind, name: '' }];
+    this.changed();
+    return id;
+  }
+
+  updateCheckpoint(id: string, patch: Partial<Checkpoint>) {
+    const i = this.checkpoints.findIndex((c) => c.id === id);
+    if (i < 0) return;
+    const cur = this.checkpoints[i] as unknown as Record<string, unknown>;
+    if (Object.entries(patch).every(([k, v]) => cur[k] === v)) return; // nothing changed: no history entry
+    this.record();
+    this.checkpoints[i] = { ...this.checkpoints[i], ...patch, id };
+    this.changed();
+  }
+
+  removeCheckpoint(id: string) {
+    this.record();
+    this.checkpoints = this.checkpoints.filter((c) => c.id !== id);
+    this.changed();
   }
 
   setProfile(p: ProfileId) {

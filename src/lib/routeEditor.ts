@@ -14,6 +14,8 @@ export class RouteEditor {
   editing = false;
   colorMode: ColorMode = 'grade';
   private dragInsert: { index: number; marker: maplibregl.Marker } | null = null;
+  /** Returns true when it handled the click (e.g. placing a checkpoint). */
+  onMapClick: ((lng: number, lat: number) => boolean) | null = null;
 
   constructor(
     private map: maplibregl.Map,
@@ -49,7 +51,9 @@ export class RouteEditor {
     });
 
     map.on('click', (e) => {
-      if (!this.editing || this.dragInsert) return;
+      if (this.dragInsert) return;
+      if (this.onMapClick?.(e.lngLat.lng, e.lngLat.lat)) return;
+      if (!this.editing) return;
       if (map.queryRenderedFeatures(e.point, { layers: ['route-hit'] }).length) return;
       route.add(e.lngLat.lng, e.lngLat.lat);
     });

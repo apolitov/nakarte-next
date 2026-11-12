@@ -12,6 +12,7 @@
   import ElevationProfile from './ElevationProfile.svelte';
   import { store, newId, type RouteDoc, type TrackDoc } from './lib/store';
   import { routeToParam, paramToRoute } from './lib/share';
+  import { CheckpointLayer, type CheckpointItem } from './lib/checkpoints';
 
   let container: HTMLDivElement;
   let map: MlMap | undefined;
@@ -31,6 +32,98 @@
   let showProfile = $state(true);
   let savedRoutes = $state<RouteDoc[]>([]);
   let toast = $state('');
+  /** Next map click places a checkpoint on this owner ('route' or a track id). */
+  let placing = $state<string | null>(null);
+  let cpLayer: CheckpointLayer | undefined;
+
+  const checkpointItems = $derived<CheckpointItem[]>([
+    ...route.checkpoints.map((c) => ({ ...c, owner: 'route', editable: true })),
+    ...tracks.flatMap((t) =>
+      t.points.map((p, i) => ({
+        id: p.id ?? `${t.id}:${i}`,
+        lng: p.coord[0],
+        lat: p.coord[1],
+        kind: p.kind ?? 'generic',
+        name: p.name,
+        note: p.note,
+        owner: t.id,
+        editable: true,
+      })),
+    ),
+  ]);
+  $effect(() => {
+    // read the items first: with `cpLayer?.set(items)` an unset layer would skip
+    // the read, and the effect would never subscribe to changes
+    const items = checkpointItems;
+    void route.version;
+    cpLayer?.set(items);
+  });
+
+  /** Route checkpoints projected on the route: distance for the profile. */
+  const profileMarks = $derived.by(() => {
+    const pts = route.points;
+    const dist = route.profileData.dist;
+    if (pts.length < 2) return [];
+    return route.checkpoints.flatMap((c) => {
+      let best = -1, bd = Infinity;
+      for (let i = 0; i < pts.length; i++) {
+        const d = (pts[i].lng - c.lng) ** 2 * Math.cos((c.lat * Math.PI) / 180) ** 2 + (pts[i].lat - c.lat) ** 2;
+        if (d < bd) { bd = d; best = i; }
+      }
+      // farther than ~500 m from the route: not on it
+      return Math.sqrt(bd) * 111000 < 500 ? [{ d: dist[best], kind: c.kind, name: c.name }] : [];
+    });
+  });
+
+  function updateTrackPoint(item: CheckpointItem, patch: Partial<CheckpointItem>) {
+    tracks = tracks.map((t) => {
+      if (t.id !== item.owner) return t;
+      const points = t.points.map((p, i) =>
+        (p.id ?? `${t.id}:${i}`) === item.id
+          ? {
+              ...p,
+              id: item.id,
+              coord: [patch.lng ?? p.coord[0], patch.lat ?? p.coord[1]],
+              name: patch.name ?? p.name,
+              kind: patch.kind ?? p.kind,
+              note: 'note' in patch ? patch.note : p.note,
+            }
+          : p,
+      );
+      const nt = { ...t, points };
+      store.put(trackToDoc(nt));
+      return nt;
+    });
+  }
+
+  function removeTrackPoint(item: CheckpointItem) {
+    tracks = tracks.map((t) => {
+      if (t.id !== item.owner) return t;
+      const nt = { ...t, points: t.points.filter((p, i) => (p.id ?? `${t.id}:${i}`) !== item.id) };
+      store.put(trackToDoc(nt));
+      return nt;
+    });
+  }
+
+  function placeCheckpoint(lng: number, lat: number): boolean {
+    if (!placing) return false;
+    const owner = placing;
+    placing = null;
+    if (owner === 'route') {
+      const id = route.addCheckpoint(lng, lat);
+      queueMicrotask(() => cpLayer?.open({ id, lng, lat, kind: 'generic', name: '', owner, editable: true }));
+    } else {
+      const id = newId('c');
+      tracks = tracks.map((t) => {
+        if (t.id !== owner) return t;
+        const nt = { ...t, points: [...t.points, { id, name: '', coord: [lng, lat], kind: 'generic' }] };
+        store.put(trackToDoc(nt));
+        return nt;
+      });
+      queueMicrotask(() => cpLayer?.open({ id, lng, lat, kind: 'generic', name: '', owner, editable: true }));
+    }
+    return true;
+  }
 
   // ---- persistence: autosave the edited route, keep tracks ----
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -55,12 +148,17 @@
       kind: 'track',
       name: t.name,
       lines: t.lines,
-      checkpoints: t.points.map((p) => ({ id: newId('c'), lng: p.coord[0], lat: p.coord[1], kind: 'generic', name: p.name })),
+      checkpoints: t.points.map((p) => ({ id: p.id ?? newId('c'), lng: p.coord[0], lat: p.coord[1], kind: p.kind ?? 'generic', name: p.name, note: p.note })),
       updated: Date.now(),
     };
   }
   function docToTrack(d: TrackDoc): Track {
-    return { id: d.id, name: d.name, lines: d.lines, points: d.checkpoints.map((c) => ({ name: c.name, coord: [c.lng, c.lat] })) };
+    return {
+      id: d.id,
+      name: d.name,
+      lines: d.lines,
+      points: d.checkpoints.map((c) => ({ id: c.id, name: c.name, coord: [c.lng, c.lat], kind: c.kind, note: c.note })),
+    };
   }
 
   async function loadStored() {
@@ -154,7 +252,7 @@
       id: 'route',
       name,
       lines: [route.points.map((p) => (p.ele != null ? [p.lng, p.lat, p.ele] : [p.lng, p.lat]))],
-      points: route.checkpoints.map((c) => ({ name: c.name, coord: [c.lng, c.lat] })),
+      points: route.checkpoints.map((c) => ({ name: c.name, coord: [c.lng, c.lat], kind: c.kind, note: c.note })),
     };
     exportTrack(t);
   }
@@ -171,7 +269,8 @@
       e.preventDefault();
       route.redo();
     } else if (e.key === 'Escape') {
-      editing = false;
+      if (placing) placing = null;
+      else editing = false;
     } else if (editing && (e.key === 'Backspace' || e.key === 'Delete')) {
       e.preventDefault();
       route.removeLast();
@@ -309,17 +408,20 @@
         paint: { 'line-color': '#e0218a', 'line-width': 3.5, 'line-opacity': 0.9 },
         layout: { 'line-cap': 'round', 'line-join': 'round' },
       });
-      map!.addLayer({
-        id: 'tracks-points',
-        type: 'circle',
-        source: 'tracks',
-        filter: ['==', ['geometry-type'], 'Point'],
-        paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#e0218a', 'circle-stroke-width': 2 },
-      });
       editor = new RouteEditor(map!, route);
+      editor.onMapClick = placeCheckpoint;
+      cpLayer = new CheckpointLayer(map!, {
+        update: (it, patch) => (it.owner === 'route' ? route.updateCheckpoint(it.id, patch) : updateTrackPoint(it, patch)),
+        remove: (it) => (it.owner === 'route' ? route.removeCheckpoint(it.id) : removeTrackPoint(it)),
+      });
+      cpLayer.set(checkpointItems);
+      // base map first, stored data after: the map should not wait for IndexedDB
+      const layersReady = (async () => {
+        await showRaster(layerById(base) ?? layerById(DEFAULT_BASE)!, 'tracks-line');
+        for (const id of overlays) await showRaster(layerById(id)!, 'tracks-line');
+      })();
       await loadStored();
-      await showRaster(layerById(base) ?? layerById(DEFAULT_BASE)!, 'tracks-line');
-      for (const id of overlays) await showRaster(layerById(id)!, 'tracks-line');
+      await layersReady;
       syncHash();
     });
     map.on('moveend', syncHash);
@@ -395,6 +497,7 @@
         <button onclick={() => route.backToStart()} disabled={route.waypoints.length < 2}>К старту</button>
       </div>
       <div class="row">
+        <button class:active={placing === 'route'} onclick={() => (placing = placing === 'route' ? null : 'route')} title="Щелчок по карте поставит чекпоинт">+ Чекпоинт</button>
         <button onclick={exportRoute} disabled={route.points.length < 2}>GPX</button>
         <button onclick={shareRoute} disabled={!route.waypoints.length}>Поделиться</button>
         <button onclick={newRoute}>Новый</button>
@@ -409,7 +512,7 @@
     <div class="panel profile-panel" class:collapsed={!showProfile}>
       <button class="collapse" onclick={() => (showProfile = !showProfile)}>{showProfile ? 'Скрыть профиль' : 'Профиль высот'}</button>
       {#if showProfile}
-        <ElevationProfile profile={route.profileData} onhover={(i) => editor?.hover(i)} />
+        <ElevationProfile profile={route.profileData} marks={profileMarks} onhover={(i) => editor?.hover(i)} />
       {/if}
     </div>
   {/if}
@@ -430,6 +533,7 @@
     {#each tracks as t (t.id)}
       <div class="track">
         <button class="name" onclick={() => zoomTo(t)} title="Показать на карте">{t.name}</button>
+        <button class:active={placing === t.id} onclick={() => (placing = placing === t.id ? null : t.id)} title="Добавить чекпоинт к треку" aria-label="Добавить чекпоинт">+</button>
         <button onclick={() => exportTrack(t)} title="Скачать GPX">GPX</button>
         <button onclick={() => removeTrack(t)} title="Удалить" aria-label="Удалить">×</button>
       </div>
@@ -438,4 +542,5 @@
   </div>
 
   {#if toast}<div class="toast" role="status">{toast}</div>{/if}
+  {#if placing}<div class="toast" role="status">Щёлкните по карте, чтобы поставить чекпоинт. Esc: отмена</div>{/if}
 </div>

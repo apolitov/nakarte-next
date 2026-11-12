@@ -1,13 +1,18 @@
 <script lang="ts">
   import { gradeColor, SURFACE_STYLE, GRADE_STOPS, formatKm, type Profile, type SurfaceClass } from './lib/profile';
+  import { kindOf } from './lib/checkpoints';
 
-  let { profile, onhover }: { profile: Profile; onhover: (i: number | null) => void } = $props();
+  let {
+    profile,
+    marks = [],
+    onhover,
+  }: { profile: Profile; marks?: { d: number; kind: string; name: string }[]; onhover: (i: number | null) => void } = $props();
 
   let canvas: HTMLCanvasElement;
   let wrap: HTMLDivElement;
   let width = $state(600);
   const H = 150;
-  const PAD = { l: 44, r: 10, t: 10, b: 30 };
+  const PAD = { l: 44, r: 10, t: 16, b: 30 };
   const STRIP = 6; // surface strip under the chart
   let hoverIdx = $state<number | null>(null);
 
@@ -88,6 +93,19 @@
       ctx.fillRect(x(dist[i - 1]), bottom + 1, Math.max(1, x(dist[i]) - x(dist[i - 1]) + 0.5), STRIP);
     }
 
+    // checkpoints: a thin line and the icon at the top
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font = '13px system-ui, sans-serif';
+    for (const m of marks) {
+      const mx = Math.round(x(m.d)) + 0.5;
+      ctx.strokeStyle = 'rgba(0,0,0,.35)';
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath(); ctx.moveTo(mx, PAD.t + 14); ctx.lineTo(mx, bottom); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillText(kindOf(m.kind).icon, mx, PAD.t - 6);
+    }
+
     // hover
     if (hoverIdx != null && ele[hoverIdx] != null) {
       const hx = Math.round(x(dist[hoverIdx])) + 0.5;
@@ -100,7 +118,7 @@
   }
 
   $effect(() => {
-    void profile; void width; void hoverIdx;
+    void profile; void width; void hoverIdx; void marks;
     draw();
   });
 

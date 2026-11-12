@@ -1,11 +1,12 @@
 import { gpx, kml } from '@tmcw/togeojson';
+import { CHECKPOINT_KINDS, kindOf } from './checkpoints';
 import type { Feature, FeatureCollection, LineString, MultiLineString, Point, Position } from 'geojson';
 
 export interface Track {
   id: string;
   name: string;
   lines: Position[][];
-  points: { name: string; coord: Position }[];
+  points: { id?: string; name: string; coord: Position; kind?: string; note?: string }[];
 }
 
 let seq = 0;
@@ -22,7 +23,13 @@ export function parseTrackFile(name: string, text: string): Track {
     if (!g) continue;
     if (g.type === 'LineString') lines.push((g as LineString).coordinates);
     else if (g.type === 'MultiLineString') lines.push(...(g as MultiLineString).coordinates);
-    else if (g.type === 'Point') points.push({ name: String(f.properties?.name ?? ''), coord: (g as Point).coordinates });
+    else if (g.type === 'Point')
+      points.push({
+        name: String(f.properties?.name ?? ''),
+        coord: (g as Point).coordinates,
+        kind: kindFromSym(String(f.properties?.sym ?? f.properties?.type ?? '')),
+        note: f.properties?.desc ? String(f.properties.desc) : undefined,
+      });
   }
   if (!lines.length && !points.length) throw new Error(`${name}: нет треков и точек`);
   const title = String(fc.features[0]?.properties?.name ?? '') || name.replace(/\.(gpx|kml)$/i, '');
@@ -32,11 +39,26 @@ export function parseTrackFile(name: string, text: string): Track {
 const esc = (s: string) =>
   s.replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]!);
 
+function kindFromSym(sym: string): string {
+  if (!sym) return 'generic';
+  const k = CHECKPOINT_KINDS.find((k) => k.id === sym || k.gpx.toLowerCase() === sym.toLowerCase());
+  return k?.id ?? 'generic';
+}
+
 const pt = (tag: string, [lng, lat, ele]: Position, inner = '') =>
   `<${tag} lat="${lat.toFixed(7)}" lon="${lng.toFixed(7)}">${ele != null ? `<ele>${ele.toFixed(1)}</ele>` : ''}${inner}</${tag}>`;
 
 export function toGpx(t: Track): string {
-  const wpts = t.points.map((p) => pt('wpt', p.coord, `<name>${esc(p.name)}</name>`)).join('\n');
+  const wpts = t.points
+    .map((p) => {
+      const k = kindOf(p.kind ?? 'generic');
+      const inner =
+        `<name>${esc(p.name || k.title)}</name>` +
+        (p.note ? `<desc>${esc(p.note)}</desc>` : '') +
+        `<sym>${esc(k.gpx)}</sym><type>${esc(k.id)}</type>`;
+      return pt('wpt', p.coord, inner);
+    })
+    .join('\n');
   const segs = t.lines.map((l) => `<trkseg>${l.map((c) => pt('trkpt', c)).join('')}</trkseg>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="nakarte-next" xmlns="http://www.topografix.com/GPX/1/1">

@@ -1,6 +1,7 @@
 // BRouter client. One request per leg (pair of neighbouring waypoints), so
 // dragging a point recalculates only the two legs around it.
 import type { Position } from 'geojson';
+import { straightWithElevation } from './dem';
 
 export const PROFILES = [
   { id: 'trekking', title: 'Велотуризм' },
@@ -107,7 +108,11 @@ export type Params = Record<string, string | number | boolean>;
 
 export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params = {}): Promise<Leg> {
   if (profile === 'straight') {
-    return Promise.resolve({ points: [a, b].map((p) => ({ lng: p.lng, lat: p.lat, ele: null })), spans: [] });
+    // elevation from terrain tiles; if they fail, the line still works without it
+    return straightWithElevation(a, b).then(
+      (points) => ({ points, spans: [] }),
+      () => ({ points: [a, b].map((p) => ({ lng: p.lng, lat: p.lat, ele: null })), spans: [] }),
+    );
   }
   // profile parameters go as profile:<name>=<value>; booleans as 1/0
   const extra = Object.entries(params)
