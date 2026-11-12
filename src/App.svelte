@@ -33,7 +33,7 @@
   import ProfileCard from './ui/ProfileCard.svelte';
   import KeyTip from './ui/KeyTip.svelte';
   import Icon from './ui/Icon.svelte';
-  import { MOD } from './ui/icons';
+  import { MOD, isMac } from './ui/icons';
   import { t } from './lib/i18n';
 
   let container: HTMLDivElement;
@@ -715,8 +715,8 @@
     say(t('toast.backToStart'));
   }
   /**
-   * The toolbar button and Ctrl+I switch the drawing mode: new segments straight or along roads.
-   * Ctrl+I with the cursor over a segment switches that segment (as does its right-click menu).
+   * The toolbar button and B switch the drawing mode: new segments straight or along roads.
+   * B with the cursor over a segment switches that segment (as does its right-click menu).
    */
   function toggleStraight(useCursor: boolean) {
     if (useCursor && cursorLeg != null) {
@@ -735,15 +735,16 @@
   }
 
   const shortcuts = [
-    { title: t('help.edit'), keys: [MOD, 'Enter'] },
+    { title: t('help.edit'), keys: ['D'], alt: ['Enter'] },
     { title: t('help.undo'), keys: [MOD, 'Z'] },
-    { title: t('help.redo'), keys: [MOD, '⇧', 'Z'], alt: [MOD, 'Y'] },
-    { title: t('help.reverse'), keys: [MOD, 'B'] },
-    { title: t('help.checkpoint'), keys: [MOD, 'K'] },
-    { title: t('help.straight'), keys: [MOD, 'I'] },
-    { title: t('help.layers'), keys: [MOD, 'G'] },
-    { title: t('help.fit'), keys: [MOD, '0'] },
-    { title: t('help.help'), keys: [MOD, '/'] },
+    { title: t('help.redo'), keys: [MOD, '⇧', 'Z'], ...(isMac ? {} : { alt: ['Ctrl', 'Y'] }) },
+    { title: t('help.reverse'), keys: ['R'] },
+    { title: t('help.checkpoint'), keys: ['P'] },
+    { title: t('help.straight'), keys: ['B'] },
+    { title: t('help.straightOne'), keys: ['⇧', t('help.click')] },
+    { title: t('help.layers'), keys: ['L'] },
+    { title: t('help.fit'), keys: ['F'] },
+    { title: t('help.help'), keys: ['?'], alt: [MOD, '/'] },
     { title: t('help.removeLast'), keys: ['⌫'] },
     { title: t('help.escape'), keys: ['Esc'] },
   ];
@@ -768,29 +769,43 @@
     }
     if (inField) return;
     const mod = e.metaKey || e.ctrlKey;
-    if (!mod) {
-      if (editing && (e.key === 'Backspace' || e.key === 'Delete')) {
-        e.preventDefault();
-        route.removeLast();
+    // undo and redo with the modifier, as everywhere; tools are single keys (as in brouter-web,
+    // OSM iD, Felt), so no browser shortcut (Cmd+0, G, B, K, Y) is taken over
+    if (mod) {
+      if (e.altKey) return;
+      switch (e.code) {
+        case 'KeyZ': if (e.shiftKey) redo(); else undo(); break;
+        case 'KeyY': if (isMac) return; redo(); break; // Cmd+Y is History on a Mac
+        case 'Slash': helpOpen = true; break;
+        default: return;
       }
+      e.preventDefault();
       return;
     }
     if (e.altKey) return;
-    if (e.key === 'Enter') {
+    if (editing && (e.key === 'Backspace' || e.key === 'Delete')) {
+      e.preventDefault();
+      route.removeLast();
+      return;
+    }
+    if (e.key === 'Enter' && editing) {
       e.preventDefault();
       toggleEdit();
       return;
     }
+    if (e.key === '?') {
+      e.preventDefault();
+      helpOpen = true;
+      return;
+    }
+    if (e.shiftKey) return;
     switch (e.code) {
-      case 'KeyZ': if (e.shiftKey) redo(); else undo(); break;
-      case 'KeyY': redo(); break;
-      case 'KeyB': reverse(); break;
-      case 'KeyK': toggleCheckpoint(); break;
-      case 'KeyI': toggleStraight(true); break;
-      case 'KeyG': openMenu('base'); break;
-      case 'Digit0':
-      case 'Numpad0': fitRoute(); break;
-      case 'Slash': helpOpen = true; break;
+      case 'KeyD': toggleEdit(); break;
+      case 'KeyR': reverse(); break;
+      case 'KeyP': toggleCheckpoint(); break;
+      case 'KeyB': toggleStraight(true); break;
+      case 'KeyL': openMenu('base'); break;
+      case 'KeyF': fitRoute(); break;
       default: return;
     }
     e.preventDefault();
@@ -1119,7 +1134,7 @@
         {:else}
           <p>{t('route.empty1')}
             <button class="inl" onclick={toggleEdit}><Icon name="edit" size={14} /></button>
-            (<kbd>{MOD}</kbd> <kbd>Enter</kbd>) {t('route.empty2')} {t('route.emptyFiles')}</p>
+            (<kbd>D</kbd>) {t('route.empty2')} {t('route.emptyFiles')}</p>
         {/if}
       </div>
       <!-- no route open: the panel is the list of my routes and tracks -->
@@ -1168,7 +1183,7 @@
       onfit={fitRoute} onhelp={() => (helpOpen = true)} />
     <div class="layersbtns">
       <button class="layersbtn" aria-expanded={layersMenu === 'base'} aria-controls="nk-layers" aria-label={t('lay.base')}
-        title="{t('lay.base')} ({MOD} G)" onclick={() => openMenu('base')}><Icon name="layers" size={20} /></button>
+        title="{t('lay.base')} (L)" onclick={() => openMenu('base')}><Icon name="layers" size={20} /></button>
       <button class="layersbtn" aria-expanded={layersMenu === 'over'} aria-controls="nk-layers" aria-label={t('lay.overlays')}
         title={t('lay.overlays')} onclick={() => openMenu('over')}><Icon name="overlay" size={20} /></button>
     </div>

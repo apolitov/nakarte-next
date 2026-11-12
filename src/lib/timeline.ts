@@ -91,11 +91,23 @@ export interface Climb {
 }
 
 /**
- * Climbs: continuous stretches gaining at least `minGain` m at an average of
- * at least `minGrade` %. Short dips inside a climb are tolerated, and climbs
- * close to each other are merged.
+ * Minimum gain of a climb, relative to the route: 10% of its relief (5th to 95th
+ * percentile of elevation), between 10 and 80 m. On a flat route a 15 m hill is
+ * worth showing; on a mountain route it would be noise.
  */
-export function findClimbs(p: Pick<Profile, 'dist' | 'ele' | 'grade'>, minGain = 30, minGrade = 3): Climb[] {
+export function climbThreshold(ele: (number | null)[]): number {
+  const e = ele.filter((v): v is number => v != null).sort((a, b) => a - b);
+  if (!e.length) return 30;
+  const q = (f: number) => e[Math.min(e.length - 1, Math.floor(f * e.length))];
+  return Math.min(80, Math.max(10, 0.1 * (q(0.95) - q(0.05))));
+}
+
+/**
+ * Climbs: continuous stretches gaining at least `minGain` m (relative to the route,
+ * see climbThreshold) at an average of at least `minGrade` %. Short dips inside a
+ * climb are tolerated, and climbs close to each other are merged.
+ */
+export function findClimbs(p: Pick<Profile, 'dist' | 'ele' | 'grade'>, minGain = climbThreshold(p.ele), minGrade = 3): Climb[] {
   const { dist, ele, grade } = p;
   const n = dist.length;
   const e = (i: number) => ele[i] ?? NaN;
@@ -150,6 +162,39 @@ export function findClimbs(p: Pick<Profile, 'dist' | 'ele' | 'grade'>, minGain =
     }
     out.push(c);
   }
+  return out;
+}
+
+/**
+ * Steep pitches outside climbs: at least `minGain` m at `minGrade` % or more (grade over
+ * 100 m), e.g. a short wall on a flat route. Inside a climb its own max grade covers them.
+ */
+export function findSteep(p: Pick<Profile, 'dist' | 'ele' | 'grade'>, climbs: Climb[], minGain = 10, minGrade = 8): Climb[] {
+  const { dist, ele, grade } = p;
+  const e = (i: number) => ele[i] ?? NaN;
+  const out: Climb[] = [];
+  let a = -1;
+  // the grade is averaged over ±50 m, so a short wall shows lower: look for it at 3/4 of the
+  // threshold and measure the real gain from the last low point to the top
+  const close = (b: number) => {
+    b = Math.min(dist.length - 1, b + 2);
+    let low = a, top = a;
+    for (let i = a; i <= b; i++) if (e(i) > e(top)) top = i;
+    for (let i = a; i <= top; i++) if (e(i) <= e(low)) low = i;
+    const c = { a: low, b: top, gain: e(top) - e(low), len: dist[top] - dist[low] };
+    const inside = climbs.some((k) => c.a < k.b && c.b > k.a);
+    if (!inside && c.len > 0 && c.gain >= minGain && (c.gain / c.len) * 100 >= minGrade) out.push(c);
+  };
+  for (let i = 1; i < dist.length; i++) {
+    const g = grade[i];
+    if (g != null && g >= minGrade * 0.75) {
+      if (a < 0) a = Math.max(0, i - 2);
+    } else if (a >= 0) {
+      close(i - 1);
+      a = -1;
+    }
+  }
+  if (a >= 0) close(dist.length - 1);
   return out;
 }
 
@@ -214,7 +259,21 @@ export function buildTimeline({ points, profile, checkpoints }: TimelineInput): 
     });
   }
 
-  for (const c of findClimbs(profile)) {
+  const climbs = findClimbs(profile);
+  for (const c of findSteep(profile, climbs)) {
+    ev.push({
+      id: `steep:${c.a}`,
+      kind: 'climb',
+      i: c.a,
+      i2: c.b,
+      d: dist[c.a],
+      d2: dist[c.b],
+      label: t('tl.steep', { m: Math.round(c.len), g: Math.round((c.gain / c.len) * 100), gain: Math.round(c.gain) }),
+      priority: 1,
+      weight: c.gain,
+    });
+  }
+  for (const c of climbs) {
     const avg = Math.round((c.gain / c.len) * 100);
     ev.push({
       id: `climb:${c.a}`,

@@ -63,7 +63,7 @@ th{font-weight:600;color:var(--soft);font-size:13px}
 <p><b>Max grade N%.</b> Climbs steeper than the limit become very expensive, and the router looks for a way around. It is a soft limit: when there is no way around, the steep part stays, and the elevation profile marks it in red along the top with its total length.</p>
 
 <h3>Straight legs</h3>
-<p>If the trail you need is missing from OpenStreetMap, switch the leg to a straight line: right-click the line, long-press on a phone, or press ⌘I / Ctrl+I. A straight leg is drawn as a grey dashed line; its elevation comes from an open terrain model.</p>
+<p>If the trail you need is missing from OpenStreetMap, switch the leg to a straight line: right-click the line, long-press on a phone, or press B over it; Shift+click on the map adds one straight leg, and B with the cursor away from the line draws all new legs straight. A straight leg is drawn as a grey dashed line; its elevation comes from an open terrain model.</p>
 
 <h3>Riding time</h3>
 <p>A rough estimate from the profile’s average speed adjusted for climbing, hence the “~”. Your fitness, load and weather change it, and the planner knows none of them.</p>
@@ -124,6 +124,16 @@ th{font-weight:600;color:var(--soft);font-size:13px}
 <p><b>Limits:</b> up to 2,000 routes and tracks or 50 MB per account, 100 short links and 30 Garmin sends a day.</p>
 <p><b>Deleting:</b> “Delete account” in the account menu removes your account and everything stored for it at once. Short links you shared stop working. For questions write to the support address shown on the Google sign-in screen.</p>
 <p><b>Where:</b> the server is in the European Union (OVH).</p>
+<p><b>Who runs it:</b> Alexe Politov, a private person, for himself and friends. The service is free, carries no advertising and earns nothing. Your data is processed to provide what you ask for (keeping and syncing your routes), and for no other purpose.</p>
+<p><b>Cookies and browser storage.</b> The planner uses only what it needs to work; there are no analytics, advertising or tracking cookies, so it does not ask for consent.</p>
+<ul>
+<li><code>nc_session</code>: keeps you signed in, set only when you sign in, 30 days. Removed when you sign out.</li>
+<li><code>nc_oauth</code>: protects the Google sign-in against forgery, lives 10 minutes during sign-in.</li>
+<li>Browser storage (IndexedDB, localStorage, sessionStorage) on your device: your routes and tracks, the last map view, chosen layers and settings, the route open in the tab. It never leaves the browser unless you sign in and sync.</li>
+</ul>
+<p><b>Other services your browser contacts:</b> map tiles and the heatmaps come from their providers (OpenStreetMap and CyclOSM, OpenTopoMap, mapy.com, Google, Esri, Microsoft Bing, Yandex, Waymarked Trails, Ride with GPS, AWS terrain tiles). Like any web request, they see your IP address and which map area is loaded; their own privacy policies apply. Google sees your sign-in only if you choose to sign in with Google; Garmin only if you connect it.</p>
+<p><b>How long:</b> routes and the account stay until you delete them. Server logs with IP addresses are kept for security and overwritten as they fill up (at most 30 MB per service), usually within days to a few weeks. Cached routing answers hold no personal data.</p>
+<p><b>Your rights:</b> under the GDPR you can get a copy of your data, correct or delete it, and object to its processing. “Delete account” removes everything at once; for anything else write to the support address. You can also complain to the Portuguese data protection authority (CNPD).</p>
 <p class="small">Map data © OpenStreetMap contributors. GPS heatmap: public GPS traces uploaded to OpenStreetMap. Passes: OpenStreetMap and the FSTR classifier. Routing: BRouter. On your first visit the map opens on your approximate city, found on our server with <a href="https://db-ip.com">IP Geolocation by DB-IP</a>; the address is not stored.</p>
 </main>
 </body>

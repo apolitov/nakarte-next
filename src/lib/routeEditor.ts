@@ -70,7 +70,8 @@ export class RouteEditor {
       if (this.onMapClick?.(e.lngLat.lng, e.lngLat.lat)) return;
       if (!this.editing) return;
       if (map.queryRenderedFeatures(e.point, { layers: ['route-hit'] }).length) return;
-      route.add(e.lngLat.lng, e.lngLat.lat);
+      // Shift+click: this one segment as a straight line (as in brouter-web and Felt)
+      route.add(e.lngLat.lng, e.lngLat.lat, e.originalEvent.shiftKey);
     });
     map.on('mouseenter', 'route-hit', () => {
       if (this.editing) map.getCanvas().style.cursor = 'grab';

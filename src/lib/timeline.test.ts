@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildProfile } from './profile';
-import { buildTimeline, findClimbs, limitEvents, nearestPoint, rails, segmentClasses, surfaceRuns, surfaceShares } from './timeline';
+import { buildTimeline, climbThreshold, findClimbs, findSteep, limitEvents, nearestPoint, rails, segmentClasses, surfaceRuns, surfaceShares } from './timeline';
 import { estimateMinutes, formatDuration } from './eta';
 
 /** Straight line due north, a point every 50 m, with the given elevation function. */
@@ -38,6 +38,28 @@ describe('climbs', () => {
     const c = findClimbs(buildProfile(pts));
     expect(c).toHaveLength(1);
     expect(c[0].gain).toBeCloseTo(120, 0);
+  });
+});
+
+describe('climbs relative to the route', () => {
+  it('a 20 m hill counts on a flat route, not in the mountains', () => {
+    // flat at 40 m with one 20 m hill at 6% (330 m long)
+    const flat = line(161, (d) => (d < 3000 ? 40 : d < 3330 ? 40 + (d - 3000) * 0.06 : d < 4000 ? 60 : 40 + Math.max(0, 60 - 40 - (d - 4000) * 0.06)));
+    expect(climbThreshold(buildProfile(flat).ele)).toBe(10);
+    expect(findClimbs(buildProfile(flat))).toHaveLength(1);
+    // the same hill on a route with 1200 m of relief: threshold 80 m, no climb
+    const mountain = line(161, (d) => (d < 3000 ? 40 : d < 3330 ? 40 + (d - 3000) * 0.06 : d < 4000 ? 60 : 60 + (d - 4000) * 0.3));
+    expect(climbThreshold(buildProfile(mountain).ele)).toBe(80);
+    expect(findClimbs(buildProfile(mountain)).some((c) => c.gain < 30)).toBe(false);
+  });
+
+  it('marks a short steep wall outside climbs', () => {
+    // flat with a 15 m wall at 12% (125 m), threshold would be 10 m but the wall is short
+    const pts = line(121, (d) => (d < 2000 ? 50 : d < 2125 ? 50 + (d - 2000) * 0.12 : 65));
+    const p = buildProfile(pts);
+    const steep = findSteep(p, []);
+    expect(steep).toHaveLength(1);
+    expect(steep[0].gain).toBeGreaterThanOrEqual(14);
   });
 });
 

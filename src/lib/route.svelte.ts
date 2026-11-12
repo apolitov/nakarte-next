@@ -203,9 +203,9 @@ export class RouteState {
   /** Drawing mode: new legs are straight lines instead of following roads. */
   drawStraight = $state(false);
 
-  add(lng: number, lat: number) {
+  add(lng: number, lat: number, straightOnce = false) {
     this.record();
-    const straight = this.drawStraight || undefined;
+    const straight = this.drawStraight || straightOnce || undefined;
     if (this.prepend && this.waypoints.length) {
       this.waypoints.unshift({ id: nextId++, lng, lat, straight });
       this.legs.unshift({ status: 'loading' });

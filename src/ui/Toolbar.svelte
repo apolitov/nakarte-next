@@ -63,13 +63,13 @@
 
 <div class="tbw" bind:this={menuRoot}>
 <div class="tbar" role="toolbar" aria-label={t('tb.label')}>
-  <button class="tb" aria-pressed={editing} aria-label={t('tb.edit')} data-tip={editing ? t('tb.editDone') : t('tb.edit')} data-keys={k('Enter')} onclick={onedit}>
+  <button class="tb" aria-pressed={editing} aria-label={t('tb.edit')} data-tip={editing ? t('tb.editDone') : t('tb.edit')} data-keys="D" onclick={onedit}>
     <Icon name="edit" />
   </button>
   <button class="tb" aria-disabled={!canUndo} aria-label={t('tb.undo')} data-tip={t('tb.undo')} data-keys={k('Z')} onclick={onundo}><Icon name="undo" /></button>
   <button class="tb" aria-disabled={!canRedo} aria-label={t('tb.redo')} data-tip={t('tb.redo')} data-keys={k('Z', true)} onclick={onredo}><Icon name="redo" /></button>
   <div class="split">
-    <button class="tb" aria-disabled={!canLoop} aria-label={t('tb.reverse')} data-tip={t('tb.reverse')} data-keys={k('B')} onclick={onreverse}>
+    <button class="tb" aria-disabled={!canLoop} aria-label={t('tb.reverse')} data-tip={t('tb.reverse')} data-keys="R" onclick={onreverse}>
       <Icon name="reverse" />
     </button>
     <button class="tb narrow" aria-label={t('tb.more')} aria-haspopup="menu" aria-expanded={menuOpen}
@@ -77,14 +77,14 @@
   </div>
   <i class="tsep"></i>
   <button class="tb" aria-pressed={straightOn} aria-label={t('tb.straight')}
-    data-tip={straightOn ? t('tb.roads') : t('tb.straight')} data-keys={k('I')} onclick={onstraight}><Icon name="straight" /></button>
-  <button class="tb" aria-pressed={placing} aria-label={t('tb.checkpoint')} data-tip={t('tb.checkpointTip')} data-keys={k('K')} onclick={oncheckpoint}>
+    data-tip={straightOn ? t('tb.roads') : t('tb.straight')} data-keys="B" onclick={onstraight}><Icon name="straight" /></button>
+  <button class="tb" aria-pressed={placing} aria-label={t('tb.checkpoint')} data-tip={t('tb.checkpointTip')} data-keys="P" onclick={oncheckpoint}>
     <Icon name="checkpoint" />
   </button>
   <i class="tsep"></i>
-  <button class="tb" aria-disabled={!hasRoute} aria-label={t('tb.fit')} data-tip={t('tb.fitTip')} data-keys={k('0')} onclick={onfit}><Icon name="fit" /></button>
+  <button class="tb" aria-disabled={!hasRoute} aria-label={t('tb.fit')} data-tip={t('tb.fitTip')} data-keys="F" onclick={onfit}><Icon name="fit" /></button>
   <i class="tsep"></i>
-  <button class="tb" aria-label={t('tb.help')} data-tip={t('tb.help')} data-keys={k('/')} onclick={onhelp}><Icon name="help" /></button>
+  <button class="tb" aria-label={t('tb.help')} data-tip={t('tb.help')} data-keys="?" onclick={onhelp}><Icon name="help" /></button>
 </div>
     {#if menuOpen}
       <div class="menu" role="menu">
