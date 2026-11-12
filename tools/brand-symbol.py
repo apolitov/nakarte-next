@@ -1,6 +1,6 @@
 import math, sys
 # centerline through points read off the brand guide render (px of the 1536x1024 PNG)
-P = [(18,178),(70,158),(130,118),(190,64),(235,36),(262,31),(292,48),(325,95),(352,122),(378,128),(410,114),(440,101),(470,110),(498,126),(520,123),(533,108)]
+P = [(18,178),(70,158),(130,118),(190,64),(235,36),(262,31),(292,48),(325,95),(352,122),(378,128),(410,114),(440,101),(470,110),(498,125),(522,119),(546,109)]
 def catmull(pts, n=24):
     out=[]
     for i in range(len(pts)-1):
@@ -38,7 +38,7 @@ poly = left + right[::-1]
 # viewBox around the mark
 X0,Y0=0,0; W,H=580,200
 pts=' '.join(f'{x-X0:.1f},{y-Y0:.1f}' for x,y in poly)
-dot=(541,97)
+dot=P[-1]  # finish dot sits on the end of the centerline
 ends=[(C[0],hw(0)),(C[-1],hw(1))]
 def svg(route, ring, fill_dot, bg=None):
     b=f'<rect width="{W}" height="{H}" rx="40" fill="{bg}"/>' if bg else ''
