@@ -888,7 +888,7 @@
         <source srcset="{import.meta.env.BASE_URL}brand/symbol-colour-dark.svg" media="(prefers-color-scheme: dark)" />
         <img src="{import.meta.env.BASE_URL}brand/symbol-colour.svg" alt="Na Carta" width="81" height="28" />
       </picture>
-      <AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={login} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />
+      {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={login} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
     </div>
     <div class="titlerow">
     <input
@@ -903,6 +903,8 @@
     {#if route.waypoints.length}
       <button class="del" onclick={deleteCurrent} aria-label={t('route.delete')} data-tip={t('route.delete')}><Icon name="trash" size={18} /></button>
     {/if}
+    <!-- on a phone the account button sits on the title row, the logo is hidden -->
+    {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={login} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
     </div>
     <Segmented name="kind" label={t('route.typeLabel')} value={route.profile}
       items={PROFILES.map((p) => [p.id, p.title] as const)}
@@ -930,10 +932,14 @@
         onhover={onTimelineHover} onpick={pickEvent} />
     {:else}
       <div class="empty">
-        <p>{t('route.empty1')}
-          <button class="inl" onclick={toggleEdit}><Icon name="edit" size={14} /></button>
-          (<kbd>{MOD}</kbd> <kbd>Enter</kbd>) {t('route.empty2')}</p>
-        <p>{t('route.emptyFiles')}</p>
+        {#if mobile}
+          <p>{t('route.empty1')} <button class="inl" onclick={toggleEdit}><Icon name="edit" size={14} /></button> {t('route.empty2Touch')}</p>
+        {:else}
+          <p>{t('route.empty1')}
+            <button class="inl" onclick={toggleEdit}><Icon name="edit" size={14} /></button>
+            (<kbd>{MOD}</kbd> <kbd>Enter</kbd>) {t('route.empty2')}</p>
+          <p>{t('route.emptyFiles')}</p>
+        {/if}
       </div>
     {/if}
 
@@ -1175,17 +1181,13 @@
     .logo {
       display: none;
     }
-    /* collapsed sheet: the account button sits on the title row */
+    /* phone: no logo, and the account button lives in the title row */
     .head {
-      position: absolute;
-      top: 20px;
-      right: 8px;
-      min-height: 0;
-      z-index: 3;
+      display: none;
     }
     .titlerow {
-      padding-right: 36px;
       min-height: 40px;
+      gap: 6px;
     }
   }
 </style>

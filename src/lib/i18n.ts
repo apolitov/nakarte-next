@@ -25,6 +25,7 @@ const en = {
   'route.error': 'Route: {error}',
   'route.empty1': 'To build a route, turn on editing',
   'route.empty2': 'and click on the map.',
+  'route.empty2Touch': 'and tap the map to add points.',
   'route.emptyFiles': 'GPX or KML files can be dropped onto the map.',
   'route.panel': 'Route',
 

@@ -368,6 +368,10 @@ kbd {
     transform: translateY(calc(100% - 62px - env(safe-area-inset-bottom)));
     transition: transform 0.22s ease;
   }
+  /* a sheet with limited height must not squeeze its blocks: they would overlap */
+  .side > * {
+    flex-shrink: 0;
+  }
   .side.sheet-open {
     transform: none;
     overflow-y: auto;
