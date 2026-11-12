@@ -7,6 +7,7 @@ export const ICONS = {
   straight: '<circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M7 17l10-10" stroke-dasharray="2 3"/>',
   checkpoint: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   pin: '<path d="M9 4h6l-1 6 3 3H7l3-3-1-6Z"/><path d="M12 13v7"/>',
+  overlay: '<path d="M12 4 3 9l9 5 9-5-9-5Z"/><path d="M17 14v6M14 17h6"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5" opacity=".7"/>',
   fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/>',
@@ -28,7 +29,8 @@ export const ICONS = {
 export type IconName = keyof typeof ICONS;
 
 export const isMac = typeof navigator !== 'undefined' &&
-  /Mac|iPhone|iPad/.test(
+  // Chrome reports userAgentData.platform as "macOS", Safari navigator.platform as "MacIntel"
+  /mac|iphone|ipad/i.test(
     (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || navigator.userAgent,
   );
 

@@ -2,14 +2,14 @@
   import * as maplibregl from 'maplibre-gl';
   type MlMap = maplibregl.Map;
   import { onMount, untrack } from 'svelte';
-  import { DEFAULT_BASE, layerById, type LayerDef } from './lib/layers';
+  import { DEFAULT_BASE, baseForProfile, layerById, type LayerDef } from './lib/layers';
   import { registerYandexProtocol } from './lib/yandex';
   import { registerGpsHeatProtocol } from './lib/gpsheat';
   import { parseHash, formatHash } from './lib/hash';
   import { parseTrackFile, toGpx, trackToGeoJSON, bboxOf, type Track } from './lib/gpx';
   import { RouteState } from './lib/route.svelte';
   import { RouteEditor, type ColorMode } from './lib/routeEditor';
-  import { PROFILES, type ProfileId, type RouteOptions } from './lib/brouter';
+  import { PROFILES, normalizeProfile, type ProfileId, type RouteOptions } from './lib/brouter';
   import { store, newId, type RouteDoc, type TrackDoc } from './lib/store';
   import { routeToParam, paramToRoute } from './lib/share';
   import { showPasses, hidePasses } from './lib/passes';
@@ -45,7 +45,25 @@
   let tracks = $state<Track[]>([]);
   /** Pinned layers panel stays open (to flip between map and satellite) and is remembered. */
   let layersPinned = $state(readFlag('nk-layers-pinned'));
-  let layersOpen = $state(readFlag('nk-layers-pinned'));
+  /** Open menu at the top right: base map or overlays; a pinned one reopens after reload. */
+  let layersMenu = $state<'base' | 'over' | null>(readMenu());
+  const layersOpen = $derived(layersMenu != null);
+  function readMenu(): 'base' | 'over' | null {
+    try {
+      const m = localStorage.getItem('nk-layers-menu');
+      return readFlag('nk-layers-pinned') && (m === 'base' || m === 'over') ? m : null;
+    } catch {
+      return null;
+    }
+  }
+  function openMenu(m: 'base' | 'over') {
+    layersMenu = layersMenu === m ? null : m;
+    try {
+      if (layersMenu) localStorage.setItem('nk-layers-menu', layersMenu);
+    } catch {
+      /* ignore */
+    }
+  }
   function readFlag(k: string) {
     try {
       return localStorage.getItem(k) === '1';
@@ -322,6 +340,11 @@
   function saveRoute() {
     if (!route.waypoints.length) return;
     const doc = route.toDoc();
+    try {
+      sessionStorage.setItem('nk-current', doc.id);
+    } catch {
+      /* ignore */
+    }
     saveDoc(doc);
     savedRoutes = [doc, ...savedRoutes.filter((r) => r.id !== doc.id)];
   }
@@ -370,8 +393,9 @@
     const fromLink = shared ? paramToRoute(shared) : null;
     const short = hp.get('s') ? await loadShort(hp.get('s')!) : null;
     if (short?.kind === 'route') {
-      // our own route (e.g. back from sign-in) opens as the saved copy; someone else's becomes a new one
-      const mine = savedRoutes.find((r) => r.id === short.id);
+      // our own route (e.g. back from sign-in) or one already saved from this link opens as the saved copy;
+      // only a route we do not have yet becomes a new one
+      const mine = savedRoutes.find((r) => r.id === short.id) ?? sameSaved(short);
       if (mine) route.load(mine);
       else {
         route.load({ ...short, id: newId('r'), updated: Date.now() });
@@ -387,18 +411,42 @@
       zoomTo(trk);
       say(t('toast.trackFromLink'));
     } else if (fromLink) {
-      route.load({ id: newId('r'), kind: 'route', name: '', checkpoints: [], updated: Date.now(), ...fromLink });
-      say(t('toast.fromLink'));
+      const saved = sameSaved(fromLink);
+      if (saved) route.load(saved);
+      else {
+        route.load({ id: newId('r'), kind: 'route', name: '', checkpoints: [], updated: Date.now(), ...fromLink });
+        say(t('toast.fromLink'));
+      }
       fitPoints(fromLink.waypoints);
       fitWhenReady = true;
     }
-    // saved routes are not opened automatically: they are listed in My routes
+    // saved routes are not opened automatically (they are listed in My routes), except the one
+    // this tab was editing: a reload must not lose it
+    if (!short && !fromLink) {
+      try {
+        const cur = sessionStorage.getItem('nk-current');
+        const doc = cur ? savedRoutes.find((r) => r.id === cur) : null;
+        if (doc) route.load(doc);
+      } catch {
+        /* ignore */
+      }
+    }
     loaded = true;
     refreshTracks();
     whoami().then((u) => {
       user = u;
       if (u) runSync();
     });
+  }
+
+  /** A saved route with the same profile, points (to ~1 m) and options, so opening a link twice does not duplicate it. */
+  function sameSaved(d: Pick<RouteDoc, 'profile' | 'waypoints' | 'params'>): RouteDoc | undefined {
+    const key = (x: Pick<RouteDoc, 'profile' | 'waypoints' | 'params'>) =>
+      normalizeProfile(x.profile ?? '') + '|' +
+      x.waypoints.map((w) => `${w.lng.toFixed(5)},${w.lat.toFixed(5)}${w.straight ? 's' : ''}`).join(';') + '|' +
+      JSON.stringify(Object.entries(x.params ?? {}).sort());
+    const k = key(d);
+    return savedRoutes.find((r) => key(r) === k);
   }
 
   /** A route opened from a link is fitted again once its legs are computed and the profile is shown. */
@@ -449,6 +497,71 @@
     route.reset();
     editing = false;
     say(t('route.deleted'));
+  }
+
+  /**
+   * Cuts the route at a point of a segment into two routes. The first stays open under
+   * the same id, the second is saved to My routes. Checkpoints go to the part they are on.
+   */
+  function splitRoute(leg: number, lng: number, lat: number) {
+    if (!route.waypoints[leg + 1]) return;
+    const name = route.name || route.autoName();
+    if (!confirm(t('split.confirm', { name }))) return;
+    const doc = route.toDoc();
+    const wps = doc.waypoints;
+    const cut = { lng, lat, straight: wps[leg].straight };
+    // nearest computed point to each checkpoint and to the cut decides its part
+    const pts = route.points;
+    const near = (q: { lng: number; lat: number }) => {
+      let bi = 0, bd = Infinity;
+      pts.forEach((p, i) => {
+        const d = (p.lng - q.lng) ** 2 + (p.lat - q.lat) ** 2;
+        if (d < bd) (bd = d), (bi = i);
+      });
+      return bi;
+    };
+    const at = near(cut);
+    const first: RouteDoc = {
+      ...doc,
+      name: `${name} · 1`,
+      waypoints: [...wps.slice(0, leg + 1), { lng, lat }],
+      checkpoints: doc.checkpoints.filter((c) => near(c) <= at),
+      legs: undefined,
+      updated: Date.now(),
+    };
+    const second: RouteDoc = {
+      ...doc,
+      id: newId('r'),
+      name: `${name} · 2`,
+      waypoints: [cut.straight ? cut : { lng, lat }, ...wps.slice(leg + 1)],
+      checkpoints: doc.checkpoints.filter((c) => near(c) > at),
+      legs: undefined,
+      updated: Date.now(),
+    };
+    saveDoc(second);
+    route.load(first); // unchanged legs come from the request cache
+    saveRoute();
+    savedRoutes = [first, second, ...savedRoutes.filter((r) => r.id !== first.id && r.id !== second.id)];
+    say(t('split.done', { a: first.name, b: second.name }));
+  }
+
+  /** Copy of the route from the start to a point of a segment, opened for editing; the original is saved as is. */
+  function copyUpTo(leg: number, lng: number, lat: number) {
+    saveRoute();
+    const doc = route.toDoc();
+    const name = `${doc.name} · ${t('copy.suffix')}`;
+    route.load({
+      ...doc,
+      id: newId('r'),
+      name,
+      waypoints: [...doc.waypoints.slice(0, leg + 1), { lng, lat }],
+      checkpoints: [],
+      legs: undefined,
+      updated: Date.now(),
+    });
+    editing = true;
+    saveRoute();
+    say(t('copy.done', { name }));
   }
 
   function newRoute() {
@@ -577,6 +690,8 @@
   function toggleEdit() {
     editing = !editing;
     if (!editing) placing = null;
+    // phone: the map needs the room while editing; the open sheet would catch the taps
+    if (editing && mobile) sheetOpen = false;
   }
   function undo() {
     if (!route.canUndo) return say(t('toast.nothingUndo'));
@@ -636,7 +751,7 @@
   ];
 
   function escape(): boolean {
-    if (layersOpen && !layersPinned) return !(layersOpen = false);
+    if (layersOpen && !layersPinned) return !(layersMenu = null);
     if (accountMenu?.isOpen()) return (accountMenu.close(), true);
     if (placing) return !(placing = null);
     if (pinned) return !(pinned = null);
@@ -674,7 +789,7 @@
       case 'KeyB': reverse(); break;
       case 'KeyK': toggleCheckpoint(); break;
       case 'KeyI': toggleStraight(true); break;
-      case 'KeyG': layersOpen = !layersOpen; break;
+      case 'KeyG': openMenu('base'); break;
       case 'Digit0':
       case 'Numpad0': fitRoute(); break;
       case 'Slash': helpOpen = true; break;
@@ -711,6 +826,14 @@
 
   function firstOverlayOrTracks() {
     return overlays.map((id) => `src-${id}`).find((id) => map?.getLayer(id)) ?? 'tracks-line';
+  }
+
+  /** A new activity brings its map (CyclOSM / OpenTopoMap), unless another map was chosen by hand. */
+  function changeProfile(p: ProfileId) {
+    const prevDefault = baseForProfile(route.profile);
+    route.setProfile(p);
+    const next = baseForProfile(p);
+    if (next !== base && (base === prevDefault || base === 'O')) setBase(next);
   }
 
   async function setBase(id: string) {
@@ -862,6 +985,8 @@
       });
       editor = new RouteEditor(map!, route);
       editor.onMapClick = placeCheckpoint;
+      editor.onSplit = splitRoute;
+      editor.onCopyTo = copyUpTo;
       cpLayer = new CheckpointLayer(map!, {
         update: (it, patch) => (it.owner === 'route' ? route.updateCheckpoint(it.id, patch) : updateTrackPoint(it, patch)),
         remove: (it) => (it.owner === 'route' ? route.removeCheckpoint(it.id) : removeTrackPoint(it)),
@@ -914,7 +1039,7 @@
     const down = (e: PointerEvent) => {
       const t = e.target as Element;
       if (layersBox?.contains(t) || t.closest?.('[aria-controls="nk-layers"]')) return;
-      layersOpen = false;
+      layersMenu = null;
     };
     document.addEventListener('pointerdown', down);
     return () => document.removeEventListener('pointerdown', down);
@@ -926,14 +1051,14 @@
     const parts = [o.surface === -1 ? t('set.sumAsphalt') : o.surface === 1 ? t('set.sumDirt') : t('set.sumAny')];
     if (!o.maxGrade) parts.push(o.climbs === 'less' ? t('set.sumLess') : o.climbs === 'any' ? t('set.sumAnyClimbs') : t('set.sumNormal'));
     parts.push(o.maxGrade ? t('set.sumUpTo', { g: o.maxGrade }) : t('set.sumNoLimit'));
-    if (o.cycleways && route.profile !== 'nk-hike') parts.push(t('set.sumCycleways'));
+    if (o.cycleways && (route.profile === 'nk-road' || route.profile === 'nk-gravel')) parts.push(t('set.sumCycleways'));
     return parts.join(' · ');
   });
 </script>
 
 <svelte:window onkeydown={onKey} />
 <div class="app" role="application" ondragover={(e) => e.preventDefault()} ondrop={onDrop}>
-  <aside class="side" class:sheet-open={sheetOpen} aria-label={t('route.panel')}>
+  <aside class="side" class:sheet-open={sheetOpen} class:editing aria-label={t('route.panel')}>
     {#if mobile}
       <button class="grab" aria-label={sheetOpen ? t('sheet.collapse') : t('sheet.expand')} aria-expanded={sheetOpen}
         onclick={() => (sheetOpen = !sheetOpen)}
@@ -964,7 +1089,7 @@
     </div>
     <Segmented name="kind" label={t('route.typeLabel')} value={route.profile}
       items={PROFILES.map((p) => [p.id, p.title] as const)}
-      onchange={(v) => route.setProfile(v as ProfileId)} />
+      onchange={(v) => changeProfile(v as ProfileId)} />
 
     {#if hasRoute}
       <RouteSummary profile={route.profileData} profileId={route.profile} {classes} loading={route.loading} error={route.error?.error ?? ''} />
@@ -980,7 +1105,7 @@
     {/if}
 
     <Fold id="nk-settings" title={t('set.title')} summary={optSummary} bind:open={settingsOpen}>
-      <RouteSettings options={route.options} hike={route.profile === 'nk-hike'} onchange={setOpt} />
+      <RouteSettings options={route.options} hike={route.profile === 'nk-hike'} cycle={route.profile === 'nk-road' || route.profile === 'nk-gravel'} onchange={setOpt} />
     </Fold>
 
     {#if events.length}
@@ -993,24 +1118,32 @@
         {:else}
           <p>{t('route.empty1')}
             <button class="inl" onclick={toggleEdit}><Icon name="edit" size={14} /></button>
-            (<kbd>{MOD}</kbd> <kbd>Enter</kbd>) {t('route.empty2')}</p>
-          <p>{t('route.emptyFiles')}</p>
+            (<kbd>{MOD}</kbd> <kbd>Enter</kbd>) {t('route.empty2')} {t('route.emptyFiles')}</p>
         {/if}
+      </div>
+      <!-- no route open: the panel is the list of my routes and tracks -->
+      <div class="browse">
+        <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
+          onopen={openRoute} ondelete={deleteRoute} onnew={newRoute} onopenfile={() => fileInput.click()}
+          onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
+          onplace={(id) => (placing = placing === id ? null : id)} />
       </div>
     {/if}
 
     <div class="acts">
       <!-- route actions appear only when there is a route -->
       {#if hasRoute}
-        <button class="garmin" onclick={() => (garminOpen = true)}>
-          <Icon name="watch" size={22} /><span>{t('act.garmin')}</span><span class="beta">{t('act.beta')}</span>
+        <!-- GPX is the main way out; Garmin is an experimental extra -->
+        <button class="garmin" onclick={exportRoute}>
+          <Icon name="download" size={20} /><span>{t('act.gpx')}</span>
         </button>
         <div class="sec3">
           <button class="sbtn" onclick={shareRoute}>{t('act.share')}</button>
-          <button class="sbtn" onclick={exportRoute} data-tip={t('act.gpxTip')}>GPX</button>
           <button class="sbtn" onclick={exportFit} data-tip={t('act.fitTip')}>FIT</button>
+          <button class="sbtn" onclick={() => (garminOpen = true)} data-tip={t('act.garminTip')}><Icon name="watch" size={15} />&nbsp;Garmin</button>
         </div>
       {/if}
+      {#if route.waypoints.length}
       <Fold id="nk-mine" title={t('mine.title')} summary={t('mine.saved', { n: savedRoutes.length + tracks.length })} bind:open={mineOpen}>
         <div class="mine-scroll">
           <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
@@ -1019,6 +1152,7 @@
             onplace={(id) => (placing = placing === id ? null : id)} />
         </div>
       </Fold>
+      {/if}
     </div>
     <input bind:this={fileInput} class="hidden" type="file" accept=".gpx,.kml" multiple
       onchange={(e) => { addFiles(e.currentTarget.files!); e.currentTarget.value = ''; }} />
@@ -1029,17 +1163,21 @@
     <Toolbar {editing} canUndo={route.canUndo} canRedo={route.canRedo} hasRoute={route.waypoints.length > 0} canLoop={hasLegs}
       {straightOn} placing={placing === 'route'} {layersOpen}
       onedit={toggleEdit} onundo={undo} onredo={redo} onreverse={reverse} onoutback={outAndBack} onbacktostart={backToStart}
-      onstraight={() => toggleStraight(false)} oncheckpoint={toggleCheckpoint} onlayers={() => (layersOpen = !layersOpen)}
+      onstraight={() => toggleStraight(false)} oncheckpoint={toggleCheckpoint} onlayers={() => openMenu('base')}
       onfit={fitRoute} onhelp={() => (helpOpen = true)} />
-    <button class="layersbtn" aria-expanded={layersOpen} aria-controls="nk-layers" aria-label={t('tb.layers')}
-      title="{t('tb.layersTip')} ({MOD} G)" onclick={() => (layersOpen = !layersOpen)}><Icon name="layers" size={22} /></button>
-    {#if layersOpen}
+    <div class="layersbtns">
+      <button class="layersbtn" aria-expanded={layersMenu === 'base'} aria-controls="nk-layers" aria-label={t('lay.base')}
+        title="{t('lay.base')} ({MOD} G)" onclick={() => openMenu('base')}><Icon name="layers" size={20} /></button>
+      <button class="layersbtn" aria-expanded={layersMenu === 'over'} aria-controls="nk-layers" aria-label={t('lay.overlays')}
+        title={t('lay.overlays')} onclick={() => openMenu('over')}><Icon name="overlay" size={20} /></button>
+    </div>
+    {#if layersMenu}
       <div bind:this={layersBox}>
-        <LayersPopover {base} {overlays} {colorMode} pinned={layersPinned} onpin={togglePin} onbase={setBase} onoverlay={toggleOverlay}
-          oncolormode={(m) => (colorMode = m)} onclose={() => { layersOpen = false; if (layersPinned) togglePin(); }} />
+        <LayersPopover mode={layersMenu} profile={route.profile} {base} {overlays} {colorMode} pinned={layersPinned} canPin={!mobile} onpin={togglePin} onbase={setBase} onoverlay={toggleOverlay}
+          oncolormode={(m) => (colorMode = m)} onclose={() => { layersMenu = null; if (layersPinned) togglePin(); }} />
       </div>
     {/if}
-    {#if editing && !(mobile && layersOpen)}
+    {#if editing && !(mobile && (layersOpen || route.waypoints.length))}
       <div class="ehint" role="note">
         {#if mobile}
           {t('hint.editTouch', { where: route.prepend ? t('hint.atStart') : '' })}
@@ -1188,18 +1326,9 @@
   .garmin:active:not(:disabled) {
     background: var(--tint2);
   }
-  .beta {
-    font: 600 10.5px/1 var(--mono);
-    letter-spacing: 0.02em;
-    padding: 3px 6px;
-    border-radius: 999px;
-    background: var(--tint2);
-    color: var(--ink);
-    box-shadow: inset 0 0 0 1px var(--line);
-  }
   .sec3 {
     display: grid;
-    grid-template-columns: 1.6fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1.3fr;
     gap: 6px;
   }
   .sbtn {
@@ -1218,6 +1347,13 @@
   button:disabled {
     opacity: 0.45;
     cursor: default;
+  }
+  .browse {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    margin: 0 -4px;
+    padding: 0 4px;
   }
   .mine-scroll {
     max-height: min(38vh, 330px);

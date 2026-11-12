@@ -96,6 +96,8 @@ const en = {
   'act.beta': 'beta',
   'act.share': 'Share',
   'act.gpxTip': 'Download a GPX file',
+  'act.gpx': 'Download GPX',
+  'act.garminTip': 'Send to Garmin Connect (beta)',
   'act.fitTip': 'Garmin course: FIT file',
 
   // my routes
@@ -164,8 +166,11 @@ const en = {
   'lay.title': 'Map layers',
   'lay.close': 'Close',
   'lay.pin': 'Keep open',
-  'lay.unpin': 'Close on click outside',
   'lay.overlays': 'Overlays',
+  'lay.base': 'Map',
+  'lay.actBike': 'Cycling',
+  'lay.actHike': 'Hiking',
+  'lay.actAll': 'All activities',
   'lay.coloring': 'Route line colouring',
   'lay.colorGrade': 'Grade and surface',
   'lay.colorSurface': 'Surface only',
@@ -249,6 +254,12 @@ const en = {
   // map: leg menu and waypoints
   'leg.roads': 'This segment along roads',
   'leg.straight': 'This segment as a straight line',
+  'leg.split': 'Split route here',
+  'leg.copyTo': 'Copy up to here (for an alternative)',
+  'copy.done': 'New route “{name}”: the original is kept in My routes',
+  'copy.suffix': 'alternative',
+  'split.confirm': 'Split “{name}” into two routes at this point? The second part is saved to My routes.',
+  'split.done': 'Split into “{a}” and “{b}”',
   'wp.tip': 'Drag to move. Double-click or right-click deletes. Click an end point to continue the route from it.',
 
   // checkpoints

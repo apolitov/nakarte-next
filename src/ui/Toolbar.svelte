@@ -107,7 +107,7 @@
     top: 12px;
     left: 12px;
     z-index: 4;
-    max-width: calc(100% - 76px);
+    max-width: calc(100% - 124px); /* room for the two layer buttons */
   }
   .tbar {
     display: flex;

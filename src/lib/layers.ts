@@ -17,6 +17,8 @@ export interface LayerDef {
   vector?: 'passes';
   /** Hidden when its key is missing. */
   available?: boolean;
+  /** Overlays are grouped by activity in the overlays menu. */
+  activity?: 'bike' | 'hike' | 'all';
 }
 
 const OSM_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
@@ -135,6 +137,7 @@ const ALL: LayerDef[] = [
     tiles: ['https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png'],
     attribution: '<a href="https://cycling.waymarkedtrails.org">Waymarked Trails</a>',
     maxzoom: 18,
+    activity: 'bike',
   },
   {
     id: 'Wh',
@@ -144,6 +147,7 @@ const ALL: LayerDef[] = [
     tiles: ['https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png'],
     attribution: '<a href="https://hiking.waymarkedtrails.org">Waymarked Trails</a>',
     maxzoom: 18,
+    activity: 'hike',
   },
   {
     // Ride with GPS global heatmap: public density tiles (yellow to red), cycling-heavy
@@ -154,6 +158,7 @@ const ALL: LayerDef[] = [
     tiles: ['https://heatmap.ridewithgps.com/normalized/{z}/{x}/{y}.png'],
     attribution: 'Heatmap © <a href="https://ridewithgps.com">Ride with GPS</a>',
     maxzoom: 18,
+    activity: 'bike',
   },
   {
     // public GPS traces uploaded to OpenStreetMap, drawn as a density map
@@ -164,6 +169,7 @@ const ALL: LayerDef[] = [
     tiles: ['gpsheat://{z}/{x}/{y}'],
     attribution: 'GPS traces © <a href="https://www.openstreetmap.org/traces">OpenStreetMap contributors</a>',
     maxzoom: 20,
+    activity: 'all',
   },
   {
     // vector layer from public/data/passes.geojson, drawn by lib/passes.ts
@@ -174,12 +180,16 @@ const ALL: LayerDef[] = [
     tiles: [],
     attribution: '',
     vector: 'passes',
+    activity: 'hike',
   },
 ];
 
 export const LAYERS = ALL.filter((l) => l.available !== false);
 
-export const DEFAULT_BASE = 'O';
+export const DEFAULT_BASE = 'Co';
+
+/** Base map that suits the activity: CyclOSM for bikes, OpenTopoMap for hiking. */
+export const baseForProfile = (profile: string) => (profile === 'nk-hike' ? 'Otm' : 'Co');
 
 export function layerById(id: string) {
   return LAYERS.find((l) => l.id === id);

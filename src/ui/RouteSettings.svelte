@@ -6,8 +6,9 @@
   let {
     options,
     hike = false,
+    cycle = true,
     onchange,
-  }: { options: RouteOptions; hike?: boolean; onchange: (patch: Partial<RouteOptions>) => void } = $props();
+  }: { options: RouteOptions; hike?: boolean; cycle?: boolean; onchange: (patch: Partial<RouteOptions>) => void } = $props();
 
   // the slider shows the value while dragging; the route is rebuilt on release
   let grade = $state(0);
@@ -29,7 +30,8 @@
   oninput={(e) => (grade = Number(e.currentTarget.value))}
   onchange={(e) => onchange({ maxGrade: Number(e.currentTarget.value) })} />
 
-{#if !hike}
+{#if cycle}
+  <!-- road and gravel only: MTB and hiking route as their stock profiles -->
   <label class="sw">
     <input type="checkbox" role="switch" checked={options.cycleways} onchange={(e) => onchange({ cycleways: e.currentTarget.checked })} />
     <span class="tr" aria-hidden="true"></span>

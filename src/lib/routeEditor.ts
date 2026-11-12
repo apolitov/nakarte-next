@@ -25,6 +25,10 @@ export class RouteEditor {
   private dragInsert: { index: number; marker: maplibregl.Marker } | null = null;
   /** Returns true when it handled the click (e.g. placing a checkpoint). */
   onMapClick: ((lng: number, lat: number) => boolean) | null = null;
+  /** "Split route here" in the segment menu; the app asks for confirmation. */
+  onSplit: ((leg: number, lng: number, lat: number) => void) | null = null;
+  /** "Copy up to here": a new route from the start to this point, to try an alternative. */
+  onCopyTo: ((leg: number, lng: number, lat: number) => void) | null = null;
 
   constructor(
     private map: maplibregl.Map,
@@ -117,8 +121,23 @@ export class RouteEditor {
       el.append(b);
     };
     btn(straight ? t('leg.roads') : t('leg.straight'), () => this.route.setLegStraight(leg, !straight));
+    const ll = maplibregl.LngLat.convert(at);
+    if (this.onCopyTo) btn(t('leg.copyTo'), () => this.onCopyTo?.(leg, ll.lng, ll.lat));
+    if (this.onSplit) btn(t('leg.split'), () => this.onSplit?.(leg, ll.lng, ll.lat));
     this.popup?.remove();
-    this.popup = new maplibregl.Popup({ closeButton: false, className: 'ctx-popup' }).setLngLat(at).setDOMContent(el).addTo(this.map);
+    // a long touch ends with touchend + click on the map: closing on that click would remove
+    // the menu before it can be used, so it closes on the next tap after a short delay
+    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'ctx-popup' }).setLngLat(at).setDOMContent(el).addTo(this.map);
+    this.popup = popup;
+    setTimeout(() => {
+      const close = () => popup.remove();
+      this.map.once('click', close);
+      this.map.once('movestart', close);
+      popup.once('close', () => {
+        this.map.off('click', close);
+        this.map.off('movestart', close);
+      });
+    }, 400);
   }
 
   /**

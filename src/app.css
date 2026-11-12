@@ -372,6 +372,15 @@ kbd {
   .side > * {
     flex-shrink: 0;
   }
+  /* while editing, an opened sheet keeps half of the screen for the map */
+  .side.sheet-open.editing {
+    max-height: 45dvh;
+  }
+  /* zoom, location and the scale stay above the collapsed sheet */
+  .maplibregl-ctrl-bottom-right,
+  .maplibregl-ctrl-bottom-left {
+    bottom: calc(66px + env(safe-area-inset-bottom));
+  }
   .side.sheet-open {
     transform: none;
     overflow-y: auto;
@@ -481,13 +490,17 @@ kbd {
 }
 
 /* ---- layers button: top right, as in nakarte ---- */
-.layersbtn {
+.layersbtns {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 4;
-  width: 48px;
-  height: 48px;
+  display: flex;
+  gap: 6px;
+}
+.layersbtn {
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 14px;
@@ -504,7 +517,7 @@ kbd {
   color: var(--marker-ink);
 }
 @media (max-width: 639px) {
-  .layersbtn {
+  .layersbtns {
     top: 10px;
     right: 10px;
   }
