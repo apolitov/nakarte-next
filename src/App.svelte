@@ -1045,6 +1045,17 @@
   });
 
   const hasRoute = $derived(route.points.length > 1);
+  // routing takes a moment (hiking especially): show it, but not for quick answers
+  let busy = $state(false);
+  $effect(() => {
+    if (!route.loading) {
+      busy = false;
+      return;
+    }
+    const tm = setTimeout(() => (busy = true), 250);
+    return () => clearTimeout(tm);
+  });
+  const profileTitle = $derived(PROFILES.find((p) => p.id === route.profile)?.title ?? '');
   const optSummary = $derived.by(() => {
     const o = route.options;
     const parts = [o.surface === -1 ? t('set.sumAsphalt') : o.surface === 1 ? t('set.sumDirt') : t('set.sumAny')];
@@ -1068,6 +1079,7 @@
         <source srcset="{import.meta.env.BASE_URL}brand/symbol-colour-dark.svg" media="(prefers-color-scheme: dark)" />
         <img src="{import.meta.env.BASE_URL}brand/symbol-colour.svg" alt="No Mapa" width="81" height="28" />
       </picture>
+      {#if !mobile && route.waypoints.length}<button class="newb" onclick={newRoute} data-tip={t('mine.newTip')}><Icon name="plus" size={16} /><span>{t('act.new')}</span></button>{/if}
       {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
     </div>
     <div class="titlerow">
@@ -1081,6 +1093,7 @@
       onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
     />
     {#if route.waypoints.length}
+      {#if mobile}<button class="newb" onclick={newRoute} data-tip={t('mine.newTip')}><Icon name="plus" size={16} /><span>{t('act.new')}</span></button>{/if}
       <button class="del" aria-expanded={askDelete} onclick={() => (askDelete = !askDelete)} aria-label={t('route.delete')} data-tip={t('route.delete')}><Icon name="trash" size={18} /></button>
     {/if}
     <!-- on a phone the account button sits on the title row, the logo is hidden -->
@@ -1188,6 +1201,9 @@
         {/if}
       </div>
     {/if}
+    {#if busy}
+      <div class="busy" role="status" aria-live="polite"><span class="spin" aria-hidden="true"></span>{t('route.routing', { type: profileTitle })}</div>
+    {/if}
     {#if hasRoute && !mobile}
       <div class="profwrap" bind:offsetHeight={profH}>
         <ProfileCard bind:open={showProfile} profile={route.profileData} {classes} marks={profileMarks}
@@ -1244,6 +1260,22 @@
     height: 32px;
     border-radius: 8px;
     color: var(--soft);
+  }
+  .newb {
+    flex: none;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 10px 0 7px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: 550 13.5px/1 var(--sans);
+  }
+  .newb:hover {
+    background: var(--tint);
   }
   .del:hover {
     background: var(--tint);

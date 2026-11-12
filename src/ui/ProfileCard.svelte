@@ -53,11 +53,17 @@
   <div class="ph">
     <h2>{t('prof.title')}</h2>
     <div class="lim">
+      {#if profile.maxEle != null}
+        <span class="st" data-tip={t('prof.minTip')}><span class="k">{t('prof.min')}</span> <b class="num">{Math.round(profile.minEle ?? 0)} {t('unit.m')}</b></span>
+        <span class="st" data-tip={t('prof.maxTip')}><span class="k">{t('prof.max')}</span> <b class="num">{Math.round(profile.maxEle)} {t('unit.m')}</b></span>
+        <span class="st" data-tip={t('prof.upTip')}><span class="k">↑</span> <b class="num">{Math.round(profile.ascent)} {t('unit.m')}</b></span>
+        <span class="st" data-tip={t('prof.downTip')}><span class="k">↓</span> <b class="num">{Math.round(profile.descent)} {t('unit.m')}</b></span>
+      {/if}
       {#if maxGrade}
-        {t('prof.steep', { g: maxGrade })}
-        {steep.count ? t('prof.steepSome', { n: steep.count, stretches: plural(steep.count), km: dec(steep.length / 1000) }) : t('prof.steepNone')}
-      {:else if profile.maxEle != null}
-        <span class="num">{t('prof.range', { lo: Math.round(profile.minEle ?? 0), hi: Math.round(profile.maxEle) })}</span>
+        <span class="st steep">
+          {t('prof.steep', { g: maxGrade })}
+          {steep.count ? t('prof.steepSome', { n: steep.count, stretches: plural(steep.count), km: dec(steep.length / 1000) }) : t('prof.steepNone')}
+        </span>
       {/if}
     </div>
     <button class="pcol" aria-expanded={open} aria-label={open ? t('prof.collapse') : t('prof.expand')}
@@ -117,15 +123,25 @@
   .lim {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 14px;
+    row-gap: 2px;
     font-size: 12.5px;
     color: var(--soft);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-  .lim .num {
+  .st {
+    white-space: nowrap;
+  }
+  .st .num {
     font-weight: 500;
     color: var(--ink);
+  }
+  .st.steep {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
   .pcol {
     width: 32px;

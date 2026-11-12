@@ -87,7 +87,7 @@ describe('timeline', () => {
     expect(kinds).toContain('climb');
     expect(kinds).toContain('straight');
     expect(ev.filter((e) => e.kind === 'checkpoint').map((e) => e.label)).toEqual(['Water']);
-    expect(ev.find((e) => e.kind === 'climb')!.label).toMatch(/^↑ Climb 2\.\d km, 5%$/);
+    expect(ev.find((e) => e.kind === 'climb')!.label).toMatch(/^↑ Climb 2\.\d km, 5%, \+100 m$/);
     expect(ev.filter((e) => e.kind === 'surface').map((e) => e.label.split(',')[0])).toEqual(['Gravel', 'Asphalt']);
     // sorted by distance
     for (let k = 1; k < ev.length; k++) expect(ev[k].d).toBeGreaterThanOrEqual(ev[k - 1].d);

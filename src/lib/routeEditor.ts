@@ -56,6 +56,15 @@ export class RouteEditor {
       },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
     });
+    // legs being routed: yellow dashes running along the straight placeholder
+    map.addLayer({
+      id: 'route-pending',
+      type: 'line',
+      source: 'route',
+      filter: ['==', ['get', 'pending'], true],
+      paint: { 'line-color': '#ffd83d', 'line-width': 5, 'line-dasharray': PENDING_DASH[0] },
+      layout: { 'line-cap': 'butt', 'line-join': 'round' },
+    });
     // wide invisible line to grab for inserting points
     map.addLayer({ id: 'route-hit', type: 'line', source: 'route', paint: { 'line-color': '#000', 'line-opacity': 0, 'line-width': 18 } });
     map.addLayer({
@@ -266,6 +275,23 @@ export class RouteEditor {
       }
     }
     (this.map.getSource('route') as maplibregl.GeoJSONSource).setData(this.lineFeatures());
+    this.animatePending(this.route.legs.some((l) => l.status === 'loading'));
+  }
+
+  private pendingTimer: ReturnType<typeof setInterval> | null = null;
+  /** Runs the dashes of legs being routed while there are any. */
+  private animatePending(on: boolean) {
+    if (on === (this.pendingTimer != null)) return;
+    if (!on) {
+      clearInterval(this.pendingTimer!);
+      this.pendingTimer = null;
+      return;
+    }
+    let step = 0;
+    this.pendingTimer = setInterval(() => {
+      step = (step + 1) % PENDING_DASH.length;
+      if (this.map.getLayer('route-pending')) this.map.setPaintProperty('route-pending', 'line-dasharray', PENDING_DASH[step]);
+    }, 60);
   }
 
   /** Splits the route into runs of equal colour; each run knows its leg for inserting points. */
@@ -306,7 +332,7 @@ export class RouteEditor {
       if (a && b)
         features.push({
           type: 'Feature',
-          properties: { color: l.status === 'error' ? '#d1242f' : '#9a9aa2', leg: i },
+          properties: { color: l.status === 'error' ? '#d1242f' : '#9a9aa2', leg: i, pending: l.status === 'loading' },
           geometry: { type: 'LineString', coordinates: [[a.lng, a.lat], [b.lng, b.lat]] },
         });
     });
@@ -321,6 +347,12 @@ export class RouteEditor {
     );
   }
 }
+
+/** Frames of a dash moving along the line (dash, gap, dash, gap in line widths). */
+const PENDING_DASH: number[][] = [
+  [0, 4, 3], [0.5, 4, 2.5], [1, 4, 2], [1.5, 4, 1.5], [2, 4, 1], [2.5, 4, 0.5], [3, 4, 0],
+  [0, 0.5, 3, 3.5], [0, 1, 3, 3], [0, 1.5, 3, 2.5], [0, 2, 3, 2], [0, 2.5, 3, 1.5], [0, 3, 3, 1], [0, 3.5, 3, 0.5],
+];
 
 function empty(): FeatureCollection {
   return { type: 'FeatureCollection', features: [] };

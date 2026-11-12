@@ -282,7 +282,7 @@ export function buildTimeline({ points, profile, checkpoints }: TimelineInput): 
       i2: c.b,
       d: dist[c.a],
       d2: dist[c.b],
-      label: t('tl.climb', { km: km1(c.len), g: avg }),
+      label: t('tl.climb', { km: km1(c.len), g: avg, gain: Math.round(c.gain) }),
       priority: 1,
       weight: c.gain,
     });
