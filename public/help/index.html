@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справка · Na Carta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fff;--ink:#141414;--soft:#5f5f5c;--line:#e4e2dc;--marker:#ffd83d;--tint:#f6f5f1;--sans:"Onest",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root{--paper:#171715;--ink:#f2f1ec;--soft:#aaa9a1;--line:#2f2e2a;--tint:#201f1c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+main{max-width:720px;margin:0 auto;padding:32px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--soft);margin-bottom:28px}
+.top a{color:var(--ink)}
+h1{font-size:34px;line-height:1.15;letter-spacing:-.02em;margin:0 0 12px}
+h2{font-size:24px;letter-spacing:-.01em;margin:48px 0 10px}
+h3{font-size:18px;margin:28px 0 6px}
+p,li{max-width:66ch}
+a{color:inherit;text-underline-offset:3px}
+mark{background:var(--marker);color:#141414;padding:0 3px;border-radius:3px}
+nav{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 8px}
+nav a{background:var(--tint);border-radius:999px;padding:6px 14px;text-decoration:none;font-size:15px}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:12px 0}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-weight:600;color:var(--soft);font-size:13px}
+.num{font-family:var(--mono);white-space:nowrap}
+.sw{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:6px;border:1.5px solid var(--paper);box-shadow:0 0 0 1px var(--line)}
+.dash{display:inline-block;width:34px;height:0;border-top:4px solid var(--ink);vertical-align:middle;margin-right:8px}
+.note{background:var(--tint);border-radius:12px;padding:14px 16px;margin:18px 0}
+.small{font-size:14px;color:var(--soft)}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><span>Na Carta · справка</span><a href="../">← к карте</a></div>
+
+<h1>Справка</h1>
+<p>Как планировщик выбирает дорогу, что значат цвета на линии и как читать перевалы.</p>
+<nav><a href="#routing">Как строится маршрут</a><a href="#line">Цвета и штрихи</a><a href="#passes">Перевалы</a><a href="#limits">Ограничения</a></nav>
+
+<h2 id="routing">Как строится маршрут</h2>
+<p>Вы ставите точки, планировщик соединяет каждую пару соседних точек отдельным отрезком. Отрезки считает роутер <a href="https://github.com/abrensch/brouter">BRouter</a>, он работает на нашем сервере. Дороги, тропы, покрытие и веломаршруты он берёт из <a href="https://www.openstreetmap.org">OpenStreetMap</a>, высоты из встроенной модели рельефа.</p>
+<p>Роутер ищет не самый короткий путь, а самый «дешёвый». У каждого вида дороги есть цена за километр, своя в каждом профиле. Например, для гравела грунтовка стоит 1, третьестепенная дорога около 3,6, крупная трасса около 8,6. Поэтому гравел охотно сделает крюк в пару километров, чтобы уйти с трассы на грунтовку. К цене добавляются подъёмы, повороты и запреты: туда, куда велосипеду нельзя, роутер не поведёт.</p>
+<p>Когда вы двигаете точку, пересчитываются только два соседних отрезка, остальные берутся из памяти. Поэтому правка длинного маршрута не тормозит.</p>
+
+<h3>Профили</h3>
+<table>
+<tr><th>Профиль</th><th>Что любит</th><th>Чего избегает</th></tr>
+<tr><td>Шоссе</td><td>асфальт любого класса, включая крупные дороги</td><td>грунт (в десять раз дороже), ступени, паромы. Трафик учитывает слабо: может повести по оживлённой дороге</td></tr>
+<tr><td>Гравел</td><td>грунтовки и лесные дороги, тихие улицы, веломаршруты</td><td>крупные трассы, сложные тропы, ступени</td></tr>
+<tr><td>МТБ</td><td>тропы и грунт, заметно сильнее, чем гравел</td><td>асфальт стоит в несколько раз дороже троп, ступени запрещены</td></tr>
+<tr><td>Пешком</td><td>тропы, дорожки, грунтовки, размеченные пешие маршруты</td><td>крупные дороги. Тропы сложнее T3 по шкале SAC не использует</td></tr>
+</table>
+
+<h3>Настройки</h3>
+<p><b>Покрытие.</b> «Асфальт» делает грунтовые участки в 2,5 раза дороже, «грунт» делает так же с асфальтом. Если у дороги в OSM не указано покрытие, обычные улицы и дороги считаются асфальтом, а колеи и тропы грунтом.</p>
+<p><b>Подъёмы.</b> «Меньше» добавляет цену за каждый метр подъёма круче 1,5%, и роутер начинает объезжать горки. «Не избегать» снимает эту цену совсем. «Больше подъёмов» роутер сделать не может: он умеет только штрафовать, но не поощрять.</p>
+<p><b>Не круче N%.</b> Подъёмы круче лимита становятся очень дорогими, и роутер ищет обход. Это мягкое ограничение: если обхода нет, крутой участок останется, а на профиле высот он будет отмечен красным сверху с общей длиной.</p>
+
+<h3>Отрезок по прямой</h3>
+<p>Если нужной тропы нет в OpenStreetMap, переключите отрезок на «по прямой»: правой кнопкой по линии, долгим нажатием на телефоне или клавишами ⌘I / Ctrl+I. Такой отрезок рисуется серым пунктиром, высоты для него берутся из открытой модели рельефа.</p>
+
+<h3>Время в пути</h3>
+<p>Это грубая оценка по средней скорости профиля с поправкой на набор высоты, поэтому перед ним стоит «~». На неё влияет ваша форма, груз и погода, а их планировщик не знает.</p>
+
+<h2 id="line">Цвета и штрихи на линии</h2>
+<p>Линия показывает две вещи сразу: <b>цвет</b> отвечает за уклон, <b>рисунок</b> за покрытие. Тот же цвет и тот же рисунок повторяются на профиле высот.</p>
+<table>
+<tr><th>Уклон</th><th></th></tr>
+<tr><td><span class="sw" style="background:#2c7fb8"></span>↓ круче 8%</td><td><span class="sw" style="background:#7fcdbb"></span>↓ 3–8%</td></tr>
+<tr><td><span class="sw" style="background:#c9c9cc"></span>±3%, почти ровно</td><td><span class="sw" style="background:#fee08b"></span>↑ 3–6%</td></tr>
+<tr><td><span class="sw" style="background:#fdae61"></span>↑ 6–10%</td><td><span class="sw" style="background:#d73027"></span>↑ 10–15%</td></tr>
+<tr><td><span class="sw" style="background:#7f0000"></span>↑ круче 15%</td><td></td></tr>
+</table>
+<table>
+<tr><th>Покрытие</th><th>Рисунок</th></tr>
+<tr><td>Асфальт, бетон, плитка</td><td><span class="dash"></span>сплошная</td></tr>
+<tr><td>Укатанное, мелкий гравий, брусчатка</td><td><span class="dash" style="border-top-style:dashed"></span>длинный штрих</td></tr>
+<tr><td>Гравий, грунтовка</td><td><span class="dash" style="border-top-style:dashed;border-top-width:4px;width:20px"></span>короткий штрих</td></tr>
+<tr><td>Грунт, тропа</td><td><span class="dash" style="border-top-style:dotted"></span>точки</td></tr>
+<tr><td>По прямой</td><td><span class="dash" style="border-top-style:dashed;border-color:#9a9aa2"></span>серый пунктир</td></tr>
+</table>
+<p class="small">Покрытие берётся из тегов OSM. Если тега нет, оно угадывается по виду дороги, а на профиле такой участок отмечен как «нет данных».</p>
+
+<h2 id="passes">Перевалы</h2>
+<p>Слой «Перевалы» собран из двух источников:</p>
+<ul>
+<li><b>OpenStreetMap</b>: около 37 тысяч перевалов по всему миру, у многих есть высота, у части есть категория.</li>
+<li><b>Каталог ФСТР</b>: открытый классификатор перевалов Федерации спортивного туризма, около 7,5 тысячи перевалов бывшего СССР и соседних гор. В нём есть категория, характер склонов, что соединяет перевал и данные о первопрохождении.</li>
+</ul>
+<p>Если перевал есть в обоих источниках и точки лежат рядом, мы объединяем их в одну запись. Категорию в таком случае берём из каталога ФСТР. В карточке перевала всегда указано, откуда данные.</p>
+<p>При отдалении карты видны только перевалы с категорией, при приближении появляются все с названиями, а с 12-го зума все остальные.</p>
+
+<h3>Категории</h3>
+<table>
+<tr><th>Категория</th><th>Что обычно ждёт</th></tr>
+<tr><td><span class="sw" style="background:#8a8a85"></span>н/к</td><td>Некатегорийный. Тропа или пологий травянистый склон, без снега и льда.</td></tr>
+<tr><td><span class="sw" style="background:#2e9d5b"></span>1А</td><td>Простой. Осыпи, травянистые склоны, небольшие снежники. Иногда нужен ледоруб для самостраховки.</td></tr>
+<tr><td><span class="sw" style="background:#c9a227"></span>1Б</td><td>Несложный. Крутые осыпи и снег, короткие скальные участки. Самостраховка ледорубом, местами верёвка.</td></tr>
+<tr><td><span class="sw" style="background:#e07b24"></span>2А</td><td>Средней сложности. Снег, лёд и скалы, закрытые ледники. Кошки, верёвки, движение в связках.</td></tr>
+<tr><td><span class="sw" style="background:#d1242f"></span>2Б</td><td>Сложный. Крутой лёд и скалы, долгая работа с верёвками. Нужна альпинистская подготовка.</td></tr>
+<tr><td><span class="sw" style="background:#7f1d2e"></span>3А</td><td>Высшей сложности. Высокогорье, крутые ледовые и скальные стены.</td></tr>
+<tr><td><span class="sw" style="background:#141414"></span>3Б</td><td>Самые трудные перевалы: сложное лазание, большие высоты, лавинная и обвальная опасность.</td></tr>
+</table>
+<p>Звёздочка после категории (например, 1Б*) означает перевал на верхней границе категории.</p>
+<p>Характер склонов в каталоге записан коротко: «сн» снег, «лд» лёд, «ск» скалы, «ос» осыпь, «тр» трава. Например, «сн-лд-ос» означает, что встретятся снег, лёд и осыпь.</p>
+<div class="note"><b>Категория описывает типичные летние условия.</b> Ранней весной, поздней осенью и в снежный год перевал может оказаться сложнее, а ледники за последние десятилетия сильно отступили. Перед выходом читайте свежие отчёты на <a href="https://westra.ru/passes/">westra.ru</a> и <a href="https://tssr.ru/">tssr.ru</a>.</div>
+
+<h2 id="limits">Ограничения</h2>
+<ul>
+<li>Карта хороша настолько, насколько полна OpenStreetMap. Новую тропу или закрытую дорогу роутер узнает только после обновления данных.</li>
+<li>Высоты взяты из модели рельефа с шагом около 30 м. На коротких крутых участках уклон может быть сглажен, а набор высоты отличаться от показаний часов на 5–10%.</li>
+<li>Лимит крутизны мягкий: он уводит от крутых мест, если есть обход, но не запрещает их.</li>
+<li>Время в пути и покрытие без тега в OSM являются оценками.</li>
+</ul>
+<p class="small">Данные карт © OpenStreetMap и участники. Перевалы: OpenStreetMap и классификатор ФСТР. Роутинг: BRouter.</p>
+</main>
+</body>
+</html>
