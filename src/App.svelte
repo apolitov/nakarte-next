@@ -15,6 +15,7 @@
   import { CheckpointLayer, type CheckpointItem } from './lib/checkpoints';
   import { whoami, login, logout, sync, remote, shareShort, loadShort, type User } from './lib/account';
   import type { Doc } from './lib/store';
+  import { encodeCourse } from './lib/fit';
 
   let container: HTMLDivElement;
   let map: MlMap | undefined;
@@ -320,6 +321,26 @@
     exportTrack(t);
   }
 
+  function exportFit() {
+    if (route.points.length < 2) return;
+    const name = route.name || route.autoName();
+    const bytes = encodeCourse({
+      name,
+      sport: route.profile === 'nk-hike' ? 'hiking' : 'cycling',
+      points: route.points,
+      checkpoints: route.checkpoints,
+    });
+    download(new Blob([bytes as BlobPart], { type: 'application/vnd.ant.fit' }), `${name}.fit`);
+  }
+
+  function download(blob: Blob, filename: string) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
   function onKey(e: KeyboardEvent) {
     const t = e.target as HTMLElement;
     if (t.closest('input, textarea, select, [contenteditable]')) return;
@@ -598,6 +619,7 @@
       <div class="row">
         <button class:active={placing === 'route'} onclick={() => (placing = placing === 'route' ? null : 'route')} title="Щелчок по карте поставит чекпоинт">+ Чекпоинт</button>
         <button onclick={exportRoute} disabled={route.points.length < 2}>GPX</button>
+        <button onclick={exportFit} disabled={route.points.length < 2} title="Курс для Garmin: файл .fit">FIT</button>
         <button onclick={shareRoute} disabled={!route.waypoints.length}>Поделиться</button>
         <button onclick={newRoute}>Новый</button>
         <button onclick={() => confirm('Очистить маршрут?') && route.clear()} title="Очистить" aria-label="Очистить">×</button>
