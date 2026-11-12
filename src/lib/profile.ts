@@ -58,13 +58,13 @@ export const SURFACE_STYLE: Record<SurfaceClass, { color: string; title: string 
 };
 
 /**
- * Signed grade classes: descents blue, flat grey, climbs yellow to dark red.
+ * Signed grade classes: descents blue, flat green, climbs yellow to dark red.
  * Thresholds after brouter-web and Garmin ClimbPro (see docs in the repo history).
  */
 export const GRADE_CLASSES: { min: number; color: string; title: string }[] = [
   { min: -Infinity, color: '#2c7fb8', title: '↓ >8%' },
   { min: -8, color: '#7fcdbb', title: '↓ 3-8%' },
-  { min: -3, color: '#c9c9cc', title: t('grade.flat') },
+  { min: -3, color: '#4fae63', title: t('grade.flat') }, // green: grey read as "no data" on flat routes
   { min: 3, color: '#fee08b', title: '↑ 3-6%' },
   { min: 6, color: '#fdae61', title: '↑ 6-10%' },
   { min: 10, color: '#d73027', title: '↑ 10-15%' },

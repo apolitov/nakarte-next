@@ -120,6 +120,10 @@ const en = {
   'mine.new': 'New route',
   'mine.openFile': 'Open GPX/KML',
   'mine.confirmDelete': 'Delete “{name}”?',
+  'ic.cancel': 'Cancel',
+  'ic.delete': 'Delete',
+  'split.do': 'Split',
+  'acc.deleteDo': 'Delete account',
   'mine.confirmDeleteTrack': 'Delete track “{name}”?',
 
   // account

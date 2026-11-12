@@ -28,6 +28,7 @@
   import MyRoutes from './ui/MyRoutes.svelte';
   import Toolbar from './ui/Toolbar.svelte';
   import LayersPopover from './ui/LayersPopover.svelte';
+  import InlineConfirm from './ui/InlineConfirm.svelte';
   import HelpDialog from './ui/HelpDialog.svelte';
   import ProfileCard from './ui/ProfileCard.svelte';
   import KeyTip from './ui/KeyTip.svelte';
@@ -470,14 +471,12 @@
   }
 
   function deleteRoute(r: RouteDoc) {
-    if (!confirm(t('mine.confirmDelete', { name: r.name }))) return;
     deleteDoc(r.id);
     savedRoutes = savedRoutes.filter((x) => x.id !== r.id);
     if (r.id === route.docId) route.reset();
   }
 
   async function removeAccount() {
-    if (!confirm(t('acc.deleteConfirm'))) return;
     try {
       await deleteAccount();
     } catch (e) {
@@ -485,11 +484,11 @@
     }
   }
 
+  let askDelete = $state(false);
   /** Deletes the route being edited (saved copy too), then starts a new one. */
   function deleteCurrent() {
     if (!route.waypoints.length) return;
-    const name = route.name || route.autoName();
-    if (!confirm(t('mine.confirmDelete', { name }))) return;
+    askDelete = false;
     if (savedRoutes.some((r) => r.id === route.docId)) {
       deleteDoc(route.docId);
       savedRoutes = savedRoutes.filter((x) => x.id !== route.docId);
@@ -506,7 +505,6 @@
   function splitRoute(leg: number, lng: number, lat: number) {
     if (!route.waypoints[leg + 1]) return;
     const name = route.name || route.autoName();
-    if (!confirm(t('split.confirm', { name }))) return;
     const doc = route.toDoc();
     const wps = doc.waypoints;
     const cut = { lng, lat, straight: wps[leg].straight };
@@ -910,7 +908,6 @@
   }
 
   function removeTrack(tr: Track) {
-    if (!confirm(t('mine.confirmDeleteTrack', { name: tr.name }))) return;
     tracks = tracks.filter((x) => x.id !== tr.id);
     deleteDoc(tr.id);
     refreshTracks();
@@ -1082,11 +1079,15 @@
       onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
     />
     {#if route.waypoints.length}
-      <button class="del" onclick={deleteCurrent} aria-label={t('route.delete')} data-tip={t('route.delete')}><Icon name="trash" size={18} /></button>
+      <button class="del" aria-expanded={askDelete} onclick={() => (askDelete = !askDelete)} aria-label={t('route.delete')} data-tip={t('route.delete')}><Icon name="trash" size={18} /></button>
     {/if}
     <!-- on a phone the account button sits on the title row, the logo is hidden -->
     {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
     </div>
+    {#if askDelete && route.waypoints.length}
+      <InlineConfirm text={t('mine.confirmDelete', { name: route.name || route.autoName() })} action={t('ic.delete')}
+        onconfirm={deleteCurrent} oncancel={() => (askDelete = false)} />
+    {/if}
     <Segmented name="kind" label={t('route.typeLabel')} value={route.profile}
       items={PROFILES.map((p) => [p.id, p.title] as const)}
       onchange={(v) => changeProfile(v as ProfileId)} />
@@ -1111,7 +1112,7 @@
     {#if events.length}
       <Timeline {events} profile={route.profileData} {classes} {activeD} pinnedId={pinned?.id ?? null} {mobile}
         onhover={onTimelineHover} onpick={pickEvent} />
-    {:else}
+    {:else if !route.waypoints.length}
       <div class="empty">
         {#if mobile}
           <p>{t('route.empty1')} <button class="inl" onclick={toggleEdit}><Icon name="edit" size={14} /></button> {t('route.empty2Touch')}</p>

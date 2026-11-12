@@ -5,6 +5,7 @@
   import { dec } from '../lib/timeline';
   import { t, LOCALE } from '../lib/i18n';
   import Icon from './Icon.svelte';
+  import InlineConfirm from './InlineConfirm.svelte';
 
   let {
     routes,
@@ -34,6 +35,8 @@
     onplace: (trackId: string) => void;
   } = $props();
 
+  /** id of the route or track whose deletion is being confirmed */
+  let ask = $state<string | null>(null);
   const date = (ms: number) => (ms ? new Date(ms).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }) : '');
   function trackKm(tr: Track) {
     let m = 0;
@@ -54,8 +57,12 @@
           <button class="name" onclick={() => onopen(r)} data-tip={t('mine.open')}>
             <b data-open={t('mine.opened')}>{r.name}</b><small>{t('mine.points', { n: r.waypoints.length })} · {date(r.updated)}</small>
           </button>
-          <button class="ib" aria-label={t('mine.deleteNamed', { name: r.name })} data-tip={t('mine.delete')} onclick={() => ondelete(r)}><Icon name="trash" size={16} /></button>
+          <button class="ib" aria-expanded={ask === r.id} aria-label={t('mine.deleteNamed', { name: r.name })} data-tip={t('mine.delete')} onclick={() => (ask = ask === r.id ? null : r.id)}><Icon name="trash" size={16} /></button>
         </li>
+        {#if ask === r.id}
+          <li><InlineConfirm text={t('mine.confirmDelete', { name: r.name })} action={t('ic.delete')}
+            onconfirm={() => { ask = null; ondelete(r); }} oncancel={() => (ask = null)} /></li>
+        {/if}
       {/each}
     </ul>
   {/if}
@@ -72,9 +79,13 @@
             <button class="ib txt" class:on={placing === tr.id} aria-pressed={placing === tr.id} data-tip={t('mine.addCpTip')}
               onclick={() => onplace(tr.id)}>{t('mine.addCp')}</button>
             <button class="ib txt" data-tip={t('mine.gpxTip')} onclick={() => onexporttrack(tr)}>GPX</button>
-            <button class="ib" aria-label={t('mine.deleteTrack', { name: tr.name })} data-tip={t('mine.delete')} onclick={() => onremovetrack(tr)}><Icon name="trash" size={16} /></button>
+            <button class="ib" aria-expanded={ask === tr.id} aria-label={t('mine.deleteTrack', { name: tr.name })} data-tip={t('mine.delete')} onclick={() => (ask = ask === tr.id ? null : tr.id)}><Icon name="trash" size={16} /></button>
           </span>
         </li>
+        {#if ask === tr.id}
+          <li><InlineConfirm text={t('mine.confirmDeleteTrack', { name: tr.name })} action={t('ic.delete')}
+            onconfirm={() => { ask = null; onremovetrack(tr); }} oncancel={() => (ask = null)} /></li>
+        {/if}
       {/each}
     </ul>
   {/if}

@@ -123,7 +123,30 @@ export class RouteEditor {
     btn(straight ? t('leg.roads') : t('leg.straight'), () => this.route.setLegStraight(leg, !straight));
     const ll = maplibregl.LngLat.convert(at);
     if (this.onCopyTo) btn(t('leg.copyTo'), () => this.onCopyTo?.(leg, ll.lng, ll.lat));
-    if (this.onSplit) btn(t('leg.split'), () => this.onSplit?.(leg, ll.lng, ll.lat));
+    if (this.onSplit) {
+      // asks in the menu itself, no modal
+      const b = document.createElement('button');
+      b.textContent = t('leg.split');
+      b.onclick = () => {
+        el.replaceChildren();
+        const q = document.createElement('p');
+        q.className = 'ctx-q';
+        q.textContent = t('split.confirm', { name: this.route.name || this.route.autoName() });
+        const yes = document.createElement('button');
+        yes.className = 'ctx-yes';
+        yes.textContent = t('split.do');
+        yes.onclick = () => {
+          this.popup?.remove();
+          this.onSplit?.(leg, ll.lng, ll.lat);
+        };
+        const no = document.createElement('button');
+        no.textContent = t('ic.cancel');
+        no.onclick = () => this.popup?.remove();
+        el.append(q, no, yes);
+        yes.focus();
+      };
+      el.append(b);
+    }
     this.popup?.remove();
     // a long touch ends with touchend + click on the map: closing on that click would remove
     // the menu before it can be used, so it closes on the next tap after a short delay

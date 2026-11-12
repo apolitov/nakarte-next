@@ -2,6 +2,7 @@
   import { t } from '../lib/i18n';
   import type { User } from '../lib/account';
   import Icon from './Icon.svelte';
+  import InlineConfirm from './InlineConfirm.svelte';
 
   let {
     user,
@@ -20,6 +21,7 @@
     ondelete: () => void;
     onsync: () => void;
   } = $props();
+  let askDel = $state(false);
 
   let open = $state(false);
   let root: HTMLDivElement;
@@ -70,7 +72,11 @@
           <button class="pbtn" onclick={() => { onsync(); }}>{t('acc.sync')}</button>
           <button class="pbtn" onclick={onlogout}>{t('acc.logout')}</button>
         </div>
-        <button class="danger" onclick={ondelete}>{t('acc.delete')}</button>
+        {#if askDel}
+          <InlineConfirm text={t('acc.deleteConfirm')} action={t('acc.deleteDo')} onconfirm={ondelete} oncancel={() => (askDel = false)} />
+        {:else}
+          <button class="danger" onclick={() => (askDel = true)}>{t('acc.delete')}</button>
+        {/if}
       {:else}
         <span class="st">{t('acc.local')}</span>
         <button class="google" onclick={onlogin}>
