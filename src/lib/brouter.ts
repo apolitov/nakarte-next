@@ -161,6 +161,15 @@ const cache = new Map<string, Promise<Leg>>();
  * ("killed by thread-priority-watchdog"): such a leg is retried after a short pause.
  * A leg that does not finish in the router's 60 s gets a hint to add a point.
  */
+/** Router legs are limited on the server too (maps-api): long legs are the expensive case. */
+export const MAX_LEG_KM = 100;
+
+function straightKm(a: LngLat, b: LngLat) {
+  const r = Math.PI / 180;
+  const h = Math.sin(((b.lat - a.lat) * r) / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(((b.lng - a.lng) * r) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
 async function requestLeg(url: string, attempt = 0): Promise<Leg> {
   const r = await fetch(url);
   const text = await r.text();
@@ -170,7 +179,7 @@ async function requestLeg(url: string, attempt = 0): Promise<Leg> {
     await new Promise((res) => setTimeout(res, 400 + Math.random() * 600 * (attempt + 1)));
     return requestLeg(url, attempt + 1);
   }
-  if (/timeout/i.test(msg)) throw new Error(t('route.legTooLong'));
+  if (/timeout|too long/i.test(msg)) throw new Error(t('route.legTooLong', { max: MAX_LEG_KM }));
   throw new Error(msg || `BRouter ${r.status}`);
 }
 
@@ -191,6 +200,8 @@ export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Param
     .sort(([x], [y]) => x.localeCompare(y))
     .map(([k, v]) => `&profile:${encodeURIComponent(k)}=${typeof v === 'boolean' ? (v ? 1 : 0) : encodeURIComponent(String(v))}`)
     .join('');
+  const km = straightKm(a, b);
+  if (km > MAX_LEG_KM) return Promise.reject(new Error(t('route.legTooLong', { max: MAX_LEG_KM })));
   const key = `${profile}|${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}${extra}`;
   let p = cache.get(key);
   if (!p) {

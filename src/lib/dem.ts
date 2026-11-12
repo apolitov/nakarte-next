@@ -55,7 +55,8 @@ export async function elevationAt(lng: number, lat: number): Promise<number | nu
 /** Densifies a straight line every `step` metres and samples elevation along it. */
 export async function straightWithElevation(a: { lng: number; lat: number }, b: { lng: number; lat: number }, step = 30): Promise<LegPoint[]> {
   const d = haversine({ ...a, ele: null }, { ...b, ele: null });
-  const n = Math.max(1, Math.ceil(d / step));
+  // at most 2000 samples: a long straight leg would otherwise pull thousands of terrain tiles
+  const n = Math.min(2000, Math.max(1, Math.ceil(d / step)));
   const pts = Array.from({ length: n + 1 }, (_, i) => ({ lng: a.lng + ((b.lng - a.lng) * i) / n, lat: a.lat + ((b.lat - a.lat) * i) / n }));
   const eles = await Promise.all(pts.map((p) => elevationAt(p.lng, p.lat)));
   return pts.map((p, i) => ({ ...p, ele: eles[i] }));

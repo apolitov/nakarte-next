@@ -44,6 +44,7 @@ th{font-weight:600;color:var(--soft);font-size:13px}
 <h2 id="routing">How routing works</h2>
 <p>You place points, and the planner connects each pair of neighbouring points with its own leg. Legs are calculated by <a href="https://github.com/abrensch/brouter">BRouter</a> running on our server. Roads, trails, surfaces and cycle routes come from <a href="https://www.openstreetmap.org">OpenStreetMap</a>, elevation from a built-in terrain model.</p>
 <p>The router does not look for the shortest path but for the cheapest one. Every kind of road has a price per kilometre, different in each profile. For gravel, a good dirt road costs 1.1, a quiet paved road 1.3, a secondary road 2.2 and a main road about 8.6. So gravel takes a dirt road when the detour is short, rides quiet tarmac without fuss and stays off busy roads. For MTB the gap between dirt and tarmac is much bigger, so it is drawn to dirt and trails much more. Climbs, turns and access rules add to the price: the router never sends you where bikes are not allowed.</p>
+<p>A leg by road can be at most 100 km in a straight line between its two points; for longer distances add points in between. Straight legs have no limit.</p>
 <p>When you drag a point, only the two legs next to it are recalculated; the rest comes from memory, so editing a long route stays fast.</p>
 
 <h3>Profiles</h3>
