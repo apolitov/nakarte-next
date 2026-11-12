@@ -6,6 +6,10 @@
   import { registerYandexProtocol } from './lib/yandex';
   import { parseHash, formatHash } from './lib/hash';
   import { parseTrackFile, toGpx, trackToGeoJSON, bboxOf, type Track } from './lib/gpx';
+  import { RouteState } from './lib/route.svelte';
+  import { RouteEditor, type ColorMode } from './lib/routeEditor';
+  import { PROFILES, type ProfileId } from './lib/brouter';
+  import ElevationProfile from './ElevationProfile.svelte';
 
   let container: HTMLDivElement;
   let map: MlMap | undefined;
@@ -17,6 +21,36 @@
   let tracks = $state<Track[]>([]);
   let layersOpen = $state(false);
   let error = $state('');
+
+  const route = new RouteState();
+  let editor = $state<RouteEditor>();
+  let editing = $state(false);
+  let colorMode = $state<ColorMode>('grade');
+  let showProfile = $state(true);
+
+  $effect(() => {
+    void route.version;
+    void route.points;
+    editor?.render();
+  });
+  $effect(() => editor?.setEditing(editing));
+  $effect(() => editor?.setColorMode(colorMode));
+
+  function exportRoute() {
+    if (route.points.length < 2) return;
+    const name = `Маршрут ${(route.profileData.length / 1000).toFixed(0)} км`;
+    const t: Track = {
+      id: 'route',
+      name,
+      lines: [route.points.map((p) => (p.ele != null ? [p.lng, p.lat, p.ele] : [p.lng, p.lat]))],
+      points: [],
+    };
+    exportTrack(t);
+  }
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') editing = false;
+  }
 
   const groups = $derived(
     Object.entries(
@@ -154,6 +188,8 @@
         filter: ['==', ['geometry-type'], 'Point'],
         paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#e0218a', 'circle-stroke-width': 2 },
       });
+      editor = new RouteEditor(map!, route);
+      if (!route.waypoints.length) editing = false;
       await showRaster(layerById(base) ?? layerById(DEFAULT_BASE)!, 'tracks-line');
       for (const id of overlays) await showRaster(layerById(id)!, 'tracks-line');
       syncHash();
@@ -172,6 +208,7 @@
   });
 </script>
 
+<svelte:window onkeydown={onKey} />
 <div class="app" role="application" ondragover={(e) => e.preventDefault()} ondrop={onDrop}>
   <div class="map" bind:this={container}></div>
 
@@ -197,6 +234,43 @@
       </div>
     {/if}
   </div>
+
+  <div class="panel routing">
+    <div class="row">
+      <button class:active={editing} onclick={() => (editing = !editing)}>
+        {editing ? 'Готово' : route.waypoints.length ? 'Править маршрут' : 'Построить маршрут'}
+      </button>
+      <select value={route.profile} onchange={(e) => route.setProfile((e.currentTarget as HTMLSelectElement).value as ProfileId)} aria-label="Профиль">
+        {#each PROFILES as p (p.id)}<option value={p.id}>{p.title}</option>{/each}
+      </select>
+    </div>
+    {#if editing}
+      <div class="hint">Щелчок по карте добавляет точку, точку можно тащить, щелчок по точке удаляет её. Потяните линию, чтобы добавить точку посередине.</div>
+    {/if}
+    {#if route.waypoints.length}
+      <div class="row">
+        <select bind:value={colorMode} aria-label="Раскраска линии">
+          <option value="grade">Цвет: уклон</option>
+          <option value="surface">Цвет: покрытие</option>
+          <option value="plain">Цвет: один</option>
+        </select>
+        <button onclick={() => route.reverse()} title="Развернуть">⇄</button>
+        <button onclick={exportRoute} disabled={route.points.length < 2}>GPX</button>
+        <button onclick={() => confirm('Удалить маршрут?') && route.clear()} title="Удалить маршрут" aria-label="Удалить маршрут">×</button>
+      </div>
+    {/if}
+    {#if route.loading}<div class="hint">Считаю…</div>{/if}
+    {#if route.error}<div class="error">Маршрут: {route.error.error}</div>{/if}
+  </div>
+
+  {#if route.points.length > 1}
+    <div class="panel profile-panel" class:collapsed={!showProfile}>
+      <button class="collapse" onclick={() => (showProfile = !showProfile)}>{showProfile ? 'Скрыть профиль' : 'Профиль высот'}</button>
+      {#if showProfile}
+        <ElevationProfile profile={route.profileData} onhover={(i) => editor?.hover(i)} />
+      {/if}
+    </div>
+  {/if}
 
   <div class="panel tracks">
     <label class="open">

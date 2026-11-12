@@ -130,3 +130,97 @@ body {
     width: auto;
   }
 }
+
+.routing {
+  top: 10px;
+  left: 54px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 330px;
+}
+.routing .row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.routing button,
+.routing select {
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  border-radius: 6px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.routing button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.routing .hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.profile-panel {
+  left: 10px;
+  right: 280px;
+  bottom: 34px;
+  padding: 8px 10px;
+}
+.profile-panel.collapsed {
+  right: auto;
+}
+.profile-panel .collapse {
+  position: absolute;
+  top: -26px;
+  left: 0;
+  border: 0;
+  border-radius: 6px 6px 0 0;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  box-shadow: var(--panel-shadow);
+}
+.profile-panel.collapsed .collapse {
+  position: static;
+  box-shadow: none;
+}
+.wp {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+  background: #2a6df4;
+  color: #fff;
+  font: 600 10px/16px system-ui, sans-serif;
+  text-align: center;
+  cursor: pointer;
+}
+.wp-start {
+  background: #2b9a52;
+  width: 18px;
+  height: 18px;
+}
+.wp-end {
+  background: #d7262d;
+  width: 18px;
+  height: 18px;
+}
+@media (max-width: 600px) {
+  .routing {
+    left: 54px;
+    right: 10px;
+    top: 56px;
+  }
+  .profile-panel {
+    right: 10px;
+    bottom: 120px;
+  }
+}
