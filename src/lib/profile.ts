@@ -61,13 +61,13 @@ export const SURFACE_STYLE: Record<SurfaceClass, { color: string; title: string 
  * Thresholds after brouter-web and Garmin ClimbPro (see docs in the repo history).
  */
 export const GRADE_CLASSES: { min: number; color: string; title: string }[] = [
-  { min: -Infinity, color: '#2c7fb8', title: 'спуск круче 8%' },
-  { min: -8, color: '#7fcdbb', title: 'спуск 3–8%' },
-  { min: -3, color: '#c9c9cc', title: 'ровно' },
-  { min: 3, color: '#fee08b', title: '3–6%' },
-  { min: 6, color: '#fdae61', title: '6–10%' },
-  { min: 10, color: '#d73027', title: '10–15%' },
-  { min: 15, color: '#7f0000', title: 'круче 15%' },
+  { min: -Infinity, color: '#2c7fb8', title: '↓ >8%' },
+  { min: -8, color: '#7fcdbb', title: '↓ 3–8%' },
+  { min: -3, color: '#c9c9cc', title: '±3%' },
+  { min: 3, color: '#fee08b', title: '↑ 3–6%' },
+  { min: 6, color: '#fdae61', title: '↑ 6–10%' },
+  { min: 10, color: '#d73027', title: '↑ 10–15%' },
+  { min: 15, color: '#7f0000', title: '↑ >15%' },
 ];
 
 export function gradeColor(g: number | null): string {

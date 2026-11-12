@@ -190,8 +190,8 @@
     const g = profile.grade[hoverIdx];
     return {
       d: formatKm(profile.dist[hoverIdx]),
-      e: e == null ? '—' : `${Math.round(e)} м`,
-      g: g == null ? '—' : `${g > 0 ? '+' : ''}${g.toFixed(1)}%`,
+      e: e == null ? '–' : `${Math.round(e)} м`,
+      g: g == null ? '–' : `${g >= 0.05 ? '↑' : g <= -0.05 ? '↓' : ''} ${Math.abs(g).toFixed(1).replace('.', ',')}%`,
       s: SURFACE_STYLE[profile.surface[hoverIdx]].title,
     };
   });
@@ -227,7 +227,6 @@
     onpointerleave={leave}
   ></canvas>
   <div class="legend">
-    <span class="muted">Уклон:</span>
     {#each GRADE_CLASSES as k (k.min)}<span class="sw" style="background:{k.color}"></span>{k.title}{/each}
     <span class="sep"></span>
     {#each surfaceShare as [s, m] (s)}
