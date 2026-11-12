@@ -36,7 +36,9 @@ export function encodeCourse(c: CourseInput): Uint8Array {
   const at = (d: number) => new Date(start.getTime() + (d / speed) * 1000);
   const name = c.name.slice(0, 15) || 'Route'; // Edge shows ~15 chars
 
-  const e = new Encoder();
+  const enc = new Encoder();
+  // the SDK's typings list too few fields per message; the encoder itself takes all profile fields
+  const e = { onMesg: (num: number, mesg: Record<string, unknown>) => enc.onMesg(num as never, mesg as never) };
   const M = Profile.MesgNum;
   e.onMesg(M.FILE_ID, { type: 'course', manufacturer: 'development', product: 0, timeCreated: start, serialNumber: 1 });
   e.onMesg(M.COURSE, { name, sport: c.sport });
@@ -85,5 +87,5 @@ export function encodeCourse(c: CourseInput): Uint8Array {
     });
   }
   e.onMesg(M.EVENT, { timestamp: at(total), event: 'timer', eventType: 'stopAll', eventGroup: 0 });
-  return e.close();
+  return enc.close();
 }
