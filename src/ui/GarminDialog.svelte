@@ -127,13 +127,13 @@
   {:else if !status.enabled}
     <p>{t('g.disabled')}</p>
   {:else if step === 'mfa'}
-    <form onsubmit={sendMfa}>
+    <form action={import.meta.env.BASE_URL} onsubmit={sendMfa}>
       <p>{t('g.mfa')}</p>
       <input bind:value={code} inputmode="numeric" autocomplete="one-time-code" placeholder={t('g.code')} required />
       <button class="primary" type="submit">{t('g.confirm')}</button>
     </form>
   {:else if !status.connected}
-    <form onsubmit={connect}>
+    <form action={import.meta.env.BASE_URL} onsubmit={connect}>
       <p>
         {t('g.connectText')}
       </p>

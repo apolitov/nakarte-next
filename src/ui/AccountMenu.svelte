@@ -13,6 +13,7 @@
     ondelete,
     onsync,
     oncookies,
+    onopen,
   }: {
     user: User | null;
     syncState: '' | 'sync' | 'ok' | 'error';
@@ -22,6 +23,8 @@
     ondelete: () => void;
     onsync: () => void;
     oncookies: () => void;
+    /** the menu opens (on a phone the app expands the bottom sheet first, so it is on screen) */
+    onopen?: () => void;
   } = $props();
   const BASE = import.meta.env.BASE_URL;
   let askDel = $state(false);
@@ -59,7 +62,10 @@
 
 <div class="acc" bind:this={root}>
   <button class="user" class:busy={syncState === 'sync'} class:err={syncState === 'error'} aria-label={t('acc.label', { status: tip })}
-    aria-expanded={open} aria-haspopup="true" data-tip={open ? undefined : tip} onclick={() => (open = !open)}>
+    aria-expanded={open} aria-haspopup="true" data-tip={open ? undefined : tip} onclick={() => {
+      open = !open;
+      if (open) onopen?.();
+    }}>
     {#if user}
       <span class="ava">{initials || '?'}</span><i class="sdot"></i>
     {:else}

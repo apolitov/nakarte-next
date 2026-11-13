@@ -112,11 +112,11 @@
     <button aria-pressed={!three} data-tip={t('map.2dTip')} onclick={() => onset3d(false)}>2D</button>
     <button aria-pressed={three} data-tip={t('map.3dTip')} onclick={() => onset3d(true)}>3D</button>
   </div>
-  <span class="sep"></span>
-  <button class="ob" data-tip={t('orbit.zoomIn')} aria-label={t('orbit.zoomIn')} onclick={() => map.zoomIn()}>
+  <span class="sep zoomsep"></span>
+  <button class="ob zoom" data-tip={t('orbit.zoomIn')} aria-label={t('orbit.zoomIn')} onclick={() => map.zoomIn()}>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
   </button>
-  <button class="ob" data-tip={t('orbit.zoomOut')} aria-label={t('orbit.zoomOut')} onclick={() => map.zoomOut()}>
+  <button class="ob zoom" data-tip={t('orbit.zoomOut')} aria-label={t('orbit.zoomOut')} onclick={() => map.zoomOut()}>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
   </button>
   {#if geo && canLocate}
@@ -222,10 +222,17 @@
     font-size: 11px;
     color: var(--soft);
   }
-  @media (max-width: 639px) {
+  @media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
     .ob {
       width: 44px;
       height: 40px;
+    }
+  }
+  /* short phones: pinch zooms; without + and - the block clears the layer buttons above it */
+  @media (max-width: 639px) and (max-height: 600px), (max-height: 480px) and (orientation: landscape) {
+    .zoom,
+    .zoomsep {
+      display: none;
     }
   }
 </style>

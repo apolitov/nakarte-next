@@ -144,7 +144,7 @@
   .cap span {
     color: var(--soft);
   }
-  @media (max-width: 639px) {
+  @media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
     .frame {
       width: 100vw;
       max-height: 100dvh;

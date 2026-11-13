@@ -56,7 +56,8 @@
 
 <!-- Esc does not dismiss: the name is required (back to editing is the explicit way out) -->
 <dialog class="named" bind:this={dlg} aria-labelledby="nk-name-h" oncancel={(e) => e.preventDefault()}>
-  <form onsubmit={save}>
+  <!-- action without the hash: Google's automatic form events report it, and the hash holds the map position -->
+  <form action={import.meta.env.BASE_URL} onsubmit={save}>
     <div class="main">
       <h2 id="nk-name-h">{t('name.title')}</h2>
       <p class="soft">{t('name.why')}</p>

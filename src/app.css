@@ -403,7 +403,7 @@ kbd {
 }
 
 /* ---- phone: full-screen map, the panel as a bottom sheet (collapsed strip or open) ---- */
-@media (max-width: 639px) {
+@media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
   .busy {
     top: 70px;
     bottom: auto;
@@ -431,7 +431,7 @@ kbd {
     border-radius: 18px 18px 0 0;
     padding: 0 16px 18px;
     /* collapsed: only the handle, the account and the route name show */
-    transform: translateY(calc(100% - 62px - env(safe-area-inset-bottom)));
+    transform: translateY(calc(100% - 74px - env(safe-area-inset-bottom)));
     transition: transform 0.22s ease;
   }
   /* a sheet with limited height must not squeeze its blocks: they would overlap */
@@ -445,7 +445,7 @@ kbd {
   /* zoom, location and the scale stay above the collapsed sheet */
   .maplibregl-ctrl-bottom-right,
   .maplibregl-ctrl-bottom-left {
-    bottom: calc(66px + env(safe-area-inset-bottom));
+    bottom: calc(78px + env(safe-area-inset-bottom));
   }
 
   .side.sheet-open {
@@ -584,7 +584,7 @@ kbd {
   background: var(--marker);
   color: var(--marker-ink);
 }
-@media (max-width: 639px) {
+@media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
   /* below the toolbar, one above the other: side by side they covered its last buttons */
   .layersbtns {
     top: 62px;
@@ -689,7 +689,7 @@ kbd {
   font-size: 11px;
   line-height: 18px;
 }
-@media (max-width: 639px) {
+@media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
   /* a square like the other two, the count as a badge on its corner */
   .layersbtn.poibtn {
     position: relative;
@@ -709,4 +709,13 @@ kbd {
    the map controls block (Orbit3d) */
 .maplibregl-ctrl-group:has(> .maplibregl-ctrl-geolocate) {
   display: none;
+}
+
+/* a phone on its side: the layer buttons fit in a row next to the toolbar, which leaves the
+   right edge for the map controls */
+@media (max-height: 480px) and (orientation: landscape) {
+  .layersbtns {
+    top: 10px;
+    flex-direction: row;
+  }
 }

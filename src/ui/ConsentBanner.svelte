@@ -75,13 +75,14 @@
     background: var(--ink);
     color: var(--paper);
   }
-  @media (max-width: 639px) {
+  @media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
     /* above the collapsed bottom sheet */
     .cb {
+      /* left of the column of map controls, above the collapsed sheet */
       left: 10px;
-      right: 10px;
+      right: 64px;
       width: auto;
-      bottom: calc(74px + env(safe-area-inset-bottom));
+      bottom: calc(86px + env(safe-area-inset-bottom));
     }
   }
 </style>

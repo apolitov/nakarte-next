@@ -156,7 +156,7 @@
     outline: 2px solid var(--ink);
     outline-offset: -2px;
   }
-  @media (max-width: 639px) {
+  @media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
     .lpop {
       /* one sheet for every menu: from the left margin to the column of buttons, which stays
          visible and shows which menu is open; level with the first button */

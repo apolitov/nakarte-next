@@ -127,7 +127,7 @@
   let accountMenu: AccountMenu | undefined = $state();
 
   // phone layout: full-screen map, the panel as a bottom sheet that collapses to a strip
-  const mq = matchMedia('(max-width: 639px)');
+  const mq = matchMedia('(max-width: 639px), (max-height: 480px) and (orientation: landscape)');
   let mobile = $state(mq.matches);
   let sheetOpen = $state(false);
   /** Swipe on the handle: up opens, down collapses; a short move counts as a tap. */
@@ -1430,7 +1430,7 @@
         </picture>
       </button>
       {#if !mobile && route.waypoints.length}<button class="newb" onclick={newRoute} data-tip={t('mine.newTip')}><Icon name="plus" size={16} /><span>{t('act.new')}</span></button>{/if}
-      {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={() => (track('sign_in', { kind: 'alexe' }), loginAuthelia())} onlogout={logout} ondelete={removeAccount} onsync={runSync} oncookies={() => (consentOpen = true)} />{/if}
+      {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={() => (track('sign_in', { kind: 'alexe' }), loginAuthelia())} onlogout={logout} ondelete={removeAccount} onsync={runSync} oncookies={() => (consentOpen = true)} onopen={() => mobile && (sheetOpen = true)} />{/if}
     </div>
     <div class="titlerow">
     <input
@@ -1447,7 +1447,7 @@
       <button class="del" aria-expanded={askDelete} onclick={() => (askDelete = !askDelete)} aria-label={t('route.delete')} data-tip={t('route.delete')}><Icon name="trash" size={18} /></button>
     {/if}
     <!-- on a phone the account button sits on the title row, the logo is hidden -->
-    {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={() => (track('sign_in', { kind: 'alexe' }), loginAuthelia())} onlogout={logout} ondelete={removeAccount} onsync={runSync} oncookies={() => (consentOpen = true)} />{/if}
+    {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={() => (track('sign_in', { kind: 'alexe' }), loginAuthelia())} onlogout={logout} ondelete={removeAccount} onsync={runSync} oncookies={() => (consentOpen = true)} onopen={() => mobile && (sheetOpen = true)} />{/if}
     </div>
     {#if askDelete && route.waypoints.length}
       <InlineConfirm text={t('mine.confirmDelete', { name: route.name || route.autoName() })} action={t('ic.delete')}
@@ -1822,7 +1822,7 @@
     bottom: 12px;
     z-index: 3;
   }
-  @media (max-width: 639px) {
+  @media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
     .mine-scroll {
       max-height: none;
     }

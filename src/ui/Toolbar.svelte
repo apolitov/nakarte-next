@@ -193,7 +193,7 @@
     opacity: 0.45;
     cursor: default;
   }
-  @media (max-width: 639px) {
+  @media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
     /* the layer buttons sit below the toolbar on a phone: the whole width is the toolbar's */
     .tbw {
       top: 10px;
@@ -214,6 +214,16 @@
     }
     .menu {
       left: 0;
+    }
+  }
+  /* 320-360 px phones: all nine buttons fit without scrolling (31 px still beats the 24 px
+     minimum touch target) */
+  @media (max-width: 360px) {
+    .tb {
+      width: 31px;
+    }
+    .tsep {
+      margin: 0 1px;
     }
   }
 </style>

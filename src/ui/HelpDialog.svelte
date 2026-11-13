@@ -111,7 +111,7 @@
     font-size: 12.5px;
     color: var(--soft);
   }
-  @media (max-width: 639px) {
+  @media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
     .grid {
       grid-template-columns: 1fr;
     }
