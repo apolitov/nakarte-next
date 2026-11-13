@@ -575,6 +575,14 @@ kbd {
   box-shadow: var(--shadow);
   color: var(--ink);
 }
+.layersbtn.txt3d {
+  font: 700 13px/1 var(--sans);
+  letter-spacing: 0.02em;
+}
+.layersbtn[aria-pressed='true'] {
+  background: var(--marker);
+  color: var(--marker-ink);
+}
 .layersbtn:hover {
   background: var(--tint);
 }
@@ -583,8 +591,10 @@ kbd {
   color: var(--marker-ink);
 }
 @media (max-width: 639px) {
+  /* below the toolbar, one above the other: side by side they covered its last buttons */
   .layersbtns {
-    top: 10px;
+    top: 62px;
     right: 10px;
+    flex-direction: column;
   }
 }

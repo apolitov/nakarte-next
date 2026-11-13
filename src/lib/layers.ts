@@ -40,7 +40,8 @@ const mapy = (id: string, title: string, style: string): LayerDef => ({
   title,
   kind: 'base',
   group: 'mapy.com',
-  tiles: [`https://api.mapy.com/v1/maptiles/${style}/256@2x/{z}/{x}/{y}?apikey=${MAPY_KEY}`],
+  // the winter map has no @2x (retina) tiles: 404 for every one of them
+  tiles: [`https://api.mapy.com/v1/maptiles/${style}/${style === 'winter' ? '256' : '256@2x'}/{z}/{x}/{y}?apikey=${MAPY_KEY}`],
   tileSize: 256,
   attribution: '© <a href="https://mapy.com">Seznam.cz</a>, ' + OSM_ATTR,
   maxzoom: 19,

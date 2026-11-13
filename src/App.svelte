@@ -718,6 +718,47 @@
   }
   const straightOn = $derived(route.drawStraight);
 
+  // ---- 3D: terrain from the open Terrarium tiles (the same as for straight legs), tilt and rotation ----
+  let terrain3d = $state(false);
+  /** compass in 3D: drag it to turn and tilt, click it for north up */
+  let compass: maplibregl.NavigationControl | null = null;
+  const DEM_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+  function set3d(on: boolean, animate = true) {
+    if (!map) return;
+    terrain3d = on;
+    try {
+      localStorage.setItem('nk-3d', on ? '1' : '0');
+    } catch {
+      /* no storage */
+    }
+    const m = map;
+    if (on) {
+      if (!m.getSource('dem'))
+        m.addSource('dem', { type: 'raster-dem', tiles: [DEM_TILES], tileSize: 256, encoding: 'terrarium', maxzoom: 15, attribution: 'Terrain: Mapzen, AWS Open Data' });
+      m.setMaxPitch(80);
+      m.setTerrain({ source: 'dem', exaggeration: 1.4 });
+      m.setSky({ 'sky-color': '#9cc3ea', 'horizon-color': '#e6edf3', 'fog-color': '#f2f4f6', 'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.7, 'fog-ground-blend': 0.8 });
+      m.dragRotate.enable();
+      m.touchZoomRotate.enableRotation();
+      m.touchPitch.enable();
+      if (!compass) m.addControl((compass = new maplibregl.NavigationControl({ showZoom: false, visualizePitch: true })), 'bottom-right');
+      m.easeTo({ pitch: 62, duration: animate ? 900 : 0 });
+    } else {
+      m.setTerrain(null);
+      if (compass) {
+        m.removeControl(compass);
+        compass = null;
+      }
+      m.dragRotate.disable();
+      m.touchZoomRotate.disableRotation();
+      m.touchPitch.disable();
+      m.easeTo({ pitch: 0, bearing: 0, duration: animate ? 600 : 0 });
+      m.once('moveend', () => {
+        if (!terrain3d) m.setMaxPitch(0);
+      });
+    }
+  }
+
   // ---- a finished route gets a name (asked once editing ends, or before it leaves the planner) ----
   let nameOpen = $state(false);
   let afterName: (() => void) | null = null;
@@ -812,12 +853,18 @@
     if (accountMenu?.isOpen()) return (accountMenu.close(), true);
     if (placing) return !(placing = null);
     if (pinned) return !(pinned = null);
-    if (editing) return !(editing = false);
+    if (route.drawStraight) return !(route.drawStraight = false);
+    if (editing) {
+      // the same as finishing with the button: a route without a name asks for one
+      editing = false;
+      needName();
+      return true;
+    }
     return false;
   }
 
   function onKey(e: KeyboardEvent) {
-    if (helpOpen || garminOpen) return; // dialogs handle their own keys
+    if (helpOpen || garminOpen || nameOpen) return; // dialogs handle their own keys
     const t = e.target as HTMLElement;
     const inField = !!t.closest?.('input:not([type=radio]):not([type=checkbox]):not([type=range]):not([type=file]), textarea, select, [contenteditable]');
     if (e.key === 'Escape') {
@@ -1039,6 +1086,8 @@
       attributionControl: { compact: true },
       maxPitch: 0,
       dragRotate: false,
+      // Shift+drag zoom took every Shift+mousedown, so Shift+click (a straight segment) never arrived
+      boxZoom: false,
     });
     map.touchZoomRotate.disableRotation();
     // rarely used: bottom right, the top right corner is for layers
@@ -1065,6 +1114,11 @@
         remove: (it) => (it.owner === 'route' ? route.removeCheckpoint(it.id) : removeTrackPoint(it)),
       });
       cpLayer.set(checkpointItems);
+      try {
+        if (localStorage.getItem('nk-3d') === '1') set3d(true, false);
+      } catch {
+        /* no storage */
+      }
       // the route line under the mouse: highlight the place in the profile and the timeline
       map!.on('mousemove', 'route-hit', (e) => {
         if (e.originalEvent.buttons) return;
@@ -1279,6 +1333,8 @@
         title="{t('lay.base')} (L)" onclick={() => openMenu('base')}><Icon name="layers" size={20} /></button>
       <button class="layersbtn" aria-expanded={layersMenu === 'over'} aria-controls="nk-layers" aria-label={t('lay.overlays')}
         title={t('lay.overlays')} onclick={() => openMenu('over')}><Icon name="overlay" size={20} /></button>
+      <button class="layersbtn txt3d" aria-pressed={terrain3d} aria-label={t('map.3d')} data-tip={terrain3d ? t('map.3dOff') : t('map.3dTip')}
+        onclick={() => set3d(!terrain3d)}>3D</button>
     </div>
     {#if layersMenu}
       <div bind:this={layersBox}>

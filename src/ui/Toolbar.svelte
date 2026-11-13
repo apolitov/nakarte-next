@@ -89,7 +89,7 @@
     {#if menuOpen}
       <div class="menu" role="menu">
         <button role="menuitem" disabled={!canLoop} onclick={() => { menuOpen = false; onreverse(); }}>
-          <Icon name="reverse" size={18} /><span>{t('tb.reverseShort')}</span><kbd>{MOD}</kbd><kbd>B</kbd>
+          <Icon name="reverse" size={18} /><span>{t('tb.reverseShort')}</span><kbd>R</kbd>
         </button>
         <button role="menuitem" disabled={!canLoop} onclick={() => { menuOpen = false; onoutback(); }}>
           <Icon name="outback" size={18} /><span>{t('tb.outBack')}</span>
@@ -194,15 +194,16 @@
     cursor: default;
   }
   @media (max-width: 639px) {
+    /* the layer buttons sit below the toolbar on a phone: the whole width is the toolbar's */
     .tbw {
       top: 10px;
       left: 10px;
+      max-width: calc(100% - 20px);
     }
     .tbar {
       overflow-x: auto;
       scrollbar-width: none;
-      /* leave room for the zoom buttons on the right */
-      max-width: calc(100vw - 72px);
+      max-width: 100%;
     }
     .tb {
       width: 36px;
