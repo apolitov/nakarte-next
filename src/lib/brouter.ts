@@ -24,7 +24,20 @@ const LEGACY: Record<string, string> = {
 export const normalizeProfile = (p: string): ProfileId =>
   (PROFILES.some((x) => x.id === p) ? p : LEGACY[p] ?? 'nk-gravel') as ProfileId;
 
-export type Surface = -1 | 0 | 1;
+/** -2 asphalt only, -1 more asphalt, 0 any, 1 more dirt, 2 trails (a slider in the settings) */
+export type Surface = -2 | -1 | 0 | 1 | 2;
+/**
+ * Slider position → profile parameters. Towards asphalt the cycle-infrastructure penalty is
+ * eased: otherwise a short stretch of road without a cycle lane loses to a detour on gravel.
+ * Towards trails it is off, since cycle paths are mostly paved. Tuned in docs/routing-*.md.
+ */
+export const SURFACE_PARAMS: Record<Surface, Record<string, number>> = {
+  [-2]: { nk_surface: -1, nk_surf_k: 6, nk_cycle_pen: 1.2 },
+  [-1]: { nk_surface: -1, nk_cycle_pen: 1.4 },
+  0: {},
+  1: { nk_surface: 1 },
+  2: { nk_surface: 1, nk_surf_k: 5, nk_cycle_pen: 1 },
+};
 export type Climbs = 'less' | 'normal' | 'any';
 export interface RouteOptions {
   surface: Surface;
@@ -62,9 +75,12 @@ export const SAC_STEPS = [2, 3, 4, 6] as const;
 /** Options → BRouter profile parameters of the nk-* profiles (see vps/stacks/brouter/profiles/gen.py). */
 export function optionsToParams(o: RouteOptions): Record<string, number> {
   const p: Record<string, number> = {};
-  if (o.surface) p.nk_surface = o.surface;
+  Object.assign(p, SURFACE_PARAMS[o.surface] ?? {});
   // the bike profiles follow cycle infrastructure by default; only turning it off is sent
-  if (!o.cycleways) p.nk_cycle = 0;
+  if (!o.cycleways) {
+    p.nk_cycle = 0;
+    delete p.nk_cycle_pen;
+  }
   if (o.maxGrade > 0) {
     // climbing above the limit costs a lot; below it, as the climbs option says
     p.nk_uphillcutoff = o.maxGrade;
@@ -91,12 +107,18 @@ export function optionsToParams(o: RouteOptions): Record<string, number> {
   return p;
 }
 
+function surfaceOf(dir: number, k?: number): Surface {
+  if (dir < 0) return k != null && k >= 4 ? -2 : -1;
+  if (dir > 0) return k != null && k >= 4 ? 2 : 1;
+  return 0;
+}
+
 export function paramsToOptions(p: Record<string, string | number | boolean> = {}): RouteOptions {
   const n = (k: string) => (p[k] == null ? undefined : Number(p[k]));
   const cost = n('nk_uphillcost');
   const cutoff = n('nk_uphillcutoff');
   return {
-    surface: (Math.sign(n('nk_surface') ?? 0) as Surface),
+    surface: surfaceOf(n('nk_surface') ?? 0, n('nk_surf_k')),
     cycleways: n('nk_cycle') !== 0,
     maxGrade: cost != null && cost >= 600 && cutoff ? cutoff : 0,
     climbs: cost == null ? 'normal' : cost === 0 ? 'any' : cost >= 600 ? 'normal' : 'less',

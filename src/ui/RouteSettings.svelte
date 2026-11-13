@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey } from '../lib/brouter';
+  import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey, type Surface } from '../lib/brouter';
   import Segmented from './Segmented.svelte';
 
   let {
@@ -28,16 +28,29 @@
   };
 
   // the slider shows the value while dragging; the route is rebuilt on release
+  const SURF_LABEL: Record<Surface, string> = {
+    [-2]: t('set.surfOnlyAsphalt'),
+    [-1]: t('set.surfPaved'),
+    0: t('set.surfAny'),
+    1: t('set.surfDirt'),
+    2: t('set.surfTrails'),
+  };
+  let surf = $state<Surface>(0);
+  $effect(() => {
+    surf = options.surface;
+  });
   let grade = $state(0);
   $effect(() => {
     grade = options.maxGrade;
   });
 </script>
 
-<div class="lbl">{t('set.surface')}</div>
-<Segmented name="surf" label={t('set.surface')} value={options.surface}
-  items={[[-1, t('set.surfPaved')], [0, t('set.surfAny')], [1, t('set.surfDirt')]] as const}
-  onchange={(v) => onchange({ surface: v })} />
+<div class="lbl"><label for="nk-surf">{t('set.surface')}</label><output for="nk-surf">{SURF_LABEL[surf]}</output></div>
+<input id="nk-surf" class="surf" type="range" min="-2" max="2" step="1" value={options.surface}
+  aria-valuetext={SURF_LABEL[surf]}
+  oninput={(e) => (surf = Number(e.currentTarget.value) as Surface)}
+  onchange={(e) => onchange({ surface: Number(e.currentTarget.value) as Surface })} />
+<div class="ends"><span>{t('set.surfAsphalt')}</span><span>{t('set.surfTrails')}</span></div>
 <div class="lbl">{t('set.climbs')}</div>
 <Segmented name="climbs" label={t('set.climbs')} value={options.climbs} disabled={options.maxGrade > 0}
   items={[['less', t('set.climbsLess')], ['normal', t('set.climbsNormal')], ['any', t('set.climbsAny')]] as const}
@@ -206,5 +219,15 @@
   :global(.fb) {
     --seg-bg: var(--tint2);
     --seg-hover: var(--line);
+  }
+  .surf {
+    width: 100%;
+  }
+  .ends {
+    display: flex;
+    justify-content: space-between;
+    margin-top: -2px;
+    font-size: 11px;
+    color: var(--soft);
   }
 </style>

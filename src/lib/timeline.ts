@@ -27,7 +27,7 @@ export interface TLPoint {
   leg?: number;
 }
 
-export type EventKind = 'start' | 'end' | 'checkpoint' | 'climb' | 'straight' | 'surface';
+export type EventKind = 'start' | 'end' | 'checkpoint' | 'climb' | 'straight' | 'surface' | 'poi';
 
 export interface TimelineEvent {
   id: string;
@@ -42,6 +42,8 @@ export interface TimelineEvent {
   cpId?: string;
   cpKind?: string;
   surface?: SegClass;
+  /** emoji of a point of interest (kind 'poi') */
+  icon?: string;
   /** lower is more important */
   priority: number;
   /** size within the priority (gain, length): bigger is kept longer */
@@ -325,7 +327,7 @@ export function buildTimeline({ points, profile, checkpoints }: TimelineInput): 
 
   ev.push({ id: 'end', kind: 'end', i: n - 1, d: profile.length, label: t('tl.finish'), priority: 0, weight: 0 });
 
-  const order: Record<EventKind, number> = { start: 0, checkpoint: 1, climb: 2, straight: 3, surface: 4, end: 9 };
+  const order: Record<EventKind, number> = { start: 0, checkpoint: 1, climb: 2, straight: 3, surface: 4, poi: 5, end: 9 };
   return ev.sort((x, y) => x.d - y.d || order[x.kind] - order[y.kind]);
 }
 

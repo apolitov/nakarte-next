@@ -31,6 +31,8 @@
   import Toolbar from './ui/Toolbar.svelte';
   import LayersPopover from './ui/LayersPopover.svelte';
   import InlineConfirm from './ui/InlineConfirm.svelte';
+  import PoiMenu from './ui/PoiMenu.svelte';
+  import { AlongLayer, CATS, catDef, catTitle, fetchPhotos, fetchPois, photoGroups, type Photo, type Poi, type PoiCat } from './lib/along';
   import HelpDialog from './ui/HelpDialog.svelte';
   import ProfileCard from './ui/ProfileCard.svelte';
   import KeyTip from './ui/KeyTip.svelte';
@@ -42,6 +44,9 @@
   let map: MlMap | undefined;
 
   const initial = parseHash(location.hash);
+  // the hash as opened: syncHash() rewrites location.hash on the first map move, which can come
+  // before the stored routes are read, and would drop a route link (r=, s=) from it
+  const openedHash = location.hash;
   const initLayers = (initial.layers ?? []).filter((id) => layerById(id));
   let base = $state(initLayers.find((id) => layerById(id)?.kind === 'base') ?? DEFAULT_BASE);
   let overlays = $state<string[]>(initLayers.filter((id) => layerById(id)?.kind === 'overlay'));
@@ -49,17 +54,17 @@
   /** Pinned layers panel stays open (to flip between map and satellite) and is remembered. */
   let layersPinned = $state(readFlag('nk-layers-pinned'));
   /** Open menu at the top right: base map or overlays; a pinned one reopens after reload. */
-  let layersMenu = $state<'base' | 'over' | null>(readMenu());
+  let layersMenu = $state<'base' | 'over' | 'poi' | null>(readMenu());
   const layersOpen = $derived(layersMenu != null);
-  function readMenu(): 'base' | 'over' | null {
+  function readMenu(): 'base' | 'over' | 'poi' | null {
     try {
       const m = localStorage.getItem('nk-layers-menu');
-      return readFlag('nk-layers-pinned') && (m === 'base' || m === 'over') ? m : null;
+      return readFlag('nk-layers-pinned') && (m === 'base' || m === 'over' || m === 'poi') ? m : null;
     } catch {
       return null;
     }
   }
-  function openMenu(m: 'base' | 'over') {
+  function openMenu(m: 'base' | 'over' | 'poi') {
     layersMenu = layersMenu === m ? null : m;
     try {
       if (layersMenu) localStorage.setItem('nk-layers-menu', layersMenu);
@@ -183,7 +188,90 @@
 
   // ---- timeline, hover and selection shared by the map, the profile and the timeline ----
   const classes = $derived(segmentClasses(route.points, route.profileData.surface));
-  const events = $derived(buildTimeline({ points: route.points, profile: route.profileData, checkpoints: route.checkpoints }));
+  // ---- points of interest and photos along the route (lib/along.ts) ----
+  function readPoi<T>(k: string, def: T): T {
+    try {
+      const v = localStorage.getItem(`nk-poi-${k}`);
+      return v == null ? def : (JSON.parse(v) as T);
+    } catch {
+      return def;
+    }
+  }
+  function setPoiPref(k: string, v: unknown) {
+    try {
+      localStorage.setItem(`nk-poi-${k}`, JSON.stringify(v));
+    } catch {
+      /* no storage */
+    }
+  }
+  let poiCats = $state<PoiCat[]>(readPoi('cats', CATS.filter((c) => c.def).map((c) => c.id)));
+  let poiRadius = $state<number>(readPoi('radius', 300));
+  let poiTimeline = $state<boolean>(readPoi('timeline', true));
+  let pois = $state<Poi[]>([]);
+  let photos = $state<Photo[]>([]);
+  let poiLoading = $state(false);
+  let poiError = $state('');
+  let along: AlongLayer | null = null;
+  let photosOpen = $state(false);
+  function togglePoiCat(c: PoiCat) {
+    poiCats = poiCats.includes(c) ? poiCats.filter((x) => x !== c) : [...poiCats, c];
+    setPoiPref('cats', poiCats);
+  }
+  const visiblePois = $derived(pois.filter((p) => poiCats.includes(p.cat)));
+  const photosOn = $derived(poiCats.includes('photos'));
+  const poiCounts = $derived.by(() => {
+    const c: Partial<Record<PoiCat, number>> = {};
+    for (const p of pois) c[p.cat] = (c[p.cat] ?? 0) + 1;
+    if (photos.length || photosOn) c.photos = photos.length;
+    return c;
+  });
+  // fetched once the route is computed (and again when it changes), only when something is wanted
+  $effect(() => {
+    const ready = route.points.length > 1 && !route.loading;
+    const wantPois = layersMenu === 'poi' || poiCats.some((c) => c !== 'photos');
+    const wantPhotos = photosOn;
+    const pts = route.points, dist = route.profileData.dist, r = poiRadius;
+    if (!ready) {
+      if (route.points.length < 2) (pois = []), (photos = []);
+      return;
+    }
+    if (!wantPois && !wantPhotos) return;
+    const timer = setTimeout(async () => {
+      poiLoading = true;
+      poiError = '';
+      try {
+        const [a, b] = await Promise.all([wantPois ? fetchPois(pts, dist, r) : Promise.resolve(pois), wantPhotos ? fetchPhotos(pts) : Promise.resolve(photos)]);
+        pois = a;
+        photos = b;
+      } catch (e) {
+        poiError = t('poi.failed', { error: (e as Error).message });
+      } finally {
+        poiLoading = false;
+      }
+    }, 900);
+    return () => clearTimeout(timer);
+  });
+  $effect(() => {
+    const vp = visiblePois, ph = photosOn ? photos : [];
+    along?.set(vp, ph);
+  });
+
+  const baseEvents = $derived(buildTimeline({ points: route.points, profile: route.profileData, checkpoints: route.checkpoints }));
+  const events = $derived.by(() => {
+    if (!poiTimeline || !visiblePois.length || !baseEvents.length) return baseEvents;
+    // food and shops: at most one row per 5 km, the town is full of them
+    let lastFood = -Infinity;
+    const extra: TimelineEvent[] = [];
+    for (const p of visiblePois) {
+      if (p.cat === 'food') {
+        if (p.m - lastFood < 5000) continue;
+        lastFood = p.m;
+      }
+      extra.push({ id: `poi:${p.id}`, kind: 'poi', i: p.i, d: p.m, label: p.tags.name ? `${catTitle(p.cat)} · ${p.tags.name}` : catTitle(p.cat), icon: catDef(p.cat).icon, priority: 3, weight: 0 });
+    }
+    const end = baseEvents.at(-1)!;
+    return [...baseEvents.slice(0, -1), ...extra].sort((a, b) => a.d - b.d || (a.kind === 'start' ? -1 : 0)).concat(end);
+  });
   /** Route checkpoints on the route: distance for the profile. */
   const profileMarks = $derived(
     events.filter((e) => e.kind === 'checkpoint').map((e) => ({ d: e.d, kind: e.cpKind ?? 'generic', name: e.label })),
@@ -394,7 +482,7 @@
     } catch {
       /* ignore */
     }
-    const hp = new URLSearchParams(location.hash.slice(1));
+    const hp = new URLSearchParams(openedHash.slice(1));
     if (hp.get('signin') === 'failed') say(t('acc.signinFailed'), true);
     const shared = hp.get('r');
     const fromLink = shared ? paramToRoute(shared) : null;
@@ -1057,7 +1145,7 @@
    * otherwise (another city, a VPN) the map moves to the city.
    */
   async function cityView() {
-    if (initial.zoom != null || new URLSearchParams(location.hash.slice(1)).has('r') || new URLSearchParams(location.hash.slice(1)).has('s')) return;
+    if (initial.zoom != null || new URLSearchParams(openedHash.slice(1)).has('r') || new URLSearchParams(openedHash.slice(1)).has('s')) return;
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/where`);
       if (r.status !== 200) return;
@@ -1110,6 +1198,7 @@
         layout: { 'line-cap': 'round', 'line-join': 'round' },
       });
       editor = new RouteEditor(map!, route);
+      along = new AlongLayer(map!);
       editor.onMapClick = placeCheckpoint;
       editor.onSplit = splitRoute;
       editor.onCopyTo = copyUpTo;
@@ -1169,7 +1258,7 @@
     if (!layersOpen || layersPinned) return;
     const down = (e: PointerEvent) => {
       const t = e.target as Element;
-      if (layersBox?.contains(t) || t.closest?.('[aria-controls="nk-layers"]')) return;
+      if (layersBox?.contains(t) || t.closest?.('[aria-controls="nk-layers"], [aria-controls="nk-pois"], .poi-mk, .ph-mk')) return;
       layersMenu = null;
     };
     document.addEventListener('pointerdown', down);
@@ -1197,7 +1286,7 @@
   };
   const optSummary = $derived.by(() => {
     const o = route.options;
-    const parts = [o.surface === -1 ? t('set.sumAsphalt') : o.surface === 1 ? t('set.sumDirt') : t('set.sumAny')];
+    const parts = [({ [-2]: t('set.sumOnlyAsphalt'), [-1]: t('set.sumAsphalt'), 0: t('set.sumAny'), 1: t('set.sumDirt'), 2: t('set.sumSurfTrails') } as Record<number, string>)[o.surface]];
     if (!o.maxGrade) parts.push(o.climbs === 'less' ? t('set.sumLess') : o.climbs === 'any' ? t('set.sumAnyClimbs') : t('set.sumNormal'));
     parts.push(o.maxGrade ? t('set.sumUpTo', { g: o.maxGrade }) : t('set.sumNoLimit'));
     if (o.cycleways && (route.profile === 'nk-road' || route.profile === 'nk-gravel')) parts.push(t('set.sumCycleways'));
@@ -1279,6 +1368,22 @@
     {#if events.length}
       <Timeline {events} routeType={route.profile} profile={route.profileData} {classes} {activeD} pinnedId={pinned?.id ?? null} {mobile}
         onhover={onTimelineHover} onpick={pickEvent} />
+      {#if photosOn && photos.length}
+        <Fold id="nk-photos" title={t('poi.photosTitle')} summary={String(photos.length)} bind:open={photosOpen}>
+          <div class="phl">
+            {#each photoGroups(photos) as g (g.from)}
+              <div class="phg">
+                <span class="num">{t('poi.photosGroup', { a: Math.round(g.from / 1000), b: Math.round(g.to / 1000) })} · {g.items.length}</span>
+                <div class="phs">
+                  {#each g.items.slice(0, 8) as p (p.id)}
+                    <button style="background-image:url('{p.thumb}')" aria-label={t('poi.photo')} onclick={() => along?.showPhoto(p)}></button>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </Fold>
+      {/if}
     {:else if !route.waypoints.length}
       <div class="empty">
         {#if mobile}
@@ -1337,6 +1442,8 @@
         title="{t('lay.base')} (L)" onclick={() => openMenu('base')}><Icon name="layers" size={20} /></button>
       <button class="layersbtn" aria-expanded={layersMenu === 'over'} aria-controls="nk-layers" aria-label={t('lay.overlays')}
         title={t('lay.overlays')} onclick={() => openMenu('over')}><Icon name="overlay" size={20} /></button>
+      <button class="layersbtn poibtn" class:on={poiCats.length > 0} aria-expanded={layersMenu === 'poi'} aria-controls="nk-pois"
+        aria-label={t('poi.title')} title={t('poi.title')} onclick={() => openMenu('poi')}>{t('poi.button')}{#if poiCats.length}<span class="cnt num">{poiCats.length}</span>{/if}</button>
       <div class="dim" role="group" aria-label={t('map.dim')}>
         <button aria-pressed={!terrain3d} data-tip={t('map.2dTip')} onclick={() => set3d(false)}>2D</button>
         <button aria-pressed={terrain3d} data-tip={t('map.3dTip')} onclick={() => set3d(true)}>3D</button>
@@ -1345,13 +1452,20 @@
     {#if terrain3d && map3d}
       <Orbit3d bind:this={orbit} map={map3d} />
     {/if}
-    {#if layersMenu}
+    {#if layersMenu === 'poi'}
+      <div bind:this={layersBox}>
+        <PoiMenu enabled={poiCats} counts={poiCounts} radius={poiRadius} inTimeline={poiTimeline} loading={poiLoading} error={poiError}
+          pinned={layersPinned} canPin={!mobile} onpin={togglePin} ontoggle={togglePoiCat} onradius={(r) => setPoiPref('radius', (poiRadius = r))}
+          ontimeline={(on) => setPoiPref('timeline', (poiTimeline = on))} onclose={() => { layersMenu = null; if (layersPinned) togglePin(); }} />
+      </div>
+    {:else if layersMenu}
       <div bind:this={layersBox}>
         <LayersPopover mode={layersMenu} profile={route.profile} {base} {overlays} {colorMode} pinned={layersPinned} canPin={!mobile} onpin={togglePin} onbase={setBase} onoverlay={toggleOverlay}
           oncolormode={(m) => (colorMode = m)} onclose={() => { layersMenu = null; if (layersPinned) togglePin(); }} />
       </div>
     {/if}
-    {#if editing && !(mobile && (layersOpen || route.waypoints.length))}
+    <!-- the hint is for the very start: gone once the first point is placed -->
+    {#if editing && !route.waypoints.length && !(mobile && layersOpen)}
       <div class="ehint" role="note">
         {#if mobile}
           {t('hint.editTouch', { where: route.prepend ? t('hint.atStart') : '' })}
@@ -1549,6 +1663,29 @@
   button:disabled {
     opacity: 0.45;
     cursor: default;
+  }
+  .phl {
+    display: grid;
+    gap: 8px;
+    max-height: 260px;
+    overflow: auto;
+  }
+  .phg > span {
+    font-size: 12px;
+    color: var(--soft);
+  }
+  .phs {
+    display: flex;
+    gap: 4px;
+    margin-top: 3px;
+    overflow-x: auto;
+  }
+  .phs button {
+    flex: none;
+    width: 56px;
+    height: 42px;
+    border-radius: 6px;
+    background: var(--tint) center / cover no-repeat;
   }
   .browse {
     flex: 1 1 auto;

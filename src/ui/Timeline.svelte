@@ -122,6 +122,8 @@
               <span class="eico cp">{@html kindSvg(e.cpKind ?? 'generic', 12)}</span>
             {:else if e.kind === 'climb'}
               <span class="eico climb"><Icon name="climb" size={14} stroke={2.4} /></span>
+            {:else if e.kind === 'poi'}
+              <span class="eico poi" aria-hidden="true">{e.icon}</span>
             {:else}
               {@const c = e.surface ?? 'unknown'}
               {@const d = c === 'straight' ? [2, 2] : c === 'unknown' ? [1, 0] : SURFACE_DASH[c]}
@@ -295,5 +297,9 @@
   .more:hover {
     background: var(--tint);
     color: var(--ink);
+  }
+  .eico.poi {
+    background: none;
+    font-size: 13px;
   }
 </style>

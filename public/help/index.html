@@ -39,7 +39,7 @@ th{font-weight:600;color:var(--soft);font-size:13px}
 
 <h1>Help</h1>
 <p>How the planner picks roads, what the colours on the line mean and how to read mountain passes.</p>
-<nav><a href="#routing">How routing works</a><a href="#line">Colours and dashes</a><a href="#passes">Mountain passes</a><a href="#limits">Limitations</a><a href="#privacy">Account and data</a></nav>
+<nav><a href="#routing">How routing works</a><a href="#line">Colours and dashes</a><a href="#passes">Mountain passes</a><a href="#limits">Limitations</a><a href="#garmin">Send to Garmin</a><a href="#privacy">Account and data</a></nav>
 
 <h2 id="routing">How routing works</h2>
 <p>You place points, and the planner connects each pair of neighbouring points with its own leg. Legs are calculated by <a href="https://github.com/abrensch/brouter">BRouter</a> running on our server. Roads, trails, surfaces and cycle routes come from <a href="https://www.openstreetmap.org">OpenStreetMap</a>, elevation from a built-in terrain model.</p>
@@ -116,6 +116,15 @@ th{font-weight:600;color:var(--soft);font-size:13px}
 <li>Elevation comes from a terrain model with about 30 m resolution. Short steep pitches can be smoothed, and total climbing may differ from your watch by 5–10%.</li>
 <li>The grade limit is soft: it steers around steep parts when it can, but does not forbid them.</li>
 <li>Riding time and surfaces without an OpenStreetMap tag are estimates.</li>
+</ul>
+<h2 id="garmin">Send to Garmin (beta)</h2>
+<p>Garmin offers no public interface for other apps to put courses on your watch. No Mapa therefore uses the same sign-in as the Garmin Connect app, through the open-source library <a href="https://github.com/cyberjunky/python-garminconnect">python-garminconnect</a>.</p>
+<ul>
+<li><b>Connecting.</b> Your Garmin email and password go to our server over HTTPS. The server signs in to Garmin with them once; if Garmin asks for a code from your two-step verification, you enter it in the same window. The password is then dropped and never written anywhere.</li>
+<li><b>What is kept.</b> Garmin returns an access token, like the one your phone keeps after you sign in. The server stores it encrypted with a key that lives only on the server, and Garmin refreshes it from time to time.</li>
+<li><b>What it allows.</b> A token is not limited to courses: whoever holds it can do in your Garmin Connect account what you can. No Mapa uses it only to upload a course and to queue it for your chosen watch.</li>
+<li><b>Ending it.</b> “Disconnect Garmin” in the send window deletes the token from our server. Changing your Garmin password also ends it. Deleting your No Mapa account deletes it too.</li>
+<li><b>Risks.</b> This is unofficial: Garmin may change its sign-in and break it without warning, and its terms do not cover this kind of access. If you are not comfortable with that, use “Download GPX” and import the file in Garmin Connect yourself.</li>
 </ul>
 <h2 id="privacy">Account and data</h2>
 <p>The map, routing and links work without an account. Your routes are then kept only in this browser. When you share a route or sign in with a route open, a copy of that route is stored on our server under a random short link, so the link opens it; without an account it is not tied to you, up to 50 links a day from one address.</p>

@@ -135,6 +135,7 @@
       <p>
         {t('g.connectText')}
       </p>
+      <p class="risk">{t('g.connectRisk')} <a href="{import.meta.env.BASE_URL}help/#garmin" target="_blank" rel="noopener">{t('g.howItWorks')}</a></p>
       <input bind:value={email} type="email" autocomplete="username" placeholder={t('g.email')} required />
       <input bind:value={password} type="password" autocomplete="current-password" placeholder={t('g.password')} required />
       <button class="primary" type="submit" disabled={step === 'login'}>{step === 'login' ? t('g.connecting') : t('g.connect')}</button>
@@ -261,5 +262,10 @@
   .error {
     color: var(--danger);
     margin-top: 10px;
+  }
+  .risk {
+    margin-top: -4px;
+    font-size: 12.5px;
+    color: var(--soft);
   }
 </style>
