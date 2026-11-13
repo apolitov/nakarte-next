@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { gradeClasses, gradeColor } from './profile';
 
-describe('grade scales per route type', () => {
-  it('keeps the road scale', () => {
-    expect(gradeClasses('nk-road').map((c) => c.min)).toEqual([-Infinity, -8, -3, 3, 6, 10, 15]);
+describe('grade scales', () => {
+  it('bikes: fine below 10%, coarse above, black beyond 18%', () => {
+    expect(gradeClasses('nk-road').map((c) => c.min)).toEqual([-Infinity, -8, -4, -1, 1, 3, 5, 7, 10, 14, 18]);
+    expect(gradeClasses('nk-gravel')).toBe(gradeClasses('nk-road'));
+    expect(gradeClasses('nk-mtb')).toBe(gradeClasses('nk-road'));
+    expect(gradeColor(2, 'nk-road')).not.toBe(gradeColor(0, 'nk-road'));
+    expect(gradeColor(25, 'nk-gravel')).toBe('#141414');
+    expect(gradeClasses('nk-road').at(-1)!.title).toBe('↑ >18%');
   });
-  it('moves the boundaries for walking and mountain biking', () => {
-    const road = gradeClasses('nk-road');
-    // 6% is a climb on a road bike, flat on foot
-    expect(gradeColor(6, 'nk-road')).toBe(road[4].color);
-    expect(gradeColor(6, 'nk-hike')).toBe(road[2].color);
-    // 25% on a mountain path: "steep" (20-30), not the darkest
-    expect(gradeColor(25, 'nk-hike')).toBe(road[4].color);
-    expect(gradeColor(25, 'nk-mtb')).toBe(road[6].color);
-    expect(gradeColor(-20, 'nk-hike')).toBe(road[1].color);
-    expect(gradeClasses('nk-hike')[6].title).toBe('↑ >45%');
+  it('walking keeps its wider scale', () => {
+    // 6% is a climb on a bike, flat on foot
+    expect(gradeColor(6, 'nk-hike')).toBe(gradeColor(0, 'nk-hike'));
+    expect(gradeColor(6, 'nk-road')).not.toBe(gradeColor(0, 'nk-road'));
+    expect(gradeClasses('nk-hike').at(-1)!.title).toBe('↑ >45%');
   });
-  it('falls back to the road scale', () => {
+  it('falls back to the bike scale', () => {
     expect(gradeClasses('straight')).toBe(gradeClasses('nk-road'));
   });
 });

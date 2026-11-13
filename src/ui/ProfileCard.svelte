@@ -76,8 +76,8 @@
   {#if open}
     <ElevationProfile {profile} {classes} {marks} {maxGrade} {hoverIdx} {band} {routeType} height={mobile ? 140 : 150} {onhover} {onpick} />
     <div class="leg">
-      {#each gradeClasses(routeType) as g, i (g.min)}
-        <span class="lg"><i style="background:{g.color}{i === 2 ? ';box-shadow:inset 0 0 0 1.5px #26262b' : ''}"></i>{g.title}</span>
+      {#each gradeClasses(routeType) as g (g.min)}
+        <span class="lg"><i style="background:{g.color}{g.flat ? ';box-shadow:inset 0 0 0 1.5px #26262b' : ''}"></i>{g.title}</span>
       {/each}
       <span class="sp"></span>
       {#each present as c (c)}
