@@ -1,22 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { gradeClasses, gradeColor } from './profile';
+import { gradeClasses, gradeColor, bikeGradeColor, flatLimit } from './profile';
 
-describe('grade scales', () => {
-  it('bikes: fine below 10%, coarse above, black beyond 18%', () => {
-    expect(gradeClasses('nk-road').map((c) => c.min)).toEqual([-Infinity, -10, -1, 1, 3, 5, 7, 10, 14, 18]);
-    expect(gradeClasses('nk-gravel')).toBe(gradeClasses('nk-road'));
-    expect(gradeClasses('nk-mtb')).toBe(gradeClasses('nk-road'));
-    expect(gradeColor(2, 'nk-road')).not.toBe(gradeColor(0, 'nk-road'));
-    expect(gradeColor(25, 'nk-gravel')).toBe('#141414');
-    expect(gradeClasses('nk-road').at(-1)!.title).toBe('↑ >18%');
+describe('grade colours', () => {
+  it('bikes: a gradient in 1% steps, black from 18%', () => {
+    expect(gradeColor(0, 'nk-road')).toBe('#4fae63');
+    expect(gradeColor(18, 'nk-gravel')).toBe('#141414');
+    expect(gradeColor(30, 'nk-mtb')).toBe('#141414');
+    expect(gradeColor(-30, 'nk-road')).toBe('#08519c');
+    // every whole percent differs from its neighbour
+    for (let g = -11; g < 18; g++) expect(bikeGradeColor(g)).not.toBe(bikeGradeColor(g + 1));
+    // the same colour within a step
+    expect(gradeColor(5.2, 'nk-road')).toBe(gradeColor(4.8, 'nk-road'));
+    expect(flatLimit('nk-road')).toBe(1);
   });
-  it('walking keeps its wider scale', () => {
-    // 6% is a climb on a bike, flat on foot
+  it('walking keeps its wider classes', () => {
     expect(gradeColor(6, 'nk-hike')).toBe(gradeColor(0, 'nk-hike'));
-    expect(gradeColor(6, 'nk-road')).not.toBe(gradeColor(0, 'nk-road'));
-    expect(gradeClasses('nk-hike').at(-1)!.title).toBe('↑ >45%');
-  });
-  it('falls back to the bike scale', () => {
-    expect(gradeClasses('straight')).toBe(gradeClasses('nk-road'));
+    expect(gradeClasses().at(-1)!.title).toBe('↑ >45%');
+    expect(flatLimit('nk-hike')).toBe(10);
   });
 });

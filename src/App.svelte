@@ -50,6 +50,8 @@
   // the hash as opened: syncHash() rewrites location.hash on the first map move, which can come
   // before the stored routes are read, and would drop a route link (r=, s=) from it
   const openedHash = location.hash;
+  /** a short link that could not be loaded (kept in the address for a reload) */
+  let pendingShort: string | null = null;
   const initLayers = (initial.layers ?? []).filter((id) => layerById(id));
   let base = $state(initLayers.find((id) => layerById(id)?.kind === 'base') ?? DEFAULT_BASE);
   let overlays = $state<string[]>(initLayers.filter((id) => layerById(id)?.kind === 'overlay'));
@@ -531,7 +533,14 @@
     if (hp.get('signin') === 'failed') say(t('acc.signinFailed'), true);
     const shared = hp.get('r');
     const fromLink = shared ? paramToRoute(shared) : null;
-    const short = hp.get('s') ? await loadShort(hp.get('s')!) : null;
+    const got = hp.get('s') ? await loadShort(hp.get('s')!) : null;
+    // a link that could not be opened says so instead of showing an empty route
+    if (got === 'missing') say(t('toast.linkMissing'), true);
+    else if (got === 'failed') {
+      say(t('toast.linkFailed'), true);
+      pendingShort = hp.get('s');
+    }
+    const short = typeof got === 'object' ? got : null;
     if (short?.kind === 'route') {
       // our own route (e.g. back from sign-in) or one already saved from this link opens as the saved copy;
       // only a route we do not have yet becomes a new one
@@ -1140,7 +1149,8 @@
     } catch {
       /* no storage */
     }
-    history.replaceState(null, '', formatHash({ zoom: map.getZoom(), lat: c.lat, lng: c.lng, layers: [base, ...overlays] }));
+    // a short link that failed to open stays in the address, so a reload tries it again
+    history.replaceState(null, '', formatHash({ zoom: map.getZoom(), lat: c.lat, lng: c.lng, layers: [base, ...overlays] }) + (pendingShort ? `&s=${pendingShort}` : ''));
   }
 
   function refreshTracks() {
@@ -1302,6 +1312,9 @@
     map.on('moveend', () => loadPhotosInView());
 
     const onHash = () => {
+      // a route link pasted into this tab's address bar changes only the hash: reload to open it
+      const h = new URLSearchParams(location.hash.slice(1));
+      if (h.has('s') || h.has('r')) return location.reload();
       const s = parseHash(location.hash);
       if (s.zoom != null) map!.jumpTo({ center: [s.lng!, s.lat!], zoom: s.zoom });
     };

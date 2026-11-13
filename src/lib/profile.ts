@@ -58,27 +58,54 @@ export const SURFACE_STYLE: Record<SurfaceClass, { color: string; title: string 
 };
 
 /**
- * Grade classes: descents blue, flat green, climbs yellow to red, walls black.
- * Bikes share one scale, fine where riding feels it (1-3% is already a light climb) and coarse
- * above 10%, where everything is hard; beyond 18% black. Walking keeps its own wider scale:
- * 6% is a climb on a bike and nothing on foot, where a mountain path is 20-30%.
+ * Grade colours. Bikes: a gradient in 1% steps, from blue descents through green flat to
+ * yellow, orange, red and black at 18% and steeper. Steps of 1% keep the route line a set of
+ * runs of equal colour (MapLibre's own line-gradient cannot be dashed, and dashes show the
+ * surface). Walking keeps classes on its wider scale: 6% is a climb on a bike and nothing on
+ * foot, where a mountain path is 20-30%.
  */
 type GradeClass = { min: number; color: string; title: string; flat?: boolean };
 const up = (a: number, b?: number) => (b == null ? `↑ >${a}%` : `↑ ${a}-${b}%`);
 const down = (a: number, b?: number) => (b == null ? `↓ >${a}%` : `↓ ${a}-${b}%`);
-const BIKE: GradeClass[] = [
-  // descents in two classes only: finer ones made the profile noisy
-  { min: -Infinity, color: '#08519c', title: down(10) },
-  { min: -10, color: '#7fb8dc', title: down(1, 10) },
-  { min: -1, color: '#4fae63', title: '', flat: true }, // green: grey read as "no data" on flat routes
-  { min: 1, color: '#f2e394', title: up(1, 3) },
-  { min: 3, color: '#fdd049', title: up(3, 5) },
-  { min: 5, color: '#fdae61', title: up(5, 7) },
-  { min: 7, color: '#f46d43', title: up(7, 10) },
-  { min: 10, color: '#d73027', title: up(10, 14) },
-  { min: 14, color: '#8e0b12', title: up(14, 18) },
-  { min: 18, color: '#141414', title: up(18) },
+
+/** gradient stops for bikes: [grade %, colour] */
+export const BIKE_RAMP: [number, string][] = [
+  [-12, '#08519c'],
+  [-6, '#4a98cf'],
+  [-1, '#9fd3c7'],
+  [0, '#4fae63'],
+  [2, '#c8dc6a'],
+  [4, '#fdd049'],
+  [7, '#fd8d3c'],
+  [11, '#d73027'],
+  [15, '#7a0a10'],
+  [18, '#141414'],
 ];
+const RAMP_MIN = BIKE_RAMP[0][0], RAMP_MAX = BIKE_RAMP[BIKE_RAMP.length - 1][0];
+const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const toHex = (c: number[]) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+/** colour of every whole percent from RAMP_MIN to RAMP_MAX */
+const BIKE_TABLE: string[] = [];
+for (let g = RAMP_MIN; g <= RAMP_MAX; g++) {
+  let k = 1;
+  while (k < BIKE_RAMP.length - 1 && g > BIKE_RAMP[k][0]) k++;
+  const [a, ca] = BIKE_RAMP[k - 1], [b, cb] = BIKE_RAMP[k];
+  const t = Math.max(0, Math.min(1, (g - a) / (b - a)));
+  const x = hex(ca), y = hex(cb);
+  BIKE_TABLE.push(toHex(x.map((v, i) => v + (y[i] - v) * t)));
+}
+/** a bike grade colour: the gradient in 1% steps */
+export function bikeGradeColor(g: number): string {
+  const r = Math.max(RAMP_MIN, Math.min(RAMP_MAX, Math.round(g)));
+  return BIKE_TABLE[r - RAMP_MIN];
+}
+/** CSS linear-gradient of the bike scale, for the legend */
+export function bikeRampCss(): string {
+  const span = RAMP_MAX - RAMP_MIN;
+  return `linear-gradient(90deg, ${BIKE_TABLE.map((c, i) => `${c} ${((i / span) * 100).toFixed(1)}%`).join(', ')})`;
+}
+export const BIKE_RAMP_RANGE = [RAMP_MIN, RAMP_MAX] as const;
+
 const HIKE: GradeClass[] = [
   { min: -Infinity, color: '#2c7fb8', title: down(30) },
   { min: -30, color: '#7fcdbb', title: down(10, 30) },
@@ -89,22 +116,22 @@ const HIKE: GradeClass[] = [
   { min: 45, color: '#7f0000', title: up(45) },
 ];
 
-export function gradeClasses(routeType = 'nk-road'): GradeClass[] {
-  const c = routeType === 'nk-hike' ? HIKE : BIKE;
-  for (const k of c) if (k.flat) k.title = t('grade.flat');
-  return c;
+/** Classes for walking (legend and colours); bikes use the gradient. */
+export function gradeClasses(): GradeClass[] {
+  for (const k of HIKE) if (k.flat) k.title = t('grade.flat');
+  return HIKE;
 }
-/** The road scale (the strictest one). */
-export const GRADE_CLASSES = gradeClasses('nk-road');
+export const isGradient = (routeType = 'nk-road') => routeType !== 'nk-hike';
+/** what counts as flat: ±1% on a bike, ±10% on foot */
+export const flatLimit = (routeType = 'nk-road') => (isGradient(routeType) ? 1 : 10);
 
 export function gradeColor(g: number | null, routeType = 'nk-road'): string {
   if (g == null) return SURFACE_STYLE.unknown.color;
-  const cls = gradeClasses(routeType);
-  let c = cls[0].color;
-  for (const k of cls) if (g >= k.min) c = k.color;
+  if (isGradient(routeType)) return bikeGradeColor(g);
+  let c = HIKE[0].color;
+  for (const k of HIKE) if (g >= k.min) c = k.color;
   return c;
 }
-
 /** Dash pattern per surface, in line widths (MapLibre) — the profile strip reuses it. */
 export const SURFACE_DASH: Record<SurfaceClass, number[]> = {
   paved: [1, 0],

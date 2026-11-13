@@ -44,3 +44,20 @@ describe('seek climbs', () => {
     expect(legAscent(pts)).toBe(20);
   });
 });
+
+describe('stored legs', () => {
+  it('are reused with seek climbs and the heatmap, without asking the router', async () => {
+    const { seedLeg, fetchLeg } = await import('./brouter');
+    const a = { lng: -9.1, lat: 38.8 }, b = { lng: -9.11, lat: 38.81 };
+    const leg = { points: [{ ...a, ele: 1 }, { ...b, ele: 2 }], spans: [] };
+    const params = { nk_heat: 1, nk_seek: 1, nk_surface: -1 };
+    const orig = globalThis.fetch;
+    globalThis.fetch = (() => Promise.reject(new Error('router asked'))) as typeof fetch;
+    try {
+      seedLeg(a, b, 'nk-gravel', params, leg);
+      await expect(fetchLeg(a, b, 'nk-gravel', params)).resolves.toBe(leg);
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
+});

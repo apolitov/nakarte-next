@@ -378,6 +378,7 @@ const en = {
   'prof.downTip': 'Total descent',
   'prof.collapse': 'Collapse profile',
   'prof.expand': 'Expand profile',
+  'prof.rampLabel': 'Grade colours: blue downhill, green flat, yellow to red uphill, black from 18%',
   'prof.overLimit': 'steeper than limit',
 
   // map hints and toasts
@@ -385,6 +386,8 @@ const en = {
   'hint.editTouch': 'Tap the map to add a point{where}. Double-tap a point to delete it. Long-press the line: straight segment.',
   'hint.atStart': ' at the start',
   'hint.placing': 'Click on the map to place a checkpoint. Esc: cancel',
+  'toast.linkMissing': 'This link leads nowhere: the route was not found',
+  'toast.linkFailed': 'Could not open the link: no connection to the server. Reload the page to try again',
   'toast.fromLink': 'Route from the link saved to your routes',
   'toast.trackFromLink': 'Track from the link saved to your routes',
   'toast.shortCopied': 'Short link copied',

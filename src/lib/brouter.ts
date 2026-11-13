@@ -312,7 +312,7 @@ export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Param
   const extra = paramString(sent);
   const km = straightKm(a, b);
   if (km > MAX_LEG_KM) return Promise.reject(new Error(t('route.legTooLong', { max: MAX_LEG_KM })));
-  const key = legKey(a, b, profile, extra) + (seek ? '|seek' : '') + (heat ? `|heat${HEAT_CAP}` : '');
+  const key = cacheKey(a, b, profile, params);
   let p = cache.get(key);
   if (!p) {
     const url = (alt: number) => `${API}?lonlats=${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=${profile}${extra}&alternativeidx=${alt}&format=geojson`;
@@ -372,9 +372,18 @@ function legKey(a: LngLat, b: LngLat, profile: ProfileId, extra: string) {
   return `${profile}|${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}${extra}`;
 }
 
+/**
+ * Cache key of a leg. Seek climbs and the heatmap are not profile parameters: they choose among
+ * the router's options, so they are part of the key apart from the parameters sent.
+ */
+function cacheKey(a: LngLat, b: LngLat, profile: ProfileId, params: Params) {
+  const { nk_seek: seek, nk_heat: heat, ...sent } = params;
+  return legKey(a, b, profile, paramString(sent)) + (seek ? '|seek' : '') + (heat ? `|heat${HEAT_CAP}` : '');
+}
+
 /** A leg computed earlier and stored with the route: later requests for it are answered without the router. */
 export function seedLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params, leg: Leg) {
-  if (profile !== 'straight') cache.set(legKey(a, b, profile, paramString(params)), Promise.resolve(leg));
+  if (profile !== 'straight') cache.set(cacheKey(a, b, profile, params), Promise.resolve(leg));
 }
 
 /** Compact form of a leg for storage: [lng, lat, ele] with 6 and 1 decimals. */

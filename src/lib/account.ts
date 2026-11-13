@@ -129,11 +129,20 @@ export async function snapshot(d: Doc): Promise<string> {
   return (await r.json()).id;
 }
 
-export async function loadShort(id: string): Promise<Doc | null> {
-  try {
-    const r = await fetch(`${API}/s/${encodeURIComponent(id)}`);
-    return r.ok ? await r.json() : null;
-  } catch {
-    return null;
+/**
+ * The document behind a short link. A network hiccup is retried (three tries); 'missing' when the
+ * link does not exist, 'failed' when the server could not be reached.
+ */
+export async function loadShort(id: string): Promise<Doc | 'missing' | 'failed'> {
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await fetch(`${API}/s/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10000) });
+      if (r.status === 404) return 'missing';
+      if (r.ok) return await r.json();
+    } catch {
+      /* retry */
+    }
+    await new Promise((res) => setTimeout(res, 800 * (i + 1)));
   }
+  return 'failed';
 }
