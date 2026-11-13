@@ -153,8 +153,9 @@
   .tl {
     display: flex;
     flex-direction: column;
-    /* the heading and one line stay visible; nothing spills under the buttons below */
-    min-height: 56px;
+    /* open settings above must not squeeze it to one line: it keeps about nine lines and the
+       panel scrolls instead; nothing spills under the buttons below */
+    min-height: min(260px, 40vh);
     overflow: hidden;
     flex: 1;
   }
