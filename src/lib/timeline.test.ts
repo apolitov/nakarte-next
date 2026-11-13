@@ -123,12 +123,12 @@ describe('eta', () => {
     return { dist: Array.from({ length: n }, (_, i) => i * 100), grade: Array(n).fill(grade), surface: Array(n).fill(surf) } as never;
   };
   it('rides by grade and surface', () => {
-    // 10 km on the flat: BRouter's road (100 W) on tarmac and gravel (150 W) on compacted ways
-    expect(routeMinutes(flat(10, 0, 'paved'), 'nk-road')).toBeCloseTo(24.2, 0);
+    // 10 km on the flat at 150 W: road on tarmac, gravel on compacted ways
+    expect(routeMinutes(flat(10, 0, 'paved'), 'nk-road')).toBeCloseTo(20.7, 0);
     expect(routeMinutes(flat(10, 0, 'compact'), 'nk-gravel')).toBeCloseTo(23.3, 0);
     // rougher is slower, uphill much slower, downhill faster
     expect(routeMinutes(flat(10, 0, 'path'), 'nk-gravel')).toBeGreaterThan(routeMinutes(flat(10, 0, 'compact'), 'nk-gravel'));
-    expect(routeMinutes(flat(10, 6, 'paved'), 'nk-road')).toBeGreaterThan(90);
+    expect(routeMinutes(flat(10, 6, 'paved'), 'nk-road')).toBeGreaterThan(60);
     expect(routeMinutes(flat(10, -6, 'paved'), 'nk-road')).toBeLessThan(15);
   });
   it('walks by Tobler', () => {

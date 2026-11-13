@@ -29,9 +29,10 @@ const RHO = 1.2;
 const cdaOf = (scx: number) => (2 * scx) / RHO;
 
 export const BIKES: Record<string, Bike> = {
-  // BRouter fastbike.brf: 100 W, 90 kg, S_C_x 0.225, max 45 km/h; road tyres per surface
+  // BRouter fastbike.brf: 90 kg, S_C_x 0.225, max 45 km/h; power 150 W as in gravel.brf
+  // (fastbike's own 100 W made road bikes slower than gravel bikes); road tyres per surface
   'nk-road': {
-    mass: 90, cda: cdaOf(0.225), power: 100, vmax: 45,
+    mass: 90, cda: cdaOf(0.225), power: 150, vmax: 45,
     crr: { paved: 0.004, compact: 0.012, unpaved: 0.012, ground: 0.016, path: 0.025, unknown: 0.004 },
   },
   // BRouter gravel.brf: 150 W, 90 kg, S_C_x 0.300, C_r 0.005, max 35 km/h; gravel tyres
