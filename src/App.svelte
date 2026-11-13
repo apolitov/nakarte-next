@@ -33,6 +33,7 @@
   import LayersPopover from './ui/LayersPopover.svelte';
   import InlineConfirm from './ui/InlineConfirm.svelte';
   import PoiMenu from './ui/PoiMenu.svelte';
+  import PhotoViewer from './ui/PhotoViewer.svelte';
   import { AlongLayer, CATS, catDef, catTitle, fetchPois, photoGroups, PhotoLoader, PHOTO_MIN_ZOOM, PHOTO_SOURCES, type PhotoSource, type Photo, type Poi, type PoiCat } from './lib/along';
   import HelpDialog from './ui/HelpDialog.svelte';
   import ProfileCard from './ui/ProfileCard.svelte';
@@ -217,6 +218,12 @@
   let along: AlongLayer | null = null;
   let dimBox: HTMLDivElement | undefined = $state();
   let photosOpen = $state(false);
+  /** photo viewer: index into `photos`, null when closed */
+  let viewer = $state<number | null>(null);
+  function openPhoto(p: Photo) {
+    const i = photos.findIndex((x) => x.id === p.id);
+    viewer = i >= 0 ? i : 0;
+  }
   function togglePoiCat(c: PoiCat) {
     poiCats = poiCats.includes(c) ? poiCats.filter((x) => x !== c) : [...poiCats, c];
     setPoiPref('cats', poiCats);
@@ -840,7 +847,7 @@
   // ---- 3D: terrain from the open Terrarium tiles (the same as for straight legs), tilt and rotation ----
   let terrain3d = $state(false);
   let orbit: { turn: (deg: number) => void } | undefined = $state();
-  /** the map for the 3D panel (the map itself is not reactive state) */
+  /** the map for the controls block (the map itself is not reactive state) */
   let map3d = $state.raw<maplibregl.Map | null>(null);
   const DEM_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
   function set3d(on: boolean, animate = true) {
@@ -983,7 +990,7 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (helpOpen || garminOpen || nameOpen) return; // dialogs handle their own keys
+    if (helpOpen || garminOpen || nameOpen || viewer != null) return; // dialogs handle their own keys
     const t = e.target as HTMLElement;
     const inField = !!t.closest?.('input:not([type=radio]):not([type=checkbox]):not([type=range]):not([type=file]), textarea, select, [contenteditable]');
     if (e.key === 'Escape') {
@@ -1214,10 +1221,10 @@
     });
     map.touchZoomRotate.disableRotation();
     // rarely used: bottom right, the top right corner is for layers
-    // bottom corners stack upwards: location at the bottom, zoom above it, the 2D | 3D switch on top
+    // bottom corners stack upwards: location at the bottom, the map controls block above it
     map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'bottom-right');
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     if (dimBox) map.addControl({ onAdd: () => dimBox!, onRemove: () => dimBox?.remove() }, 'bottom-right');
+    map3d = map;
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
     map.on('load', async () => {
@@ -1232,6 +1239,7 @@
       });
       editor = new RouteEditor(map!, route);
       along = new AlongLayer(map!);
+      along.onPhoto = openPhoto;
       editor.onMapClick = placeCheckpoint;
       editor.onSplit = splitRoute;
       editor.onCopyTo = copyUpTo;
@@ -1411,7 +1419,7 @@
                 <span class="num">{t('poi.photosGroup', { a: Math.round(g.from / 1000), b: Math.round(g.to / 1000) })} · {g.items.length}</span>
                 <div class="phs">
                   {#each g.items.slice(0, 8) as p (p.id)}
-                    <button style="background-image:url('{p.thumb}')" aria-label={t('poi.photo')} onclick={() => along?.showPhoto(p)}></button>
+                    <button style="background-image:url('{p.thumb}')" aria-label={t('poi.photo')} onclick={() => openPhoto(p)}></button>
                   {/each}
                 </div>
               </div>
@@ -1481,13 +1489,11 @@
         aria-label={t('poi.title')} title={t('poi.title')} onclick={() => openMenu('poi')}>{t('poi.button')}{#if poiCats.length}<span class="cnt num">{poiCats.length}</span>{/if}</button>
     </div>
     <!-- moved into the map's bottom right corner, right above zoom (a MapLibre control, see onMount) -->
-    <div class="dim maplibregl-ctrl" role="group" aria-label={t('map.dim')} bind:this={dimBox}>
-      <button aria-pressed={!terrain3d} data-tip={t('map.2dTip')} onclick={() => set3d(false)}>2D</button>
-      <button aria-pressed={terrain3d} data-tip={t('map.3dTip')} onclick={() => set3d(true)}>3D</button>
+    <!-- one block in the map's bottom right corner (a MapLibre control, see onMount): 2D | 3D and
+         zoom; in 3D it grows upwards with turning and tilt -->
+    <div class="mapctl maplibregl-ctrl" bind:this={dimBox}>
+      {#if map3d}<Orbit3d bind:this={orbit} map={map3d} three={terrain3d} onset3d={(on) => set3d(on)} />{/if}
     </div>
-    {#if terrain3d && map3d}
-      <Orbit3d bind:this={orbit} map={map3d} />
-    {/if}
     {#if layersMenu === 'poi'}
       <div bind:this={layersBox}>
         <PoiMenu enabled={poiCats} counts={poiCounts} {photoSrc} onphotosrc={(x) => setPoiPref('photoSrc', (photoSrc = photoSrc.includes(x) ? photoSrc.filter((y) => y !== x) : [...photoSrc, x]))} photoZoomHint={photosOn && mapZoom < PHOTO_MIN_ZOOM} radius={poiRadius} inTimeline={poiTimeline} loading={poiLoading} error={poiError}
@@ -1527,6 +1533,10 @@
     {/if}
   </main>
 
+  {#if viewer != null && photos.length}
+    <PhotoViewer {photos} bind:index={viewer} onclose={() => (viewer = null)}
+      onshow={(p) => map?.easeTo({ center: [p.lng, p.lat], duration: 400 })} />
+  {/if}
   <GarminDialog bind:open={garminOpen} loggedIn={!!user} getRoute={garminRoute} onlogin={() => signIn(true)} />
   <HelpDialog bind:open={helpOpen} {shortcuts} />
   <KeyTip />

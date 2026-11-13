@@ -207,6 +207,8 @@ const en = {
   'poi.view': 'Viewpoints',
   'poi.photos': 'Street photos (±100 m)',
   'poi.photo': 'Photo',
+  'pv.prev': 'Previous photo',
+  'pv.next': 'Next photo',
   'poi.photosN': '{n} photos',
   'poi.inTimeline': 'Show in the timeline',
   'poi.sources': 'Points: OpenStreetMap via OpenFreeMap. Photos: Wikimedia Commons, Mapillary and Panoramax.',

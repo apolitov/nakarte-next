@@ -577,31 +577,6 @@ kbd {
   color: var(--ink);
 }
 /* 2D | 3D: two halves of one control, the active one in the marker colour */
-.dim {
-  display: flex;
-  flex-direction: column;
-  padding: 3px;
-  gap: 2px;
-  width: 40px;
-  box-sizing: border-box;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--paper) 92%, transparent);
-  backdrop-filter: blur(10px);
-  box-shadow: var(--shadow);
-}
-.dim button {
-  height: 32px;
-  border-radius: 11px;
-  font: 700 13px/1 var(--sans);
-  color: var(--soft);
-}
-.dim button:hover {
-  background: var(--tint);
-}
-.dim button[aria-pressed='true'] {
-  background: var(--marker);
-  color: var(--marker-ink);
-}
 .layersbtn:hover {
   background: var(--tint);
 }
@@ -616,20 +591,6 @@ kbd {
     right: 10px;
     flex-direction: column;
   }
-  .dim {
-    flex-direction: column;
-    width: 44px;
-    height: auto;
-  }
-  .dim button {
-    width: 38px;
-    height: 34px;
-  }
-}
-
-/* 3D: zoom buttons move into the orbit block (Orbit3d), so the two never overlap */
-.mapcol.t3d .maplibregl-ctrl-group:has(.maplibregl-ctrl-zoom-in) {
-  display: none !important;
 }
 
 /* ---- points of interest and photos along the route (lib/along.ts) ---- */

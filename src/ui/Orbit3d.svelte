@@ -1,10 +1,12 @@
 <script lang="ts">
-  // 3D camera without holding a mouse button: steps to turn and tilt, a compass that
-  // shows north (click: north up; drag: left/right turns, up/down tilts).
+  // The map controls in the bottom right corner, one block for 2D and 3D: the 2D | 3D switch
+  // and zoom always; in 3D the block grows upwards with turning, a compass that shows north
+  // (click: north up; drag: left/right turns, up/down tilts) and tilt, so the switch and zoom
+  // stay where they were.
   import type { Map as MlMap } from 'maplibre-gl';
   import { t } from '../lib/i18n';
 
-  let { map }: { map: MlMap } = $props();
+  let { map, three, onset3d }: { map: MlMap; three: boolean; onset3d: (on: boolean) => void } = $props();
 
   let bearing = $state(0);
   let pitch = $state(0);
@@ -50,28 +52,34 @@
 </script>
 
 <div class="orbit" role="group" aria-label={t('orbit.title')}>
-  <button class="ob" data-tip={t('orbit.left')} aria-label={t('orbit.left')} onclick={() => turn(-45)}>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4" /></svg>
-  </button>
-  <button class="ob compass" data-tip={t('orbit.compass')} aria-label={t('orbit.north')}
-    onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={() => (drag = null)}>
-    <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" style="transform: rotate({-bearing}deg)">
-      <path d="M13 3 17 13H9Z" fill="#d1242f" />
-      <path d="M13 23 9 13h8Z" fill="currentColor" opacity=".55" />
-    </svg>
-  </button>
-  <button class="ob" data-tip={t('orbit.right')} aria-label={t('orbit.right')} onclick={() => turn(45)}>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6" /><path d="M20 4v4h-4" /></svg>
-  </button>
-  <span class="sep"></span>
-  <button class="ob" data-tip={t('orbit.tiltMore')} aria-label={t('orbit.tiltMore')} aria-disabled={pitch >= MAX_PITCH - 0.5} onclick={() => tilt(15)}>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19h18L15 7H9Z" /><path d="M12 3v3" /></svg>
-  </button>
-  <span class="deg num" aria-label={t('orbit.pitch', { d: Math.round(pitch) })}>{Math.round(pitch)}°</span>
-  <button class="ob" data-tip={t('orbit.tiltLess')} aria-label={t('orbit.tiltLess')} aria-disabled={pitch <= 0.5} onclick={() => tilt(-15)}>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="6" rx="1" /></svg>
-  </button>
-  <!-- zoom lives here in 3D: the standard zoom buttons are hidden so the two blocks never overlap -->
+  {#if three}
+    <button class="ob sm" data-tip={t('orbit.left')} aria-label={t('orbit.left')} onclick={() => turn(-45)}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4" /></svg>
+    </button>
+    <button class="ob sm compass" data-tip={t('orbit.compass')} aria-label={t('orbit.north')}
+      onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={() => (drag = null)}>
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" style="transform: rotate({-bearing}deg)">
+        <path d="M13 3 17 13H9Z" fill="#d1242f" />
+        <path d="M13 23 9 13h8Z" fill="currentColor" opacity=".55" />
+      </svg>
+    </button>
+    <button class="ob sm" data-tip={t('orbit.right')} aria-label={t('orbit.right')} onclick={() => turn(45)}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6" /><path d="M20 4v4h-4" /></svg>
+    </button>
+    <span class="sep"></span>
+    <button class="ob sm" data-tip={t('orbit.tiltMore')} aria-label={t('orbit.tiltMore')} aria-disabled={pitch >= MAX_PITCH - 0.5} onclick={() => tilt(15)}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19h18L15 7H9Z" /><path d="M12 3v3" /></svg>
+    </button>
+    <span class="deg num" aria-label={t('orbit.pitch', { d: Math.round(pitch) })}>{Math.round(pitch)}°</span>
+    <button class="ob sm" data-tip={t('orbit.tiltLess')} aria-label={t('orbit.tiltLess')} aria-disabled={pitch <= 0.5} onclick={() => tilt(-15)}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="6" rx="1" /></svg>
+    </button>
+    <span class="sep"></span>
+  {/if}
+  <div class="dim" role="group" aria-label={t('map.dim')}>
+    <button aria-pressed={!three} data-tip={t('map.2dTip')} onclick={() => onset3d(false)}>2D</button>
+    <button aria-pressed={three} data-tip={t('map.3dTip')} onclick={() => onset3d(true)}>3D</button>
+  </div>
   <span class="sep"></span>
   <button class="ob" data-tip={t('orbit.zoomIn')} aria-label={t('orbit.zoomIn')} onclick={() => map.zoomIn()}>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -83,11 +91,6 @@
 
 <style>
   .orbit {
-    position: absolute;
-    right: 12px;
-    /* under the layer buttons, as far as possible from the location button at the bottom */
-    top: 68px;
-    z-index: 4;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -105,6 +108,10 @@
     display: grid;
     place-items: center;
     border-radius: 10px;
+  }
+  /* the 3D rows are lower, so the grown block still fits above the elevation profile */
+  .ob.sm {
+    height: 32px;
   }
   .ob:hover {
     background: var(--tint);
@@ -128,17 +135,30 @@
     margin: 3px 0;
     background: var(--line);
   }
+  .dim {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .dim button {
+    width: 40px;
+    height: 32px;
+    border-radius: 10px;
+    font: 700 13px/1 var(--sans);
+    color: var(--soft);
+  }
+  .dim button:hover {
+    background: var(--tint);
+  }
+  .dim button[aria-pressed='true'] {
+    background: var(--marker);
+    color: var(--marker-ink);
+  }
   .deg {
     font-size: 11px;
     color: var(--soft);
   }
   @media (max-width: 639px) {
-    /* below the layer buttons and the 2D | 3D switch, clear of the zoom buttons */
-    .orbit {
-      right: 10px;
-      top: 250px;
-      transform: none;
-    }
     .ob {
       width: 44px;
       height: 40px;

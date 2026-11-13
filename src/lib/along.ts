@@ -423,6 +423,8 @@ export class AlongLayer {
   private pois: Poi[] = [];
   private photos: Photo[] = [];
   private onMove = () => this.render();
+  /** a photo was clicked: the app opens its viewer */
+  onPhoto: ((p: Photo) => void) | null = null;
 
   constructor(private map: maplibregl.Map) {
     map.on('moveend', this.onMove);
@@ -519,7 +521,7 @@ export class AlongLayer {
       }
       el.onclick = (e) => {
         e.stopPropagation();
-        if (items.length === 1 || this.map.getZoom() >= 18) return this.showPhoto(newest);
+        if (items.length === 1 || this.map.getZoom() >= 18) return this.onPhoto ? this.onPhoto(newest) : this.showPhoto(newest);
         const bounds = new maplibregl.LngLatBounds();
         for (const it of items) bounds.extend([it.lng, it.lat]);
         this.map.fitBounds(bounds, { padding: 120, maxZoom: 18, duration: 500 });
