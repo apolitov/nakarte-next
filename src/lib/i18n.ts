@@ -35,7 +35,7 @@ const en = {
   // summary
   'sum.label': 'Summary',
   'sum.computing': 'computing…',
-  'sum.etaTip': 'Moving time without breaks, from the grade and surface of every piece of the route: {type} ridden at about {power} W on the flat, harder uphill',
+  'sum.etaTip': 'Moving time without breaks, from the grade and surface of every piece of the route: {type} at {power} W, as in the router\'s own model',
   'sum.etaTipHike': 'Walking time without breaks, from the grade of every piece of the route (Tobler\'s hiking function): fastest on gentle descents, slow on steep ones',
   'sum.surface': 'Surface: {list}',
 

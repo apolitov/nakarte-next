@@ -123,20 +123,20 @@ describe('eta', () => {
     return { dist: Array.from({ length: n }, (_, i) => i * 100), grade: Array(n).fill(grade), surface: Array(n).fill(surf) } as never;
   };
   it('rides by grade and surface', () => {
-    // 10 km flat: about 25 km/h on a road bike on tarmac, 19 on gravel on compacted ways
-    expect(routeMinutes(flat(10, 0, 'paved'), 'nk-road')).toBeCloseTo(24, 0);
-    expect(routeMinutes(flat(10, 0, 'compact'), 'nk-gravel')).toBeCloseTo(32, 0);
+    // 10 km on the flat: BRouter's road (100 W) on tarmac and gravel (150 W) on compacted ways
+    expect(routeMinutes(flat(10, 0, 'paved'), 'nk-road')).toBeCloseTo(24.2, 0);
+    expect(routeMinutes(flat(10, 0, 'compact'), 'nk-gravel')).toBeCloseTo(23.3, 0);
     // rougher is slower, uphill much slower, downhill faster
     expect(routeMinutes(flat(10, 0, 'path'), 'nk-gravel')).toBeGreaterThan(routeMinutes(flat(10, 0, 'compact'), 'nk-gravel'));
-    expect(routeMinutes(flat(10, 6, 'paved'), 'nk-road')).toBeGreaterThan(55);
-    expect(routeMinutes(flat(10, -6, 'paved'), 'nk-road')).toBeLessThan(20);
+    expect(routeMinutes(flat(10, 6, 'paved'), 'nk-road')).toBeGreaterThan(90);
+    expect(routeMinutes(flat(10, -6, 'paved'), 'nk-road')).toBeLessThan(15);
   });
   it('walks by Tobler', () => {
-    // fastest at -5%, slower on the flat, slow on steep descents
+    // fastest at -5% (6 km/h), 5.04 km/h on the flat, slow on steep descents
     const t = (g: number) => routeMinutes(flat(4, g, 'unknown'), 'nk-hike');
-    expect(t(-5)).toBeLessThan(t(0));
+    expect(t(-5)).toBeCloseTo(40, 0);
+    expect(t(0)).toBeCloseTo(47.6, 0);
     expect(t(-25)).toBeGreaterThan(t(0));
-    expect(t(0) / 60).toBeCloseTo(4 / 4.31, 1);
   });
   it('formats', () => {
     expect(formatDuration(191)).toBe('3 h 11 min');
