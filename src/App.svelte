@@ -32,7 +32,7 @@
   import LayersPopover from './ui/LayersPopover.svelte';
   import InlineConfirm from './ui/InlineConfirm.svelte';
   import PoiMenu from './ui/PoiMenu.svelte';
-  import { AlongLayer, CATS, catDef, catTitle, fetchPhotos, fetchPois, photoGroups, type Photo, type Poi, type PoiCat } from './lib/along';
+  import { AlongLayer, CATS, catDef, catTitle, fetchPois, photoGroups, PhotoLoader, PHOTO_MIN_ZOOM, type Photo, type Poi, type PoiCat } from './lib/along';
   import HelpDialog from './ui/HelpDialog.svelte';
   import ProfileCard from './ui/ProfileCard.svelte';
   import KeyTip from './ui/KeyTip.svelte';
@@ -227,25 +227,22 @@
     if (photos.length || photosOn) c.photos = photos.length;
     return c;
   });
-  // fetched once the route is computed (and again when it changes), only when something is wanted
+  // points: fetched once the route is computed (and again when it changes), only when wanted
   $effect(() => {
     const ready = route.points.length > 1 && !route.loading;
     const wantPois = layersMenu === 'poi' || poiCats.some((c) => c !== 'photos');
-    const wantPhotos = photosOn;
     const pts = route.points, r = poiRadius;
     if (!ready) {
-      if (route.points.length < 2) (pois = []), (photos = []);
+      if (route.points.length < 2) pois = [];
       return;
     }
-    if (!wantPois && !wantPhotos) return;
+    if (!wantPois) return;
     const timer = setTimeout(async () => {
       poiLoading = true;
       poiError = '';
       try {
-        const [a, b] = await Promise.all([wantPois ? fetchPois(pts, r, poiCats.includes('water')) : Promise.resolve(pois), wantPhotos ? fetchPhotos(pts) : Promise.resolve(photos)]);
-        pois = a;
-        photos = b;
-        if (wantPois) poisLoaded = true;
+        pois = await fetchPois(pts, r, poiCats.includes('water'));
+        poisLoaded = true;
       } catch (e) {
         poiError = t('poi.failed', { error: (e as Error).message });
       } finally {
@@ -254,6 +251,32 @@
     }, 900);
     return () => clearTimeout(timer);
   });
+
+  // photos: only for the part of the route on screen, from zoom PHOTO_MIN_ZOOM (lib/along.ts)
+  let photoLoader: PhotoLoader | null = null;
+  let mapZoom = $state(0);
+  $effect(() => {
+    const ready = route.points.length > 1 && !route.loading;
+    const pts = route.points;
+    photoLoader = ready ? new PhotoLoader(pts) : null;
+    photos = [];
+    if (ready && photosOn) queueMicrotask(loadPhotosInView);
+  });
+  async function loadPhotosInView() {
+    if (!map) return;
+    mapZoom = map.getZoom();
+    const loader = photoLoader;
+    if (!loader || !photosOn || mapZoom < PHOTO_MIN_ZOOM) return;
+    const b = map.getBounds();
+    // keep loading while the view has pieces left (4 per round)
+    while (loader === photoLoader && (await loader.loadVisible({ w: b.getWest(), s: b.getSouth(), e: b.getEast(), n: b.getNorth() }))) {
+      if (loader === photoLoader) photos = loader.photos;
+    }
+  }
+  $effect(() => {
+    if (photosOn) loadPhotosInView();
+  });
+
   $effect(() => {
     const vp = visiblePois, ph = photosOn ? photos : [];
     along?.set(vp, ph);
@@ -1244,6 +1267,7 @@
       syncHash();
     });
     map.on('moveend', syncHash);
+    map.on('moveend', () => loadPhotosInView());
 
     const onHash = () => {
       const s = parseHash(location.hash);
@@ -1458,7 +1482,7 @@
     {/if}
     {#if layersMenu === 'poi'}
       <div bind:this={layersBox}>
-        <PoiMenu enabled={poiCats} counts={poiCounts} radius={poiRadius} inTimeline={poiTimeline} loading={poiLoading} error={poiError}
+        <PoiMenu enabled={poiCats} counts={poiCounts} photoZoomHint={photosOn && mapZoom < PHOTO_MIN_ZOOM} radius={poiRadius} inTimeline={poiTimeline} loading={poiLoading} error={poiError}
           pinned={layersPinned} canPin={!mobile} onpin={togglePin} ontoggle={togglePoiCat} onradius={(r) => setPoiPref('radius', (poiRadius = r))}
           ontimeline={(on) => setPoiPref('timeline', (poiTimeline = on))} onclose={() => { layersMenu = null; if (layersPinned) togglePin(); }} />
       </div>

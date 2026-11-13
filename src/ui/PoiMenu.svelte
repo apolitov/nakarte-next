@@ -11,6 +11,7 @@
     radius,
     inTimeline,
     loading = false,
+    photoZoomHint = false,
     error = '',
     pinned,
     canPin = true,
@@ -25,6 +26,7 @@
     radius: number;
     inTimeline: boolean;
     loading?: boolean;
+    photoZoomHint?: boolean;
     error?: string;
     pinned: boolean;
     canPin?: boolean;
@@ -66,6 +68,7 @@
       </label>
     {/each}
   {/each}
+  {#if photoZoomHint}<p class="src">{t('poi.photosZoom')}</p>{/if}
   {#if error}<p class="err" role="alert">{error}</p>{/if}
   <label class="row tl">
     <input type="checkbox" checked={inTimeline} onchange={(e) => ontimeline(e.currentTarget.checked)} />

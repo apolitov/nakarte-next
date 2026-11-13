@@ -49,7 +49,7 @@ export interface Poi {
 
 export interface Photo {
   id: string;
-  src: 'commons' | 'panoramax';
+  src: 'commons' | 'panoramax' | 'mapillary';
   lng: number;
   lat: number;
   m: number;
@@ -238,7 +238,7 @@ export async function fetchPois(points: Pt[], radius: number, withSprings = fals
   return out.sort((a, b) => a.m - b.m);
 }
 
-// ---- photos: Wikimedia Commons from the browser, Panoramax street views through maps-api ----
+// ---- photos: Wikimedia Commons from the browser, Mapillary and Panoramax street views through maps-api ----
 
 const COMMONS = 'https://commons.wikimedia.org/w/api.php';
 const NEAR = 100; // m from the route
@@ -254,60 +254,113 @@ function cumulative(points: Pt[]): number[] {
   return cum;
 }
 
-/** Circles every 250 m along the route (fewer on long routes), each asked for files with coordinates. */
-async function commonsPhotos(points: Pt[]): Promise<Photo[]> {
-  const cum = cumulative(points);
-  const total = cum.at(-1) ?? 0;
-  const step = Math.max(250, total / 160); // at most ~160 requests per route
-  const centres: Pt[] = [];
-  for (let d = 0, k = 0; d <= total; d += step) {
-    while (k < cum.length - 1 && cum[k + 1] < d) k++;
-    centres.push(points[k]);
-  }
-  const strip = (h = '') => h.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  const found = new Map<string, Photo>();
-  const one = async (c: Pt) => {
-    const q = new URLSearchParams({
-      action: 'query', generator: 'geosearch', ggscoord: `${c.lat.toFixed(5)}|${c.lng.toFixed(5)}`, ggsradius: String(Math.round(step / 2 + NEAR)),
-      ggsnamespace: '6', ggslimit: '50', prop: 'imageinfo|coordinates', iiprop: 'url|extmetadata|mime', iiurlwidth: '320',
-      iiextmetadatafilter: 'LicenseShortName|Artist|DateTimeOriginal', format: 'json', origin: '*',
-    });
-    const r = await fetch(`${COMMONS}?${q}`);
-    if (!r.ok) return;
-    const pages = Object.values((await r.json()).query?.pages ?? {}) as {
-      pageid: number; title: string; coordinates?: { lat: number; lon: number }[];
-      imageinfo?: { thumburl?: string; descriptionurl: string; mime: string; extmetadata?: Record<string, { value: string }> }[];
-    }[];
-    for (const pg of pages) {
-      const ii = pg.imageinfo?.[0], co = pg.coordinates?.[0];
-      if (!ii?.thumburl || !co || !/^image\/(jpeg|png|webp)/.test(ii.mime) || SKIP.test(pg.title)) continue;
-      const near = nearestPoint(points, co.lon, co.lat);
-      if (near.i < 0 || near.m > NEAR) continue;
-      const m = ii.extmetadata ?? {};
-      found.set(String(pg.pageid), {
-        id: `c${pg.pageid}`, src: 'commons', lng: co.lon, lat: co.lat, m: cum[near.i], az: null,
-        date: strip(m.DateTimeOriginal?.value).slice(0, 10), author: strip(m.Artist?.value).slice(0, 80), license: strip(m.LicenseShortName?.value),
-        thumb: ii.thumburl, sd: ii.thumburl.replace(/\/\d+px-/, '/800px-'), url: ii.descriptionurl,
-      });
-    }
-  };
-  // two at a time: Commons answers 429 to bursts from one address
-  for (let k = 0; k < centres.length; k += 2) await Promise.all(centres.slice(k, k + 2).map((c) => one(c).catch(() => {})));
-  // one photo per author within ~40 m: series of near-identical shots
+export const PHOTO_MIN_ZOOM = 13;
+const PIECE = 2000; // m of route per request batch
+
+const strip = (h = '') => h.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+
+/** Commons files near one circle; distances along the whole route. */
+async function commonsAround(c: Pt, radius: number, route: Pt[], cum: number[]): Promise<Photo[]> {
+  const q = new URLSearchParams({
+    action: 'query', generator: 'geosearch', ggscoord: `${c.lat.toFixed(5)}|${c.lng.toFixed(5)}`, ggsradius: String(Math.round(radius)),
+    ggsnamespace: '6', ggslimit: '50', prop: 'imageinfo|coordinates', iiprop: 'url|extmetadata|mime', iiurlwidth: '320',
+    iiextmetadatafilter: 'LicenseShortName|Artist|DateTimeOriginal', format: 'json', origin: '*',
+  });
+  const r = await fetch(`${COMMONS}?${q}`, { signal: AbortSignal.timeout(10000) });
+  if (!r.ok) return [];
+  const pages = Object.values((await r.json()).query?.pages ?? {}) as {
+    pageid: number; title: string; coordinates?: { lat: number; lon: number }[];
+    imageinfo?: { thumburl?: string; descriptionurl: string; mime: string; extmetadata?: Record<string, { value: string }> }[];
+  }[];
   const out: Photo[] = [];
-  for (const p of [...found.values()].sort((a, b) => a.m - b.m)) {
-    if (out.some((q) => q.author && q.author === p.author && Math.abs(q.m - p.m) < 40)) continue;
-    out.push(p);
+  for (const pg of pages) {
+    const ii = pg.imageinfo?.[0], co = pg.coordinates?.[0];
+    if (!ii?.thumburl || !co || !/^image\/(jpeg|png|webp)/.test(ii.mime) || SKIP.test(pg.title)) continue;
+    const near = nearestPoint(route, co.lon, co.lat);
+    if (near.i < 0 || near.m > NEAR) continue;
+    const m = ii.extmetadata ?? {};
+    out.push({
+      id: `c${pg.pageid}`, src: 'commons', lng: co.lon, lat: co.lat, m: cum[near.i], az: null,
+      date: strip(m.DateTimeOriginal?.value).slice(0, 10), author: strip(m.Artist?.value).slice(0, 80), license: strip(m.LicenseShortName?.value),
+      thumb: ii.thumburl, sd: ii.thumburl.replace(/\/\d+px-/, '/800px-'), url: ii.descriptionurl,
+    });
   }
   return out;
 }
 
-export async function fetchPhotos(points: Pt[]): Promise<Photo[]> {
-  const [commons, panoramax] = await Promise.all([
-    commonsPhotos(points).catch(() => [] as Photo[]),
-    post<Photo[]>('/photos', simplify(points)).catch(() => [] as Photo[]),
-  ]);
-  return [...commons, ...panoramax].sort((a, b) => a.m - b.m);
+/**
+ * Photos are loaded only for what is on screen, from zoom PHOTO_MIN_ZOOM: the route is cut into
+ * 2 km pieces and each piece is asked once (Commons from the browser in up to 9 circles, Mapillary
+ * and Panoramax through maps-api in one call). A whole long route at once would mean hundreds of
+ * requests and get the browser rate-limited.
+ */
+export class PhotoLoader {
+  private cum: number[];
+  private pieces: { a: number; b: number; w: number; s: number; e: number; n: number }[] = [];
+  private done = new Map<number, Photo[]>();
+  private busy = new Set<number>();
+
+  constructor(private route: Pt[]) {
+    this.cum = cumulative(route);
+    let a = 0;
+    for (let k = 1; k < route.length; k++) {
+      if (this.cum[k] - this.cum[a] >= PIECE || k === route.length - 1) {
+        const pts = route.slice(a, k + 1);
+        const pad = 0.0015;
+        this.pieces.push({
+          a, b: k,
+          w: Math.min(...pts.map((p) => p.lng)) - pad, e: Math.max(...pts.map((p) => p.lng)) + pad,
+          s: Math.min(...pts.map((p) => p.lat)) - pad, n: Math.max(...pts.map((p) => p.lat)) + pad,
+        });
+        a = k;
+      }
+    }
+  }
+
+  /** Everything loaded so far, one photo per author within ~40 m. */
+  get photos(): Photo[] {
+    const all = new Map<string, Photo>();
+    for (const list of this.done.values()) for (const p of list) all.set(p.id, p);
+    const out: Photo[] = [];
+    for (const p of [...all.values()].sort((a, b) => a.m - b.m)) {
+      if (out.some((q) => q.src === p.src && q.author && q.author === p.author && Math.abs(q.m - p.m) < 40)) continue;
+      out.push(p);
+    }
+    return out;
+  }
+
+  get loadedPieces() {
+    return this.done.size;
+  }
+
+  /** Loads the pieces inside the given bounds (at most `max` per call); true when something new came. */
+  async loadVisible(b: { w: number; s: number; e: number; n: number }, max = 4): Promise<boolean> {
+    const todo = this.pieces
+      .map((p, i) => ({ p, i }))
+      .filter(({ p, i }) => !this.done.has(i) && !this.busy.has(i) && p.w < b.e && p.e > b.w && p.s < b.n && p.n > b.s)
+      .slice(0, max);
+    if (!todo.length) return false;
+    for (const { i } of todo) this.busy.add(i);
+    await Promise.all(todo.map(({ p, i }) => this.loadPiece(p.a, p.b).then((list) => this.done.set(i, list)).finally(() => this.busy.delete(i))));
+    return true;
+  }
+
+  private async loadPiece(a: number, b: number): Promise<Photo[]> {
+    const pts = this.route.slice(a, b + 1);
+    const centres: Pt[] = [];
+    for (let d = this.cum[a], k = a; d <= this.cum[b]; d += 250) {
+      while (k < b && this.cum[k + 1] < d) k++;
+      centres.push(this.route[k]);
+    }
+    const commons: Photo[] = [];
+    // two at a time: Commons answers 429 to bursts from one address
+    for (let k = 0; k < centres.length; k += 2) {
+      const got = await Promise.all(centres.slice(k, k + 2).map((c) => commonsAround(c, 125 + NEAR, this.route, this.cum).catch(() => [] as Photo[])));
+      commons.push(...got.flat());
+    }
+    const street = await post<Photo[]>('/photos', simplify(pts)).catch(() => [] as Photo[]);
+    return [...commons, ...street.map((p) => ({ ...p, m: p.m + this.cum[a] }))];
+  }
 }
 
 /** Photos grouped by stretches of `step` m along the route, for the list in the panel. */
@@ -459,6 +512,6 @@ export class AlongLayer {
     this.map.easeTo({ center: [p.lng, p.lat], duration: 300 });
     this.open(p.lng, p.lat, `<div class="ap ph"><a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.sd || p.thumb)}" alt="" loading="lazy"></a>
       <span>${t('poi.atKm', { km: km(p.m) })}${p.date ? ` · ${esc(p.date)}` : ''}</span>
-      <small>© ${esc(p.author || '?')}${p.license ? `, ${esc(p.license)}` : ''} · <a href="${esc(p.url)}" target="_blank" rel="noopener">${p.src === 'commons' ? 'Wikimedia Commons' : 'Panoramax'} ↗</a></small></div>`);
+      <small>© ${esc(p.author || '?')}${p.license ? `, ${esc(p.license)}` : ''} · <a href="${esc(p.url)}" target="_blank" rel="noopener">${({ commons: 'Wikimedia Commons', panoramax: 'Panoramax', mapillary: 'Mapillary' } as Record<string, string>)[p.src]} ↗</a></small></div>`);
   }
 }
