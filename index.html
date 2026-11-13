@@ -13,6 +13,20 @@
       href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <!-- Umami (alexe.pt/u): cookieless visit counts, no consent needed; the address goes without
+         its hash and query, which hold the map position and route points. Production host only. -->
+    <script>
+      if (location.hostname === 'alexe.pt') {
+        var u = document.createElement('script');
+        u.defer = true;
+        u.src = '/u/s.js';
+        u.setAttribute('data-website-id', '59356c81-c065-4344-a2c7-ca78ad04b632');
+        u.setAttribute('data-host-url', 'https://alexe.pt/u');
+        u.setAttribute('data-exclude-hash', 'true');
+        u.setAttribute('data-exclude-search', 'true');
+        document.head.appendChild(u);
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>
