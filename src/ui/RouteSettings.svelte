@@ -1,14 +1,31 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import type { RouteOptions } from '../lib/brouter';
+  import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey } from '../lib/brouter';
   import Segmented from './Segmented.svelte';
 
   let {
     options,
     hike = false,
     cycle = true,
+    profile = '',
     onchange,
-  }: { options: RouteOptions; hike?: boolean; cycle?: boolean; onchange: (patch: Partial<RouteOptions>) => void } = $props();
+  }: { options: RouteOptions; hike?: boolean; cycle?: boolean; profile?: string; onchange: (patch: Partial<RouteOptions>) => void } = $props();
+
+  const ALLOW_TEXT: Record<AllowKey, [string, string]> = {
+    steps: [t('set.allowSteps'), t('set.allowStepsHint')],
+    ferry: [t('set.allowFerry'), t('set.allowFerryHint')],
+    busy: [t('set.allowBusy'), t('set.allowBusyHint')],
+    unpaved: [t('set.allowUnpaved'), t('set.allowUnpavedHint')],
+    paths: [t('set.allowPaths'), t('set.allowPathsHint')],
+  };
+  const allowKeys = $derived(ALLOW_KEYS.filter((k) => ALLOW_FOR[k].includes(profile)));
+
+  const SAC_TEXT: Record<number, [string, string]> = {
+    2: [t('set.sac2'), t('set.sacHint2')],
+    3: [t('set.sac3'), t('set.sacHint3')],
+    4: [t('set.sac4'), t('set.sacHint4')],
+    6: [t('set.sac6'), t('set.sacHint6')],
+  };
 
   // the slider shows the value while dragging; the route is rebuilt on release
   let grade = $state(0);
@@ -30,6 +47,37 @@
   oninput={(e) => (grade = Number(e.currentTarget.value))}
   onchange={(e) => onchange({ maxGrade: Number(e.currentTarget.value) })} />
 
+{#if hike}
+  <!-- hiking: how hard a path may be (OSM sac_scale), and what the walk should prefer -->
+  <div class="lbl">{t('set.sac')}</div>
+  <Segmented name="sac" label={t('set.sac')} value={options.sac}
+    items={SAC_STEPS.map((v) => [v, SAC_TEXT[v][0]] as const)}
+    onchange={(v) => onchange({ sac: v })} />
+  <p class="hint">{SAC_TEXT[options.sac]?.[1] ?? ''}</p>
+  {#each [['trails', 'set.trails', 'set.trailsHint'], ['nature', 'set.nature', 'set.natureHint'], ['quiet', 'set.quiet', 'set.quietHint']] as const as [key, title, hint] (key)}
+    <label class="sw">
+      <input type="checkbox" role="switch" checked={options[key]} onchange={(e) => onchange({ [key]: e.currentTarget.checked })} />
+      <span class="tr" aria-hidden="true"></span>
+      <span class="t">{t(title)}<small>{t(hint)}</small></span>
+    </label>
+  {/each}
+{/if}
+
+{#if allowKeys.length}
+  <!-- what the route may use at all: unticked = never, even if the way round is long -->
+  <div class="lbl">{t('set.allowed')}</div>
+  <ul class="allow">
+    {#each allowKeys as k (k)}
+      <li>
+        <label>
+          <input type="checkbox" checked={options.allow[k]} onchange={(e) => onchange({ allow: { ...options.allow, [k]: e.currentTarget.checked } })} />
+          <span>{ALLOW_TEXT[k][0]}<small>{ALLOW_TEXT[k][1]}</small></span>
+        </label>
+      </li>
+    {/each}
+  </ul>
+{/if}
+
 {#if cycle}
   <!-- road and gravel only: MTB and hiking route as their stock profiles -->
   <label class="sw">
@@ -40,6 +88,38 @@
 {/if}
 
 <style>
+  .allow {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+  }
+  .allow label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13.5px;
+  }
+  .allow input {
+    margin: 2px 0 0;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--ink);
+    flex: none;
+  }
+  .allow small {
+    display: block;
+    font-size: 12px;
+    color: var(--soft);
+  }
+  .hint {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--soft);
+  }
   .sw {
     display: flex;
     align-items: flex-start;

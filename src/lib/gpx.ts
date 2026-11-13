@@ -8,6 +8,10 @@ export interface Track {
   name: string;
   lines: Position[][];
   points: { id?: string; name: string; coord: Position; kind?: string; note?: string }[];
+  /** GPX <type>: hiking, cycling… (picks the route type when the track is opened as a route) */
+  activity?: string;
+  /** the route made from this track, opened again instead of making a copy */
+  routeId?: string;
 }
 
 let seq = 0;
@@ -34,7 +38,8 @@ export function parseTrackFile(name: string, text: string): Track {
   }
   if (!lines.length && !points.length) throw new Error(t('err.noTracks', { name }));
   const title = String(fc.features[0]?.properties?.name ?? '') || name.replace(/\.(gpx|kml)$/i, '');
-  return { id: newId(), name: title, lines, points };
+  const activity = fc.features.find((f) => f.geometry?.type !== 'Point')?.properties?.type;
+  return { id: newId(), name: title, lines, points, activity: activity ? String(activity) : undefined };
 }
 
 const esc = (s: string) =>

@@ -120,7 +120,9 @@ kbd {
   gap: 9px;
   min-height: 0;
   height: 100%;
-  overflow: hidden;
+  /* when open settings leave no room, the panel scrolls instead of overlapping */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .mapcol {
   position: relative;

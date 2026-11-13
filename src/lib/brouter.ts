@@ -33,8 +33,31 @@ export interface RouteOptions {
   maxGrade: number;
   /** prefer cycleways, cycle lanes and signed cycle routes (on by default in the bike profiles) */
   cycleways: boolean;
+  /** hiking: hardest path allowed on the SAC scale (T2…T6); 3 is the profile default */
+  sac: number;
+  /** hiking: keep to signed hiking routes */
+  trails: boolean;
+  /** hiking: through forest and along water */
+  nature: boolean;
+  /** hiking: away from busy roads and towns */
+  quiet: boolean;
+  /** what the route may use at all (false: never); see ALLOW_FOR for which types offer what */
+  allow: Record<AllowKey, boolean>;
 }
-export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', maxGrade: 0, cycleways: true };
+export type AllowKey = 'steps' | 'ferry' | 'busy' | 'unpaved' | 'paths';
+export const ALLOW_KEYS: AllowKey[] = ['steps', 'ferry', 'busy', 'unpaved', 'paths'];
+/** which route types offer which restriction (nk_allow_* in the profiles, gen.py) */
+export const ALLOW_FOR: Record<AllowKey, string[]> = {
+  steps: ['nk-road', 'nk-gravel', 'nk-mtb', 'nk-hike'],
+  ferry: ['nk-road', 'nk-gravel', 'nk-mtb', 'nk-hike'],
+  busy: ['nk-road', 'nk-gravel', 'nk-mtb', 'nk-hike'],
+  unpaved: ['nk-road'],
+  paths: ['nk-road', 'nk-gravel'],
+};
+const ALLOW_ALL: Record<AllowKey, boolean> = { steps: true, ferry: true, busy: true, unpaved: true, paths: true };
+export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', maxGrade: 0, cycleways: true, sac: 3, trails: false, nature: false, quiet: false, allow: { ...ALLOW_ALL } };
+/** SAC difficulty steps offered for hiking (OSM sac_scale: T1 hiking … T6 difficult alpine) */
+export const SAC_STEPS = [2, 3, 4, 6] as const;
 
 /** Options → BRouter profile parameters of the nk-* profiles (see vps/stacks/brouter/profiles/gen.py). */
 export function optionsToParams(o: RouteOptions): Record<string, number> {
@@ -52,6 +75,19 @@ export function optionsToParams(o: RouteOptions): Record<string, number> {
   } else if (o.climbs === 'any') {
     p.nk_uphillcost = 0;
   }
+  // hiking only (variables of the stock hiking-mountain profile); defaults are not sent
+  if (o.sac !== 3) p.SAC_scale_limit = o.sac;
+  if (o.trails) p.hiking_routes_preference = 1;
+  if (o.nature) {
+    p.consider_forest = 1;
+    p.consider_river = 1;
+  }
+  if (o.quiet) {
+    p.consider_noise = 1;
+    p.consider_town = 1;
+  }
+  // only restrictions are sent: everything is allowed by default
+  for (const k of ALLOW_KEYS) if (o.allow?.[k] === false) p[`nk_allow_${k}`] = 0;
   return p;
 }
 
@@ -64,6 +100,11 @@ export function paramsToOptions(p: Record<string, string | number | boolean> = {
     cycleways: n('nk_cycle') !== 0,
     maxGrade: cost != null && cost >= 600 && cutoff ? cutoff : 0,
     climbs: cost == null ? 'normal' : cost === 0 ? 'any' : cost >= 600 ? 'normal' : 'less',
+    sac: n('SAC_scale_limit') ?? 3,
+    trails: (n('hiking_routes_preference') ?? 0) >= 1,
+    nature: n('consider_forest') === 1,
+    quiet: n('consider_noise') === 1,
+    allow: Object.fromEntries(ALLOW_KEYS.map((k) => [k, n(`nk_allow_${k}`) !== 0])) as Record<AllowKey, boolean>,
   };
 }
 

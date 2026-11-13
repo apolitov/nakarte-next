@@ -9,8 +9,10 @@
   import { parseTrackFile, toGpx, trackToGeoJSON, bboxOf, type Track } from './lib/gpx';
   import { RouteState } from './lib/route.svelte';
   import { RouteEditor, type ColorMode } from './lib/routeEditor';
-  import { PROFILES, normalizeProfile, type ProfileId, type RouteOptions } from './lib/brouter';
+  import { PROFILES, normalizeProfile, ALLOW_KEYS, ALLOW_FOR, type AllowKey, type ProfileId, type RouteOptions } from './lib/brouter';
   import { store, newId, type RouteDoc, type TrackDoc } from './lib/store';
+  import NameDialog from './ui/NameDialog.svelte';
+  import { trackToRoute, profileForActivity } from './lib/trackRoute';
   import { routeToParam, paramToRoute } from './lib/share';
   import { showPasses, hidePasses } from './lib/passes';
   import { CheckpointLayer, type CheckpointItem } from './lib/checkpoints';
@@ -356,6 +358,8 @@
       name: t.name,
       lines: t.lines,
       checkpoints: t.points.map((p) => ({ id: p.id ?? newId('c'), lng: p.coord[0], lat: p.coord[1], kind: p.kind ?? 'generic', name: p.name, note: p.note })),
+      activity: t.activity,
+      routeId: t.routeId,
       updated: Date.now(),
     };
   }
@@ -365,6 +369,8 @@
       name: d.name,
       lines: d.lines,
       points: d.checkpoints.map((c) => ({ id: c.id, name: c.name, coord: [c.lng, c.lat], kind: c.kind, note: c.note })),
+      activity: d.activity,
+      routeId: d.routeId,
     };
   }
 
@@ -469,6 +475,43 @@
     fitWhenReady = true;
   }
 
+  /** Opens an imported track as a route: its own line and elevation, surfaces from the map. */
+  let openingTrack = $state(false);
+  async function openTrack(tr: Track) {
+    const made = tr.routeId ? savedRoutes.find((r) => r.id === tr.routeId) : undefined;
+    if (made) return openRoute(made);
+    if (openingTrack) return;
+    openingTrack = true;
+    zoomTo(tr);
+    try {
+      // older imports kept no activity; Strava and Garmin put it into the name ("Morning Hike")
+      const profile = profileForActivity(tr.activity ?? tr.name, route.profile);
+      const built = await trackToRoute(tr.lines, profile, {});
+      const doc: RouteDoc = {
+        id: newId('r'),
+        kind: 'route',
+        name: tr.name,
+        profile,
+        params: {},
+        waypoints: built.waypoints,
+        checkpoints: tr.points.map((p) => ({ id: p.id ?? newId('c'), lng: p.coord[0], lat: p.coord[1], kind: p.kind ?? 'generic', name: p.name, note: p.note })),
+        legs: built.legs,
+        created: Date.now(),
+        updated: Date.now(),
+      };
+      saveDoc(doc);
+      savedRoutes = [doc, ...savedRoutes];
+      tracks = tracks.map((x) => (x.id === tr.id ? { ...x, routeId: doc.id } : x));
+      saveDoc(trackToDoc({ ...tr, routeId: doc.id }));
+      openRoute(doc);
+      say(t('toast.trackOpened', { pct: Math.round(built.matched * 100) }));
+    } catch (e) {
+      say((e as Error).message, true);
+    } finally {
+      openingTrack = false;
+    }
+  }
+
   function deleteRoute(r: RouteDoc) {
     deleteDoc(r.id);
     savedRoutes = savedRoutes.filter((x) => x.id !== r.id);
@@ -562,6 +605,7 @@
   }
 
   function newRoute() {
+    if (needName(newRoute)) return;
     saveRoute();
     route.reset();
     editing = true;
@@ -569,6 +613,7 @@
 
   async function shareRoute() {
     if (!route.waypoints.length) return;
+    if (needName(shareRoute)) return;
     const doc = route.toDoc();
     const c = map!.getCenter();
     // a short link to a snapshot on the server, with the computed route; the long link is a fallback
@@ -611,6 +656,7 @@
 
   function exportRoute() {
     if (route.points.length < 2) return;
+    if (needName(exportRoute)) return;
     const name = route.name || route.autoName();
     const t: Track = {
       id: 'route',
@@ -672,9 +718,34 @@
   }
   const straightOn = $derived(route.drawStraight);
 
+  // ---- a finished route gets a name (asked once editing ends, or before it leaves the planner) ----
+  let nameOpen = $state(false);
+  let afterName: (() => void) | null = null;
+  /** True when the name dialog was opened instead; `then` runs after the name is given. */
+  function needName(then?: () => void): boolean {
+    if (route.points.length < 2 || route.name) return false;
+    afterName = then ?? null;
+    nameOpen = true;
+    return true;
+  }
+  function nameGiven(name: string) {
+    route.rename(name);
+    saveRoute();
+    const go = afterName;
+    afterName = null;
+    go?.();
+  }
+  function backToEditing() {
+    afterName = null;
+    editing = true;
+  }
+
   function toggleEdit() {
     editing = !editing;
-    if (!editing) placing = null;
+    if (!editing) {
+      placing = null;
+      needName();
+    }
     // phone: the map needs the room while editing; the open sheet would catch the taps
     if (editing && mobile) sheetOpen = false;
   }
@@ -953,6 +1024,9 @@
   }
 
   onMount(() => {
+    // the lists come from this browser's storage and need no map: show them at once,
+    // not after the base map has loaded (slow tiles left "Nothing yet" for seconds)
+    void reloadLists();
     registerYandexProtocol();
     registerGpsHeatProtocol();
     cityView();
@@ -1056,17 +1130,34 @@
     return () => clearTimeout(tm);
   });
   const profileTitle = $derived(PROFILES.find((p) => p.id === route.profile)?.title ?? '');
+  const NEVER_WORD: Record<AllowKey, string> = {
+    steps: t('set.allowSteps').toLowerCase(),
+    ferry: t('set.allowFerry').toLowerCase(),
+    busy: t('set.allowBusy').toLowerCase(),
+    unpaved: t('set.allowUnpaved').toLowerCase(),
+    paths: t('set.allowPaths').toLowerCase(),
+  };
   const optSummary = $derived.by(() => {
     const o = route.options;
     const parts = [o.surface === -1 ? t('set.sumAsphalt') : o.surface === 1 ? t('set.sumDirt') : t('set.sumAny')];
     if (!o.maxGrade) parts.push(o.climbs === 'less' ? t('set.sumLess') : o.climbs === 'any' ? t('set.sumAnyClimbs') : t('set.sumNormal'));
     parts.push(o.maxGrade ? t('set.sumUpTo', { g: o.maxGrade }) : t('set.sumNoLimit'));
     if (o.cycleways && (route.profile === 'nk-road' || route.profile === 'nk-gravel')) parts.push(t('set.sumCycleways'));
+    const never = ALLOW_KEYS.filter((k) => o.allow?.[k] === false && ALLOW_FOR[k].includes(route.profile));
+    if (never.length) parts.push(t('set.sumNever', { list: never.map((k) => NEVER_WORD[k]).join(', ') }));
+    if (route.profile === 'nk-hike') {
+      if (o.sac !== 3) parts.push(t('set.sumSac', { t: o.sac === 6 ? 'T6' : `T${o.sac}` }));
+      if (o.trails) parts.push(t('set.sumTrails'));
+      if (o.nature) parts.push(t('set.sumNature'));
+      if (o.quiet) parts.push(t('set.sumQuiet'));
+    }
     return parts.join(' · ');
   });
 </script>
 
 <svelte:window onkeydown={onKey} />
+<NameDialog bind:open={nameOpen} profile={route.profileData} profileId={route.profile} typeTitle={profileTitle}
+  suggestion={route.autoName()} onsave={nameGiven} onback={backToEditing} />
 <div class="app" role="application" ondragover={(e) => e.preventDefault()} ondrop={onDrop}>
   <aside class="side" class:sheet-open={sheetOpen} class:editing aria-label={t('route.panel')}>
     {#if mobile}
@@ -1075,10 +1166,13 @@
         onpointerdown={grabStart}><span></span></button>
     {/if}
     <div class="head">
-      <picture class="logo">
-        <source srcset="{import.meta.env.BASE_URL}brand/symbol-colour-dark.svg" media="(prefers-color-scheme: dark)" />
-        <img src="{import.meta.env.BASE_URL}brand/symbol-colour.svg" alt="No Mapa" width="81" height="28" />
-      </picture>
+      <!-- the logo starts a new route; the open one stays saved in My routes -->
+      <button class="logobtn" onclick={newRoute} aria-label={t('logo.new')} data-tip={route.waypoints.length ? t('logo.new') : undefined}>
+        <picture class="logo">
+          <source srcset="{import.meta.env.BASE_URL}brand/symbol-colour-dark.svg" media="(prefers-color-scheme: dark)" />
+          <img src="{import.meta.env.BASE_URL}brand/symbol-colour.svg" alt="No Mapa" width="81" height="28" />
+        </picture>
+      </button>
       {#if !mobile && route.waypoints.length}<button class="newb" onclick={newRoute} data-tip={t('mine.newTip')}><Icon name="plus" size={16} /><span>{t('act.new')}</span></button>{/if}
       {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
     </div>
@@ -1121,7 +1215,7 @@
     {/if}
 
     <Fold id="nk-settings" title={t('set.title')} summary={optSummary} bind:open={settingsOpen}>
-      <RouteSettings options={route.options} hike={route.profile === 'nk-hike'} cycle={route.profile === 'nk-road' || route.profile === 'nk-gravel'} onchange={setOpt} />
+      <RouteSettings options={route.options} profile={route.profile} hike={route.profile === 'nk-hike'} cycle={route.profile === 'nk-road' || route.profile === 'nk-gravel'} onchange={setOpt} />
     </Fold>
 
     {#if events.length}
@@ -1141,7 +1235,7 @@
       <div class="browse">
         <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
           onopen={openRoute} ondelete={deleteRoute} onnew={newRoute} onopenfile={() => fileInput.click()}
-          onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
+          onopentrack={openTrack} onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
           onplace={(id) => (placing = placing === id ? null : id)} />
       </div>
     {/if}
@@ -1155,7 +1249,7 @@
         </button>
         <div class="sec3">
           <button class="sbtn" onclick={shareRoute}><Icon name="link" size={15} />&nbsp;{t('act.share')}</button>
-          <button class="sbtn" onclick={() => (garminOpen = true)} data-tip={t('act.garminTip')}><Icon name="watch" size={15} />&nbsp;Garmin</button>
+          <button class="sbtn" onclick={() => needName(() => (garminOpen = true)) || (garminOpen = true)} data-tip={t('act.garminTip')}><Icon name="watch" size={15} />&nbsp;Garmin</button>
         </div>
       {/if}
       {#if route.waypoints.length}
@@ -1163,7 +1257,7 @@
         <div class="mine-scroll">
           <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
             onopen={openRoute} ondelete={deleteRoute} onnew={newRoute} onopenfile={() => fileInput.click()}
-            onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
+            onopentrack={openTrack} onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
             onplace={(id) => (placing = placing === id ? null : id)} />
         </div>
       </Fold>
@@ -1201,8 +1295,8 @@
         {/if}
       </div>
     {/if}
-    {#if busy}
-      <div class="busy" role="status" aria-live="polite"><span class="spin" aria-hidden="true"></span>{t('route.routing', { type: profileTitle })}</div>
+    {#if busy || openingTrack}
+      <div class="busy" role="status" aria-live="polite"><span class="spin" aria-hidden="true"></span>{openingTrack ? t('track.opening') : t('route.routing', { type: profileTitle })}</div>
     {/if}
     {#if hasRoute && !mobile}
       <div class="profwrap" bind:offsetHeight={profH}>
@@ -1231,6 +1325,15 @@
     gap: 8px;
     min-height: 36px;
     flex: none;
+  }
+  .logobtn {
+    display: flex;
+    padding: 2px 4px;
+    margin: -2px -4px;
+    border-radius: 8px;
+  }
+  .logobtn:hover {
+    background: var(--tint);
   }
   .logo {
     display: block;

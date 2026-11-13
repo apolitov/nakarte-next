@@ -21,6 +21,8 @@ const HISTORY = 200;
 
 export class RouteState {
   docId = $state(newId('r'));
+  /** when the route was first made (0: not saved yet) */
+  created = 0;
   name = $state('');
   waypoints = $state<Waypoint[]>([]);
   checkpoints = $state<Checkpoint[]>([]);
@@ -77,12 +79,14 @@ export class RouteState {
       legs: this.legs.length && this.legs.every((l) => l.status === 'ok')
         ? this.legs.map((l) => packLeg((l as { leg: Leg }).leg))
         : undefined,
+      created: this.created || (this.created = Date.now()),
       updated: Date.now(),
     };
   }
 
   load(doc: RouteDoc) {
     this.docId = doc.id;
+    this.created = doc.created ?? doc.updated ?? 0;
     this.name = doc.name;
     this.profile = normalizeProfile(doc.profile ?? '');
     this.params = { ...(doc.params ?? {}) };

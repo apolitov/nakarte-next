@@ -121,7 +121,10 @@ describe('eta', () => {
   it('uses the speed of the route type plus 1 min per 10 m', () => {
     expect(estimateMinutes(18000, 0, 'nk-gravel')).toBeCloseTo(60);
     expect(estimateMinutes(25000, 600, 'nk-road')).toBeCloseTo(120);
-    expect(estimateMinutes(4500, 600, 'nk-hike')).toBeCloseTo(120);
+    // DIN 33466: 4.5 km flat = 1.125 h, 600 m up = 2 h -> 2 + 1.125 / 2
+    expect(estimateMinutes(4500, 600, 'nk-hike')).toBeCloseTo(153.75);
+    // the hike from the GPX check: 12.8 km, +700 m, -2117 m, 4.6 h moving
+    expect(estimateMinutes(12800, 700, 'nk-hike', 2117) / 60).toBeCloseTo(8.17, 1);
     expect(formatDuration(191)).toBe('3 h 11 min');
     expect(formatDuration(45)).toBe('45 min');
     expect(formatDuration(120)).toBe('2 h');

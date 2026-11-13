@@ -4,6 +4,7 @@
   import { haversine } from '../lib/profile';
   import { dec } from '../lib/timeline';
   import { t, LOCALE } from '../lib/i18n';
+  import { PROFILES, normalizeProfile } from '../lib/brouter';
   import Icon from './Icon.svelte';
   import InlineConfirm from './InlineConfirm.svelte';
 
@@ -16,6 +17,7 @@
     ondelete,
     onnew,
     onopenfile,
+    onopentrack,
     onzoomtrack,
     onexporttrack,
     onremovetrack,
@@ -29,6 +31,7 @@
     ondelete: (r: RouteDoc) => void;
     onnew: () => void;
     onopenfile: () => void;
+    onopentrack: (t: Track) => void;
     onzoomtrack: (t: Track) => void;
     onexporttrack: (t: Track) => void;
     onremovetrack: (t: Track) => void;
@@ -37,7 +40,18 @@
 
   /** id of the route or track whose deletion is being confirmed */
   let ask = $state<string | null>(null);
-  const date = (ms: number) => (ms ? new Date(ms).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' }) : '');
+  const thisYear = new Date().getFullYear();
+  const date = (ms: number) =>
+    ms ? new Date(ms).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', ...(new Date(ms).getFullYear() !== thisYear ? { year: 'numeric' } : {}) }) : '';
+  const made = (r: RouteDoc) => r.created ?? r.updated;
+  /** routes by type (Road, Gravel, MTB, Hike), the newest first in each */
+  const groups = $derived(
+    PROFILES.map((p) => ({
+      id: p.id,
+      title: p.title,
+      items: routes.filter((r) => normalizeProfile(r.profile ?? '') === p.id).sort((a, b) => made(b) - made(a)),
+    })).filter((g) => g.items.length),
+  );
   function trackKm(tr: Track) {
     let m = 0;
     for (const l of tr.lines)
@@ -48,14 +62,14 @@
 </script>
 
 <div class="mine">
-  {#if routes.length}
-    <h3>{t('mine.routes')}</h3>
+  {#each groups as g (g.id)}
+    <h3>{g.title} <span class="cnt">{g.items.length}</span></h3>
     <ul class="list">
-      {#each routes as r (r.id)}
+      {#each g.items as r (r.id)}
         <li class="item" class:current={r.id === currentId}>
           <i class="dot route"></i>
           <button class="name" onclick={() => onopen(r)} data-tip={t('mine.open')}>
-            <b data-open={t('mine.opened')}>{r.name}</b><small>{t('mine.points', { n: r.waypoints.length })} · {date(r.updated)}</small>
+            <b data-open={t('mine.opened')}>{r.name}</b><small>{t('mine.created', { date: date(made(r)) })} · {t('mine.points', { n: r.waypoints.length })}</small>
           </button>
           <button class="ib" aria-expanded={ask === r.id} aria-label={t('mine.deleteNamed', { name: r.name })} data-tip={t('mine.delete')} onclick={() => (ask = ask === r.id ? null : r.id)}><Icon name="trash" size={16} /></button>
         </li>
@@ -65,14 +79,14 @@
         {/if}
       {/each}
     </ul>
-  {/if}
+  {/each}
   {#if tracks.length}
-    <h3>{t('mine.tracks')}</h3>
+    <h3>{t('mine.tracks')} <span class="cnt">{tracks.length}</span></h3>
     <ul class="list">
       {#each tracks as tr (tr.id)}
         <li class="item trk">
           <i class="dot track"></i>
-          <button class="name" onclick={() => onzoomtrack(tr)} data-tip={t('mine.showOnMap')}>
+          <button class="name" onclick={() => onopentrack(tr)} data-tip={t('mine.openTrack')}>
             <b>{tr.name}</b><small>{trackKm(tr)}{tr.points.length ? ` · ${t('mine.cps', { n: tr.points.length })}` : ''}</small>
           </button>
           <span class="tacts">
@@ -104,6 +118,10 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--soft);
+  }
+  h3 .cnt {
+    font-weight: 500;
+    opacity: 0.7;
   }
   .list {
     list-style: none;

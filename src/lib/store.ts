@@ -22,6 +22,8 @@ export interface RouteDoc {
   checkpoints: Checkpoint[];
   /** Computed legs, so an opened route shows at once without asking the router again. */
   legs?: import('./brouter').StoredLeg[];
+  /** first saved; older routes have only `updated` */
+  created?: number;
   updated: number;
 }
 
@@ -33,6 +35,8 @@ export interface TrackDoc {
   checkpoints: Checkpoint[];
   color?: string;
   visible?: boolean;
+  activity?: string;
+  routeId?: string;
   updated: number;
 }
 

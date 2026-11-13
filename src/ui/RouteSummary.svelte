@@ -14,7 +14,7 @@
   }: { profile: Profile; profileId: string; classes: SegClass[]; loading?: boolean; error?: string } = $props();
 
   const km = $derived(profile.length / 1000);
-  const minutes = $derived(estimateMinutes(profile.length, profile.ascent, profileId));
+  const minutes = $derived(estimateMinutes(profile.length, profile.ascent, profileId, profile.descent));
   const typeTitle = $derived(PROFILES.find((p) => p.id === profileId)?.title ?? '');
   const shares = $derived(surfaceShares(profile.dist, classes));
 
@@ -35,7 +35,7 @@
 <section class="sum" aria-label={t('sum.label')}>
   <div class="row1">
     <div class="big num">{km ? dec(km) : '0'}<small>{t('unit.km')}</small></div>
-    <div class="st num" data-tip={t('sum.etaTip', { type: typeTitle.toLowerCase(), speed: String(AVG_SPEED[profileId] ?? 18) })}>
+    <div class="st num" data-tip={profileId === 'nk-hike' ? t('sum.etaTipHike') : t('sum.etaTip', { type: typeTitle.toLowerCase(), speed: String(AVG_SPEED[profileId] ?? 18) })}>
       {#if loading}<span class="soft">{t('sum.computing')}</span>{:else}<em>~</em>{formatDuration(minutes)}{/if}
     </div>
   </div>

@@ -29,16 +29,39 @@
   const ROW = 28;
   let boxH = $state(0);
   let expanded = $state(false);
+
+  // two views: key (start, finish, checkpoints, climbs, straight legs, long surface runs) and all
+  const VIEW_KEY = 'nk-tl-view';
+  let view = $state<'key' | 'all'>('key');
+  try {
+    if (localStorage.getItem(VIEW_KEY) === 'all') view = 'all';
+  } catch {
+    /* no storage */
+  }
+  function setView(v: 'key' | 'all') {
+    view = v;
+    expanded = false;
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* no storage */
+    }
+  }
+  /** a surface run is a key stretch when it is a sizeable part of the route */
+  const keyEvents = $derived(
+    events.filter((e) => e.kind !== 'surface' || (e.d2 ?? e.d) - e.d >= Math.max(1000, profile.length * 0.15)),
+  );
+  const pool = $derived(view === 'key' ? keyEvents : events);
   let list: HTMLUListElement | undefined = $state();
 
   const capacity = $derived(mobile ? 12 : Math.floor(boxH / ROW));
   const shown = $derived.by(() => {
-    if (expanded || events.length <= capacity) return events;
+    if (expanded || pool.length <= capacity) return pool;
     // too little room even for start, finish and the "more" row: only that row
     if (capacity < 3) return [];
-    return limitEvents(events, capacity - 1);
+    return limitEvents(pool, capacity - 1);
   });
-  const hidden = $derived(events.length - shown.length);
+  const hidden = $derived(pool.length - shown.length);
   const railList = $derived(rails(shown, profile, classes));
 
   /** Row of the stretch that contains the hovered distance. */
@@ -72,7 +95,12 @@
 </script>
 
 <section class="tl" class:mobile aria-label={t('tl.title')}>
-  <h2>{t('tl.title')} <span>{t('tl.hint')}</span></h2>
+  <h2>{t('tl.title')}
+    <span class="vw" role="group" aria-label={t('tl.view')}>
+      <button aria-pressed={view === 'key'} data-tip={t('tl.keyTip')} onclick={() => setView('key')}>{t('tl.key')}</button>
+      <button aria-pressed={view === 'all'} data-tip={t('tl.allTip')} onclick={() => setView('all')}>{t('tl.all')}</button>
+    </span>
+  </h2>
   <div class="box" bind:clientHeight={boxH}>
     <ul class="evs" class:scroll={expanded} bind:this={list} onpointerleave={() => onhover(null)}>
       {#each shown as e, n (e.id)}
@@ -106,7 +134,7 @@
       {/each}
       {#if hidden > 0}
         <li><button class="more" onclick={() => (expanded = true)}>{shown.length ? t('tl.more', { n: hidden }) : t('tl.cramped', { n: hidden })}</button></li>
-      {:else if expanded && events.length > capacity}
+      {:else if expanded && pool.length > capacity}
         <li><button class="more" onclick={() => (expanded = false)}>{t('tl.less')}</button></li>
       {/if}
     </ul>
@@ -117,8 +145,28 @@
   .tl {
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    /* the heading and one line stay visible; nothing spills under the buttons below */
+    min-height: 56px;
+    overflow: hidden;
     flex: 1;
+  }
+  .vw {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 8px;
+    background: var(--tint);
+  }
+  .vw button {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font: 600 11.5px/1.4 var(--sans);
+    color: var(--soft);
+  }
+  .vw button[aria-pressed='true'] {
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
   }
   h2 {
     margin: 0 0 4px;
