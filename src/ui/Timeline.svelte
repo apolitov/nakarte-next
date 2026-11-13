@@ -65,6 +65,12 @@
     if (expanded || pool.length <= capacity) return pool;
     // too little room even for start, finish and the "more" row: only that row
     if (capacity < 3) return [];
+    // "All" folds its extra rows, but never the key ones: what "Key" shows stays visible
+    if (view === 'all' && keyEvents.length <= capacity - 1) {
+      const keys = new Set(keyEvents.map((e) => e.id));
+      const kept = new Set(limitEvents(pool.map((e) => (keys.has(e.id) ? { ...e, priority: 0 } : e)), capacity - 1).map((e) => e.id));
+      return pool.filter((e) => kept.has(e.id));
+    }
     return limitEvents(pool, capacity - 1);
   });
   const hidden = $derived(pool.length - shown.length);

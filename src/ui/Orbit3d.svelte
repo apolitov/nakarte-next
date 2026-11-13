@@ -83,9 +83,9 @@
   }
 </script>
 
-<div class="orbit" role="group" aria-label={t('orbit.title')}>
+<div class="orbit" class:three role="group" aria-label={t('orbit.title')}>
   {#if three}
-    <button class="ob sm" data-tip={t('orbit.left')} aria-label={t('orbit.left')} onclick={() => turn(-45)}>
+    <button class="ob sm turn" data-tip={t('orbit.left')} aria-label={t('orbit.left')} onclick={() => turn(-45)}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4" /></svg>
     </button>
     <button class="ob sm compass" data-tip={t('orbit.compass')} aria-label={t('orbit.north')}
@@ -95,15 +95,15 @@
         <path d="M13 23 9 13h8Z" fill="currentColor" opacity=".55" />
       </svg>
     </button>
-    <button class="ob sm" data-tip={t('orbit.right')} aria-label={t('orbit.right')} onclick={() => turn(45)}>
+    <button class="ob sm turn" data-tip={t('orbit.right')} aria-label={t('orbit.right')} onclick={() => turn(45)}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6" /><path d="M20 4v4h-4" /></svg>
     </button>
-    <span class="sep"></span>
-    <button class="ob sm" data-tip={t('orbit.tiltMore')} aria-label={t('orbit.tiltMore')} aria-disabled={pitch >= MAX_PITCH - 0.5} onclick={() => tilt(15)}>
+    <span class="sep tiltrow"></span>
+    <button class="ob sm tiltrow" data-tip={t('orbit.tiltMore')} aria-label={t('orbit.tiltMore')} aria-disabled={pitch >= MAX_PITCH - 0.5} onclick={() => tilt(15)}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19h18L15 7H9Z" /><path d="M12 3v3" /></svg>
     </button>
-    <span class="deg num" aria-label={t('orbit.pitch', { d: Math.round(pitch) })}>{Math.round(pitch)}°</span>
-    <button class="ob sm" data-tip={t('orbit.tiltLess')} aria-label={t('orbit.tiltLess')} aria-disabled={pitch <= 0.5} onclick={() => tilt(-15)}>
+    <span class="deg num tiltrow" aria-label={t('orbit.pitch', { d: Math.round(pitch) })}>{Math.round(pitch)}°</span>
+    <button class="ob sm tiltrow" data-tip={t('orbit.tiltLess')} aria-label={t('orbit.tiltLess')} aria-disabled={pitch <= 0.5} onclick={() => tilt(-15)}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="6" rx="1" /></svg>
     </button>
     <span class="sep"></span>
@@ -226,6 +226,21 @@
     .ob {
       width: 44px;
       height: 40px;
+    }
+  }
+  /* phones in 3D: tilting is a two-finger drag or a drag of the compass, zoom is a pinch; without
+     those buttons the grown block stays clear of the layer buttons above it */
+  @media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
+    .three .zoom,
+    .three .zoomsep,
+    .three .tiltrow {
+      display: none;
+    }
+  }
+  /* very short phones in 3D: the compass alone (dragging it left and right turns the map) */
+  @media (max-width: 639px) and (max-height: 600px), (max-height: 480px) and (orientation: landscape) {
+    .three .turn {
+      display: none;
     }
   }
   /* short phones: pinch zooms; without + and - the block clears the layer buttons above it */
