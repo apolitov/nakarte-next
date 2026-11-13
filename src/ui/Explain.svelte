@@ -36,7 +36,13 @@
       openId = open ? null : id;
     }}>?</button>
   {#if open}
-    <span class="pop" id={id} role="note">{text}</span>
+    <!-- the first line says what the setting does; "Step: effect" lines get the step in bold -->
+    <span class="pop" id={id} role="note">
+      {#each text.split('\n') as line, i (i)}
+        {@const c = i ? line.indexOf(': ') : -1}
+        <span class="ln">{#if c > 0}<b>{line.slice(0, c)}</b>{line.slice(c)}{:else}{line}{/if}</span>
+      {/each}
+    </span>
   {/if}
 </span>
 
@@ -72,6 +78,9 @@
     color: var(--ink);
     box-shadow: inset 0 0 0 1px var(--ink);
   }
+  .ln b {
+    font-weight: 600;
+  }
   .pop {
     position: absolute;
     top: calc(100% + 6px);
@@ -88,6 +97,8 @@
     line-height: 1.45;
     letter-spacing: 0;
     white-space: normal;
+    display: grid;
+    gap: 4px;
     text-align: left;
     box-shadow: var(--shadow);
   }
