@@ -38,6 +38,7 @@
   const GROUPS = [
     ['way', t('poi.groupWay')],
     ['see', t('poi.groupSee')],
+    ['photo', t('poi.groupPhotos')],
   ] as const;
   const RADII = [100, 300, 1000];
   const rlabel = (r: number) => (r < 1000 ? `${r} m` : `${r / 1000} km`);

@@ -644,8 +644,21 @@ kbd {
   line-height: 1;
   cursor: pointer;
 }
+.poi-mk span {
+  position: absolute;
+  right: -9px;
+  top: -9px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 600 10.5px/18px var(--mono);
+  text-align: center;
+}
 .ph-mk {
-  position: relative;
+  /* no position here: MapLibre places markers with position: absolute (.maplibregl-marker) */
   width: 34px;
   height: 34px;
   border-radius: 8px;

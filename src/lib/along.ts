@@ -1,31 +1,36 @@
-// Things along the route: points of interest from OpenStreetMap and street-level photos
-// (Panoramax), fetched from maps-api (/api/pois, /api/photos) for a simplified route line.
+// Things along the route: points of interest from OpenStreetMap and street-level photos.
+// Points come from OpenFreeMap vector tiles (OpenMapTiles schema, layer "poi" at z14), read in
+// the browser along the route corridor: no server storage and no keys. Photos come from
+// Panoramax through maps-api (/api/photos).
 import * as maplibregl from 'maplibre-gl';
+import { VectorTile } from '@mapbox/vector-tile';
+import { PbfReader } from 'pbf';
 import { t } from './i18n';
 import { nearestPoint } from './timeline';
 
 const API = `${import.meta.env.BASE_URL}api`;
 
-export type PoiCat = 'water' | 'repair' | 'food' | 'toilets' | 'shelter' | 'camp' | 'view' | 'photos';
+export type PoiCat = 'eat' | 'fuel' | 'shop' | 'water' | 'beach' | 'repair' | 'sight' | 'view' | 'photos';
 
 export interface CatDef {
   id: PoiCat;
   icon: string;
   color: string;
-  group: 'way' | 'see';
+  group: 'way' | 'see' | 'photo';
   /** on by default */
   def: boolean;
 }
 
 export const CATS: CatDef[] = [
-  { id: 'water', icon: '💧', color: '#378add', group: 'way', def: true },
+  { id: 'eat', icon: '🍴', color: '#ba7517', group: 'way', def: false },
+  { id: 'fuel', icon: '⛽', color: '#6b7280', group: 'way', def: false },
+  { id: 'shop', icon: '🛒', color: '#378add', group: 'way', def: false },
+  { id: 'water', icon: '💧', color: '#1d9e75', group: 'way', def: true },
+  { id: 'beach', icon: '🏖', color: '#d4a017', group: 'way', def: false },
   { id: 'repair', icon: '🔧', color: '#d85a30', group: 'way', def: true },
-  { id: 'food', icon: '🍴', color: '#ba7517', group: 'way', def: false },
-  { id: 'toilets', icon: '🚻', color: '#6b7280', group: 'way', def: false },
-  { id: 'shelter', icon: '🛖', color: '#3b6d11', group: 'way', def: true },
-  { id: 'camp', icon: '⛺', color: '#3b6d11', group: 'way', def: false },
+  { id: 'sight', icon: '🏛', color: '#993556', group: 'see', def: false },
   { id: 'view', icon: '👁', color: '#7f77dd', group: 'see', def: false },
-  { id: 'photos', icon: '📷', color: '#7f77dd', group: 'see', def: false },
+  { id: 'photos', icon: '📷', color: '#7f77dd', group: 'photo', def: false },
 ];
 export const catDef = (id: string) => CATS.find((c) => c.id === id) ?? CATS[0];
 export const catTitle = (id: PoiCat) => t(`poi.${id}` as `poi.${PoiCat}`);
@@ -97,15 +102,140 @@ async function post<T>(path: string, line: [number, number][]): Promise<T> {
   return r.json();
 }
 
+// ---- points of interest from OpenFreeMap tiles ----
+
+const OFM = 'https://tiles.openfreemap.org/planet';
+const Z = 14;
+let tileUrl: Promise<string> | null = null;
+/** The tile URL carries the data version; read it once from the TileJSON. */
+function tileTemplate(): Promise<string> {
+  tileUrl ??= fetch(OFM)
+    .then((r) => r.json())
+    .then((j) => j.tiles[0] as string)
+    .catch((e) => {
+      tileUrl = null;
+      throw e;
+    });
+  return tileUrl;
+}
+
+/** OpenMapTiles poi class / subclass → our category. */
+function categoryOf(cls: string, sub: string): Exclude<PoiCat, 'photos'> | null {
+  if (sub === 'drinking_water' || sub === 'water_point' || sub === 'spring') return 'water';
+  if (cls === 'bicycle' || sub === 'bicycle_repair_station') return 'repair';
+  if (sub === 'fuel') return 'fuel';
+  if (cls === 'grocery' || sub === 'convenience' || sub === 'general' || sub === 'kiosk') return 'shop';
+  if (['cafe', 'restaurant', 'fast_food', 'bakery', 'ice_cream', 'beer', 'bar'].includes(cls)) return 'eat';
+  if (sub === 'viewpoint') return 'view';
+  // sights: attractions, museums, castles, monuments, ruins; street art and memorial plaques left out
+  if (['museum', 'castle', 'monument'].includes(cls) || sub === 'ruins' || sub === 'archaeological_site' || (cls === 'attraction' && sub !== 'artwork')) return 'sight';
+  return null;
+}
+
+const tileCache = new Map<string, Promise<Omit<Poi, 'm' | 'i'>[]>>();
+function tilePois(x: number, y: number): Promise<Omit<Poi, 'm' | 'i'>[]> {
+  const key = `${x}/${y}`;
+  let p = tileCache.get(key);
+  if (!p) {
+    p = tileTemplate()
+      .then((tpl) => fetch(tpl.replace('{z}', String(Z)).replace('{x}', String(x)).replace('{y}', String(y))))
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`tiles: ${r.status}`))))
+      .then((buf) => {
+        const vt = new VectorTile(new PbfReader(buf));
+        const layer = vt.layers.poi;
+        const out: Omit<Poi, 'm' | 'i'>[] = [];
+        // beaches are sand areas in landcover, not points: one marker at the middle of each
+        const lc = vt.layers.landcover;
+        for (let k = 0; lc && k < lc.length; k++) {
+          const f = lc.feature(k);
+          if (f.properties.subclass !== 'beach') continue;
+          const g = f.toGeoJSON(x, y, Z).geometry;
+          const ring = g.type === 'Polygon' ? g.coordinates[0] : g.type === 'MultiPolygon' ? g.coordinates[0][0] : null;
+          if (!ring?.length) continue;
+          const c = ring.reduce((a, p) => [a[0] + p[0] / ring.length, a[1] + p[1] / ring.length], [0, 0]);
+          out.push({ id: `${x}/${y}/b${k}`, cat: 'beach', lng: c[0], lat: c[1], kind: 'beach', tags: {} });
+        }
+        for (let k = 0; layer && k < layer.length; k++) {
+          const f = layer.feature(k);
+          const pr = f.properties as Record<string, string | number>;
+          const cat = categoryOf(String(pr.class ?? ''), String(pr.subclass ?? ''));
+          if (!cat) continue;
+          const g = f.toGeoJSON(x, y, Z).geometry;
+          const c = g.type === 'Point' ? g.coordinates : g.type === 'MultiPoint' ? g.coordinates[0] : null;
+          if (!c) continue;
+          const name = String(pr['name:latin'] ?? pr.name ?? '');
+          out.push({ id: `${x}/${y}/${f.id ?? k}`, cat, lng: c[0], lat: c[1], kind: String(pr.subclass ?? pr.class), tags: name ? { name } : {} });
+        }
+        return out;
+      });
+    p.catch(() => tileCache.delete(key));
+    tileCache.set(key, p);
+  }
+  return p;
+}
+
+/** z14 tiles that a corridor of `radius` m around the route touches. */
+function corridorTiles(points: Pt[], radius: number): [number, number][] {
+  const n = 2 ** Z, keys = new Set<string>();
+  const tx = (lng: number) => Math.floor(((lng + 180) / 360) * n);
+  const ty = (lat: number) => {
+    const r = (lat * Math.PI) / 180;
+    return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n);
+  };
+  const line = simplify(points, 2000);
+  for (let s = 0; s < line.length; s++) {
+    const [lng, lat] = line[s];
+    const next = line[s + 1] ?? line[s];
+    // sample every ~200 m along the segment, each sample with its corridor box
+    const steps = Math.max(1, Math.ceil(Math.hypot((next[0] - lng) * Math.cos((lat * Math.PI) / 180), next[1] - lat) * 111320 / 200));
+    for (let k = 0; k <= steps; k++) {
+      const a = lng + ((next[0] - lng) * k) / steps, b = lat + ((next[1] - lat) * k) / steps;
+      const dLat = radius / 111320, dLng = dLat / Math.cos((b * Math.PI) / 180);
+      for (let X = tx(a - dLng); X <= tx(a + dLng); X++) for (let Y = ty(b + dLat); Y <= ty(b - dLat); Y++) keys.add(`${X}/${Y}`);
+    }
+  }
+  return [...keys].map((k) => k.split('/').map(Number) as [number, number]);
+}
+
+/** Springs are not in the OpenMapTiles schema: ask Overpass for them, briefly; skipped if it is busy. */
+async function springs(points: Pt[], radius: number): Promise<Omit<Poi, 'm' | 'i'>[]> {
+  const line = simplify(points, 150).map(([lng, lat]) => `${lat.toFixed(5)},${lng.toFixed(5)}`).join(',');
+  const q = `[out:json][timeout:15];node(around:${radius},${line})[natural=spring];out 200;`;
+  try {
+    const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: new URLSearchParams({ data: q }), signal: AbortSignal.timeout(20000) });
+    if (!r.ok) return [];
+    const j = await r.json();
+    return (j.elements ?? []).map((e: { id: number; lon: number; lat: number; tags?: Record<string, string> }) => ({
+      id: `n${e.id}`, cat: 'water' as const, lng: e.lon, lat: e.lat, kind: 'spring', tags: e.tags?.name ? { name: e.tags.name } : {},
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /** Points of interest within `radius` m of the route, with their distance along it. */
-export async function fetchPois(points: Pt[], dist: number[], radius: number): Promise<Poi[]> {
-  const raw = await post<Omit<Poi, 'm' | 'i'>[]>(`/pois?radius=${radius}`, simplify(points));
-  return raw
-    .map((p) => {
-      const i = nearestPoint(points, p.lng, p.lat).i;
-      return { ...p, i, m: dist[i] ?? 0 };
-    })
-    .sort((a, b) => a.m - b.m);
+export async function fetchPois(points: Pt[], radius: number, withSprings = false): Promise<Poi[]> {
+  const tiles = corridorTiles(points, radius);
+  const spring = withSprings ? springs(points, radius) : Promise.resolve([]);
+  const lists: Omit<Poi, 'm' | 'i'>[][] = [];
+  for (let k = 0; k < tiles.length; k += 6) lists.push(...(await Promise.all(tiles.slice(k, k + 6).map(([x, y]) => tilePois(x, y)))));
+  lists.push(await spring);
+  // distance along the route, from its own points
+  const cum = [0];
+  for (let k = 1; k < points.length; k++) {
+    const a = points[k - 1], b = points[k], kx = Math.cos((a.lat * Math.PI) / 180);
+    cum.push(cum[k - 1] + Math.hypot((b.lng - a.lng) * kx, b.lat - a.lat) * 111320);
+  }
+  const seen = new Set<string>(), out: Poi[] = [];
+  for (const p of lists.flat()) {
+    const key = `${p.cat}|${p.lng.toFixed(5)}|${p.lat.toFixed(5)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const near = nearestPoint(points, p.lng, p.lat);
+    if (near.i < 0 || near.m > radius) continue;
+    out.push({ ...p, i: near.i, m: cum[near.i] });
+  }
+  return out.sort((a, b) => a.m - b.m);
 }
 
 export async function fetchPhotos(points: Pt[]): Promise<Photo[]> {
@@ -164,18 +294,46 @@ export class AlongLayer {
 
   private render() {
     this.clear();
+    // points of one category close together on screen become one marker with a count
+    const byCat = new Map<string, { p: Poi; at: maplibregl.Point }[]>();
     for (const p of this.pois) {
-      const c = catDef(p.cat);
-      const el = document.createElement('button');
-      el.className = 'poi-mk';
-      el.style.setProperty('--c', c.color);
-      el.textContent = c.icon;
-      el.setAttribute('aria-label', `${catTitle(p.cat)}${p.tags.name ? `: ${p.tags.name}` : ''}`);
-      el.onclick = (e) => {
-        e.stopPropagation();
-        this.showPoi(p);
-      };
-      this.add(el, p.lng, p.lat);
+      if (!byCat.has(p.cat)) byCat.set(p.cat, []);
+      byCat.get(p.cat)!.push({ p, at: this.map.project([p.lng, p.lat]) });
+    }
+    for (const [cat, list] of byCat) {
+      const c = catDef(cat);
+      const used = new Uint8Array(list.length);
+      for (let i = 0; i < list.length; i++) {
+        if (used[i]) continue;
+        used[i] = 1;
+        const group = [list[i]];
+        for (let j = i + 1; j < list.length; j++) {
+          if (!used[j] && Math.hypot(list[j].at.x - list[i].at.x, list[j].at.y - list[i].at.y) < 30) {
+            used[j] = 1;
+            group.push(list[j]);
+          }
+        }
+        const el = document.createElement('button');
+        el.className = 'poi-mk';
+        el.style.setProperty('--c', c.color);
+        el.textContent = c.icon;
+        const one = group[0].p;
+        el.setAttribute('aria-label', group.length > 1 ? `${catTitle(one.cat)}: ${group.length}` : `${catTitle(one.cat)}${one.tags.name ? `: ${one.tags.name}` : ''}`);
+        if (group.length > 1) {
+          const b = document.createElement('span');
+          b.textContent = String(group.length);
+          el.append(b);
+        }
+        el.onclick = (e) => {
+          e.stopPropagation();
+          if (group.length === 1 || this.map.getZoom() >= 18) return this.showPoi(one);
+          const bounds = new maplibregl.LngLatBounds();
+          for (const g of group) bounds.extend([g.p.lng, g.p.lat]);
+          this.map.fitBounds(bounds, { padding: 120, maxZoom: 18, duration: 500 });
+        };
+        // mean of the members' coordinates: unprojecting a screen point is off in 3D (pitch and terrain)
+        this.add(el, group.reduce((a, g) => a + g.p.lng, 0) / group.length, group.reduce((a, g) => a + g.p.lat, 0) / group.length);
+      }
     }
     // greedy grouping of photos by screen distance
     const R = 44;
@@ -209,8 +367,7 @@ export class AlongLayer {
         for (const it of items) bounds.extend([it.lng, it.lat]);
         this.map.fitBounds(bounds, { padding: 120, maxZoom: 18, duration: 500 });
       };
-      const at = this.map.unproject([group.reduce((s, g) => s + g.at.x, 0) / group.length, group.reduce((s, g) => s + g.at.y, 0) / group.length]);
-      this.add(el, at.lng, at.lat);
+      this.add(el, items.reduce((a, it) => a + it.lng, 0) / items.length, items.reduce((a, it) => a + it.lat, 0) / items.length);
     }
   }
 
@@ -224,7 +381,7 @@ export class AlongLayer {
     const extra = [p.tags.opening_hours && `🕑 ${esc(p.tags.opening_hours)}`, p.tags.fee === 'yes' && t('poi.fee'), p.tags.ele && `${esc(p.tags.ele)} m`]
       .filter(Boolean)
       .join(' · ');
-    const osm = `https://www.openstreetmap.org/${({ n: 'node', w: 'way', r: 'relation' } as Record<string, string>)[p.id[0]]}/${p.id.slice(1)}`;
+    const osm = `https://www.openstreetmap.org/?mlat=${p.lat.toFixed(6)}&mlon=${p.lng.toFixed(6)}#map=19/${p.lat.toFixed(6)}/${p.lng.toFixed(6)}`;
     this.open(p.lng, p.lat, `<div class="ap"><b>${c.icon} ${esc(p.tags.name || catTitle(p.cat))}</b>
       <span>${esc(catTitle(p.cat))} · ${t('poi.atKm', { km: km(p.m) })}</span>${extra ? `<span>${extra}</span>` : ''}
       <a href="${osm}" target="_blank" rel="noopener">OpenStreetMap ↗</a></div>`);

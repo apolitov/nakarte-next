@@ -204,12 +204,13 @@
       /* no storage */
     }
   }
-  let poiCats = $state<PoiCat[]>(readPoi('cats', CATS.filter((c) => c.def).map((c) => c.id)));
+  let poiCats = $state<PoiCat[]>(readPoi<PoiCat[]>('cats', CATS.filter((c) => c.def).map((c) => c.id)).filter((c) => CATS.some((d) => d.id === c)));
   let poiRadius = $state<number>(readPoi('radius', 300));
   let poiTimeline = $state<boolean>(readPoi('timeline', true));
   let pois = $state<Poi[]>([]);
   let photos = $state<Photo[]>([]);
   let poiLoading = $state(false);
+  let poisLoaded = $state(false);
   let poiError = $state('');
   let along: AlongLayer | null = null;
   let photosOpen = $state(false);
@@ -221,6 +222,7 @@
   const photosOn = $derived(poiCats.includes('photos'));
   const poiCounts = $derived.by(() => {
     const c: Partial<Record<PoiCat, number>> = {};
+    if (poisLoaded) for (const d of CATS) if (d.id !== 'photos') c[d.id] = 0;
     for (const p of pois) c[p.cat] = (c[p.cat] ?? 0) + 1;
     if (photos.length || photosOn) c.photos = photos.length;
     return c;
@@ -230,7 +232,7 @@
     const ready = route.points.length > 1 && !route.loading;
     const wantPois = layersMenu === 'poi' || poiCats.some((c) => c !== 'photos');
     const wantPhotos = photosOn;
-    const pts = route.points, dist = route.profileData.dist, r = poiRadius;
+    const pts = route.points, r = poiRadius;
     if (!ready) {
       if (route.points.length < 2) (pois = []), (photos = []);
       return;
@@ -240,9 +242,10 @@
       poiLoading = true;
       poiError = '';
       try {
-        const [a, b] = await Promise.all([wantPois ? fetchPois(pts, dist, r) : Promise.resolve(pois), wantPhotos ? fetchPhotos(pts) : Promise.resolve(photos)]);
+        const [a, b] = await Promise.all([wantPois ? fetchPois(pts, r, poiCats.includes('water')) : Promise.resolve(pois), wantPhotos ? fetchPhotos(pts) : Promise.resolve(photos)]);
         pois = a;
         photos = b;
+        if (wantPois) poisLoaded = true;
       } catch (e) {
         poiError = t('poi.failed', { error: (e as Error).message });
       } finally {
@@ -259,15 +262,16 @@
   const baseEvents = $derived(buildTimeline({ points: route.points, profile: route.profileData, checkpoints: route.checkpoints }));
   const events = $derived.by(() => {
     if (!poiTimeline || !visiblePois.length || !baseEvents.length) return baseEvents;
-    // food and shops: at most one row per 5 km, the town is full of them
+    // cafes and shops: at most one row per 5 km, the town is full of them
     let lastFood = -Infinity;
     const extra: TimelineEvent[] = [];
     for (const p of visiblePois) {
-      if (p.cat === 'food') {
+      if (p.cat === 'eat' || p.cat === 'shop') {
         if (p.m - lastFood < 5000) continue;
         lastFood = p.m;
       }
-      extra.push({ id: `poi:${p.id}`, kind: 'poi', i: p.i, d: p.m, label: p.tags.name ? `${catTitle(p.cat)} · ${p.tags.name}` : catTitle(p.cat), icon: catDef(p.cat).icon, priority: 3, weight: 0 });
+      const dense = p.cat === 'eat' || p.cat === 'shop' || p.cat === 'sight';
+      extra.push({ id: `poi:${dense ? 'dense:' : ''}${p.id}`, kind: 'poi', i: p.i, d: p.m, label: p.tags.name ? `${catTitle(p.cat)} · ${p.tags.name}` : catTitle(p.cat), icon: catDef(p.cat).icon, priority: 3, weight: 0 });
     }
     const end = baseEvents.at(-1)!;
     return [...baseEvents.slice(0, -1), ...extra].sort((a, b) => a.d - b.d || (a.kind === 'start' ? -1 : 0)).concat(end);

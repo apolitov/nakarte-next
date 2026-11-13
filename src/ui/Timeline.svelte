@@ -51,7 +51,11 @@
   }
   /** a surface run is a key stretch when it is a sizeable part of the route */
   const keyEvents = $derived(
-    events.filter((e) => e.kind !== 'surface' || (e.d2 ?? e.d) - e.d >= Math.max(1000, profile.length * 0.15)),
+    events.filter((e) =>
+      e.kind === 'poi'
+        ? !e.id.startsWith('poi:dense:') // cafes, shops and sights only in "All": a town has dozens of them
+        : e.kind !== 'surface' || (e.d2 ?? e.d) - e.d >= Math.max(1000, profile.length * 0.15),
+    ),
   );
   const pool = $derived(view === 'key' ? keyEvents : events);
   let list: HTMLUListElement | undefined = $state();
