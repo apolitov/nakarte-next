@@ -857,6 +857,7 @@
   let orbit: { turn: (deg: number) => void } | undefined = $state();
   /** the map for the controls block (the map itself is not reactive state) */
   let map3d = $state.raw<maplibregl.Map | null>(null);
+  let geoCtl = $state.raw<maplibregl.GeolocateControl | null>(null);
   const DEM_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
   function set3d(on: boolean, animate = true) {
     if (!map) return;
@@ -1235,9 +1236,11 @@
       boxZoom: false,
     });
     map.touchZoomRotate.disableRotation();
-    // rarely used: bottom right, the top right corner is for layers
-    // bottom corners stack upwards: location at the bottom, the map controls block above it
-    map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'bottom-right');
+    // find my location: MapLibre's control does the work (dot, following, errors); its button is
+    // hidden (app.css) and the one at the bottom of the map controls block triggers it
+    const geo = new maplibregl.GeolocateControl({ trackUserLocation: true });
+    map.addControl(geo, 'bottom-right');
+    geoCtl = geo;
     if (dimBox) map.addControl({ onAdd: () => dimBox!, onRemove: () => dimBox?.remove() }, 'bottom-right');
     map3d = map;
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
@@ -1512,7 +1515,7 @@
     <!-- one block in the map's bottom right corner (a MapLibre control, see onMount): 2D | 3D and
          zoom; in 3D it grows upwards with turning and tilt -->
     <div class="mapctl maplibregl-ctrl" bind:this={dimBox}>
-      {#if map3d}<Orbit3d bind:this={orbit} map={map3d} three={terrain3d} onset3d={(on) => set3d(on)} />{/if}
+      {#if map3d}<Orbit3d bind:this={orbit} map={map3d} three={terrain3d} geo={geoCtl} onset3d={(on) => set3d(on)} />{/if}
     </div>
     {#if layersMenu === 'poi'}
       <div bind:this={layersBox}>

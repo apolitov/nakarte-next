@@ -2,11 +2,41 @@
   // The map controls in the bottom right corner, one block for 2D and 3D: the 2D | 3D switch
   // and zoom always; in 3D the block grows upwards with turning, a compass that shows north
   // (click: north up; drag: left/right turns, up/down tilts) and tilt, so the switch and zoom
-  // stay where they were.
-  import type { Map as MlMap } from 'maplibre-gl';
+  // stay where they were. At the bottom: find my location (MapLibre's GeolocateControl does the
+  // work, its own button is hidden; this one shows its state).
+  import type { Map as MlMap, GeolocateControl } from 'maplibre-gl';
   import { t } from '../lib/i18n';
 
-  let { map, three, onset3d }: { map: MlMap; three: boolean; onset3d: (on: boolean) => void } = $props();
+  let { map, three, onset3d, geo = null }: { map: MlMap; three: boolean; onset3d: (on: boolean) => void; geo?: GeolocateControl | null } = $props();
+
+  // the control's own states: OFF, WAITING_ACTIVE, ACTIVE_LOCK (follows), BACKGROUND (the map was
+  // moved away, still tracking), ACTIVE_ERROR / BACKGROUND_ERROR; 'denied' when the browser refuses
+  let geoState = $state('OFF');
+  const canLocate = typeof navigator !== 'undefined' && 'geolocation' in navigator;
+  $effect(() => {
+    if (!geo) return;
+    const g = geo as unknown as { _watchState?: string; on: GeolocateControl['on']; off: GeolocateControl['off'] };
+    const read = () => setTimeout(() => (geoState = g._watchState ?? 'OFF'), 0);
+    const err = (e: { code?: number }) => {
+      if (e?.code === 1) setTimeout(() => (geoState = 'denied'), 0);
+      else read();
+    };
+    const evs = ['geolocate', 'trackuserlocationstart', 'trackuserlocationend', 'outofmaxbounds'] as const;
+    for (const ev of evs) g.on(ev, read);
+    g.on('error', err);
+    return () => {
+      for (const ev of evs) g.off(ev, read);
+      g.off('error', err);
+    };
+  });
+  function locate() {
+    if (!geo || geoState === 'denied') return;
+    geo.trigger();
+    geoState = (geo as unknown as { _watchState?: string })._watchState ?? 'OFF';
+  }
+  const geoTip = $derived(
+    geoState === 'denied' ? t('orbit.locateDenied') : geoState === 'ACTIVE_LOCK' ? t('orbit.locateStop') : t('orbit.locate'),
+  );
 
   let bearing = $state(0);
   let pitch = $state(0);
@@ -87,6 +117,14 @@
   <button class="ob" data-tip={t('orbit.zoomOut')} aria-label={t('orbit.zoomOut')} onclick={() => map.zoomOut()}>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
   </button>
+  {#if geo && canLocate}
+    <span class="sep"></span>
+    <button class="ob loc" data-state={geoState} data-tip={geoTip} aria-label={geoTip}
+      aria-pressed={geoState === 'ACTIVE_LOCK' || geoState === 'BACKGROUND'} aria-disabled={geoState === 'denied'} onclick={locate}>
+      <!-- an arrow like the usual "my location" sign; filled while the map follows you -->
+      <svg width="18" height="18" viewBox="0 0 24 24" fill={geoState === 'ACTIVE_LOCK' ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20 4 4 11l7 2 2 7z" /></svg>
+    </button>
+  {/if}
 </div>
 
 <style>
@@ -153,6 +191,30 @@
   .dim button[aria-pressed='true'] {
     background: var(--marker);
     color: var(--marker-ink);
+  }
+  /* location: blue while it follows you, outlined blue when the map was moved away,
+     pulsing while waiting for a fix, red after an error */
+  .loc[data-state='ACTIVE_LOCK'],
+  .loc[data-state='BACKGROUND'] {
+    color: #1a73e8;
+  }
+  .loc[data-state='WAITING_ACTIVE'] svg {
+    animation: locpulse 1s ease-in-out infinite;
+  }
+  .loc[data-state='ACTIVE_ERROR'],
+  .loc[data-state='BACKGROUND_ERROR'] {
+    color: var(--danger);
+  }
+  @keyframes locpulse {
+    50% {
+      opacity: 0.3;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .loc[data-state='WAITING_ACTIVE'] svg {
+      animation: none;
+      opacity: 0.5;
+    }
   }
   .deg {
     font-size: 11px;

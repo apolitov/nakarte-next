@@ -704,3 +704,9 @@ kbd {
     right: -5px;
   }
 }
+
+/* MapLibre's location button: the control still works (dot, following), the button for it is in
+   the map controls block (Orbit3d) */
+.maplibregl-ctrl-group:has(> .maplibregl-ctrl-geolocate) {
+  display: none;
+}
