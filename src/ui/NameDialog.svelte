@@ -4,7 +4,7 @@
   // The name is required; the only other way out is back to editing.
   import { t } from '../lib/i18n';
   import { dec } from '../lib/timeline';
-  import { estimateMinutes, formatDuration } from '../lib/eta';
+  import { routeMinutes, formatDuration } from '../lib/eta';
   import type { Profile } from '../lib/profile';
 
   let {
@@ -78,7 +78,7 @@
         <dt>{t('name.length')}</dt><dd class="num">{dec(profile.length / 1000)} {t('unit.km')}</dd>
         <dt>{t('name.up')}</dt><dd class="num">↑ {Math.round(profile.ascent)} {t('unit.m')}</dd>
         <dt>{t('name.down')}</dt><dd class="num">↓ {Math.round(profile.descent)} {t('unit.m')}</dd>
-        <dt>{t('name.time')}</dt><dd class="num">~{formatDuration(estimateMinutes(profile.length, profile.ascent, profileId, profile.descent))}</dd>
+        <dt>{t('name.time')}</dt><dd class="num">~{formatDuration(routeMinutes(profile, profileId))}</dd>
       </dl>
     </aside>
   </form>

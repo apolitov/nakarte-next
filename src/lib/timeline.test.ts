@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildProfile } from './profile';
 import { buildTimeline, climbThreshold, findClimbs, findSteep, limitEvents, nearestPoint, rails, segmentClasses, surfaceRuns, surfaceShares } from './timeline';
-import { estimateMinutes, formatDuration } from './eta';
+import { routeMinutes, formatDuration } from './eta';
 
 /** Straight line due north, a point every 50 m, with the given elevation function. */
 function line(n: number, ele: (d: number) => number) {
@@ -118,13 +118,27 @@ describe('timeline', () => {
 });
 
 describe('eta', () => {
-  it('uses the speed of the route type plus 1 min per 10 m', () => {
-    expect(estimateMinutes(18000, 0, 'nk-gravel')).toBeCloseTo(60);
-    expect(estimateMinutes(25000, 600, 'nk-road')).toBeCloseTo(120);
-    // DIN 33466: 4.5 km flat = 1.125 h, 600 m up = 2 h -> 2 + 1.125 / 2
-    expect(estimateMinutes(4500, 600, 'nk-hike')).toBeCloseTo(153.75);
-    // the hike from the GPX check: 12.8 km, +700 m, -2117 m, 4.6 h moving
-    expect(estimateMinutes(12800, 700, 'nk-hike', 2117) / 60).toBeCloseTo(8.17, 1);
+  const flat = (km: number, grade: number, surf: string) => {
+    const n = km * 10 + 1;
+    return { dist: Array.from({ length: n }, (_, i) => i * 100), grade: Array(n).fill(grade), surface: Array(n).fill(surf) } as never;
+  };
+  it('rides by grade and surface', () => {
+    // 10 km flat: about 25 km/h on a road bike on tarmac, 19 on gravel on compacted ways
+    expect(routeMinutes(flat(10, 0, 'paved'), 'nk-road')).toBeCloseTo(24, 0);
+    expect(routeMinutes(flat(10, 0, 'compact'), 'nk-gravel')).toBeCloseTo(32, 0);
+    // rougher is slower, uphill much slower, downhill faster
+    expect(routeMinutes(flat(10, 0, 'path'), 'nk-gravel')).toBeGreaterThan(routeMinutes(flat(10, 0, 'compact'), 'nk-gravel'));
+    expect(routeMinutes(flat(10, 6, 'paved'), 'nk-road')).toBeGreaterThan(55);
+    expect(routeMinutes(flat(10, -6, 'paved'), 'nk-road')).toBeLessThan(20);
+  });
+  it('walks by Tobler', () => {
+    // fastest at -5%, slower on the flat, slow on steep descents
+    const t = (g: number) => routeMinutes(flat(4, g, 'unknown'), 'nk-hike');
+    expect(t(-5)).toBeLessThan(t(0));
+    expect(t(-25)).toBeGreaterThan(t(0));
+    expect(t(0) / 60).toBeCloseTo(4 / 4.31, 1);
+  });
+  it('formats', () => {
     expect(formatDuration(191)).toBe('3 h 11 min');
     expect(formatDuration(45)).toBe('45 min');
     expect(formatDuration(120)).toBe('2 h');

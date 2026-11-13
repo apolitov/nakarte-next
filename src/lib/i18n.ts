@@ -35,8 +35,8 @@ const en = {
   // summary
   'sum.label': 'Summary',
   'sum.computing': 'computing…',
-  'sum.etaTip': 'Estimate: {type} at {speed} km/h on average, plus 1 min per 10 m of climbing',
-  'sum.etaTipHike': 'Walking time without breaks, as on trail signs (DIN 33466): 4 km/h on the flat, 300 m up or 500 m down per hour',
+  'sum.etaTip': 'Moving time without breaks, from the grade and surface of every piece of the route: {type} ridden at about {power} W on the flat, harder uphill',
+  'sum.etaTipHike': 'Walking time without breaks, from the grade of every piece of the route (Tobler\'s hiking function): fastest on gentle descents, slow on steep ones',
   'sum.surface': 'Surface: {list}',
 
   // surfaces (short names: timeline, legend; long: map colouring)
