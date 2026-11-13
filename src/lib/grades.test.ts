@@ -15,7 +15,8 @@ describe('grade colours', () => {
   });
   it('walking keeps its wider classes', () => {
     expect(gradeColor(6, 'nk-hike')).toBe(gradeColor(0, 'nk-hike'));
-    expect(gradeClasses().at(-1)!.title).toBe('↑ >45%');
+    expect(gradeClasses('nk-hike').at(-1)!.title).toBe('↑ >45%');
+    expect(gradeClasses('nk-road').at(-1)!.title).toBe('↑ >18%');
     expect(flatLimit('nk-hike')).toBe(10);
   });
 });

@@ -116,10 +116,25 @@ const HIKE: GradeClass[] = [
   { min: 45, color: '#7f0000', title: up(45) },
 ];
 
-/** Classes for walking (legend and colours); bikes use the gradient. */
-export function gradeClasses(): GradeClass[] {
-  for (const k of HIKE) if (k.flat) k.title = t('grade.flat');
-  return HIKE;
+/** Legend chips for bikes: the line runs in 1% steps, the legend names a few ranges, each
+ *  shown in the gradient's colour at its middle. */
+const BIKE_LEGEND: GradeClass[] = [
+  { min: -Infinity, color: bikeGradeColor(-12), title: down(10) },
+  { min: -10, color: bikeGradeColor(-5), title: down(1, 10) },
+  { min: -1, color: bikeGradeColor(0), title: '', flat: true },
+  { min: 1, color: bikeGradeColor(2), title: up(1, 3) },
+  { min: 3, color: bikeGradeColor(5), title: up(3, 6) },
+  { min: 6, color: bikeGradeColor(8), title: up(6, 10) },
+  { min: 10, color: bikeGradeColor(12), title: up(10, 14) },
+  { min: 14, color: bikeGradeColor(16), title: up(14, 18) },
+  { min: 18, color: bikeGradeColor(18), title: up(18) },
+];
+
+/** Legend classes: walking's own scale, or the bike chips. */
+export function gradeClasses(routeType = 'nk-hike'): GradeClass[] {
+  const c = isGradient(routeType) ? BIKE_LEGEND : HIKE;
+  for (const k of c) if (k.flat) k.title = t('grade.flat');
+  return c;
 }
 export const isGradient = (routeType = 'nk-road') => routeType !== 'nk-hike';
 /** what counts as flat: ±1% on a bike, ±10% on foot */

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { gradeClasses, isGradient, bikeRampCss, BIKE_RAMP_RANGE, SURFACE_DASH, type Profile } from '../lib/profile';
+  import { gradeClasses, SURFACE_DASH, type Profile } from '../lib/profile';
   import { SEG_ORDER, SEG_SHORT, STRAIGHT_COLOR, dec, type SegClass } from '../lib/timeline';
   import ElevationProfile from './ElevationProfile.svelte';
   import Icon from './Icon.svelte';
@@ -76,21 +76,9 @@
   {#if open}
     <ElevationProfile {profile} {classes} {marks} {maxGrade} {hoverIdx} {band} {routeType} height={mobile ? 140 : 150} {onhover} {onpick} />
     <div class="leg">
-      {#if isGradient(routeType)}
-        <!-- bikes: one gradient bar, labels at its stops -->
-        <span class="ramp" role="img" aria-label={t('prof.rampLabel')}>
-          <i style="background:{bikeRampCss()}"></i>
-          <span class="rl">
-            {#each [-12, -6, 0, 3, 6, 10, 14, 18] as g (g)}
-              <b style="left:{((g - BIKE_RAMP_RANGE[0]) / (BIKE_RAMP_RANGE[1] - BIKE_RAMP_RANGE[0])) * 100}%">{g < 0 ? `↓${-g}` : g === 0 ? '0' : g === 18 ? `↑${g}+` : `↑${g}`}</b>
-            {/each}
-          </span>
-        </span>
-      {:else}
-        {#each gradeClasses() as g (g.min)}
-          <span class="lg"><i style="background:{g.color}{g.flat ? ';box-shadow:inset 0 0 0 1.5px #26262b' : ''}"></i>{g.title}</span>
-        {/each}
-      {/if}
+      {#each gradeClasses(routeType) as g (g.min)}
+        <span class="lg"><i style="background:{g.color}{g.flat ? ';box-shadow:inset 0 0 0 1.5px #26262b' : ''}"></i>{g.title}</span>
+      {/each}
       <span class="sp"></span>
       {#each present as c (c)}
         {@const d = dash(c)}
@@ -201,32 +189,5 @@
   .sp {
     width: 100%;
     height: 0;
-  }
-  .ramp {
-    display: grid;
-    gap: 2px;
-    width: min(100%, 420px);
-    margin-bottom: 4px;
-  }
-  .ramp > i {
-    display: block;
-    height: 8px;
-    border-radius: 4px;
-  }
-  .rl {
-    position: relative;
-    height: 14px;
-  }
-  .rl b {
-    position: absolute;
-    transform: translateX(-50%);
-    font: 500 10.5px/14px var(--mono);
-    white-space: nowrap;
-  }
-  .rl b:first-child {
-    transform: none;
-  }
-  .rl b:last-child {
-    transform: translateX(-100%);
   }
 </style>

@@ -378,7 +378,6 @@ const en = {
   'prof.downTip': 'Total descent',
   'prof.collapse': 'Collapse profile',
   'prof.expand': 'Expand profile',
-  'prof.rampLabel': 'Grade colours: blue downhill, green flat, yellow to red uphill, black from 18%',
   'prof.overLimit': 'steeper than limit',
 
   // map hints and toasts
