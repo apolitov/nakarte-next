@@ -42,9 +42,16 @@ export const SURFACE_PARAMS: Record<Surface, Record<string, number>> = {
 /** a slider from "avoid climbs" to "seek climbs" */
 export type Climbs = 'avoid' | 'less' | 'normal' | 'any' | 'seek';
 export const CLIMB_STEPS: Climbs[] = ['avoid', 'less', 'normal', 'any', 'seek'];
+/** a slider from "avoid big roads" to "big roads are fine" */
+export type BigRoads = 'avoid' | 'less' | 'normal' | 'any';
+export const BIG_STEPS: BigRoads[] = ['avoid', 'less', 'normal', 'any'];
+/** nk_big per step (gen.py): trunk and primary cost this many times more, secondary and tertiary less */
+const BIG_K: Record<BigRoads, number> = { avoid: 4, less: 2, normal: 1, any: 0.3 };
 export interface RouteOptions {
   surface: Surface;
   climbs: Climbs;
+  /** big roads: trunk, primary and, less so, secondary and tertiary */
+  bigRoads: BigRoads;
   /** max comfortable grade, %; 0 = no limit */
   maxGrade: number;
   /** prefer cycleways, cycle lanes and signed cycle routes (on by default in the bike profiles) */
@@ -73,7 +80,7 @@ export const ALLOW_FOR: Record<AllowKey, string[]> = {
   paths: ['nk-road', 'nk-gravel'],
 };
 const ALLOW_ALL: Record<AllowKey, boolean> = { steps: true, ferry: true, busy: true, unpaved: true, paths: true };
-export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', maxGrade: 0, cycleways: true, heat: false, sac: 3, trails: false, nature: false, quiet: false, allow: { ...ALLOW_ALL } };
+export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', bigRoads: 'normal', maxGrade: 0, cycleways: true, heat: false, sac: 3, trails: false, nature: false, quiet: false, allow: { ...ALLOW_ALL } };
 /** SAC difficulty steps offered for hiking (OSM sac_scale: T1 hiking … T6 difficult alpine) */
 export const SAC_STEPS = [2, 3, 4, 6] as const;
 
@@ -103,6 +110,7 @@ export function optionsToParams(o: RouteOptions): Record<string, number> {
   } else if (o.climbs === 'any') {
     p.nk_uphillcost = 0;
   }
+  if (o.bigRoads && o.bigRoads !== 'normal') p.nk_big = BIG_K[o.bigRoads];
   // not a profile parameter either: fetchLeg picks among alternatives by the heatmap
   if (o.heat) p.nk_heat = 1;
   // hiking only (variables of the stock hiking-mountain profile); defaults are not sent
@@ -136,6 +144,7 @@ export function paramsToOptions(p: Record<string, string | number | boolean> = {
     cycleways: n('nk_cycle') !== 0,
     heat: n('nk_heat') === 1,
     maxGrade: cost != null && cost >= 600 && cutoff ? cutoff : 0,
+    bigRoads: (BIG_STEPS.find((k) => BIG_K[k] === (n('nk_big') ?? 1)) ?? 'normal'),
     climbs: n('nk_seek') === 1 ? 'seek' : cost == null ? 'normal' : cost === 0 ? 'any' : cost >= 600 ? 'normal' : cost >= 250 ? 'avoid' : 'less',
     sac: n('SAC_scale_limit') ?? 3,
     trails: (n('hiking_routes_preference') ?? 0) >= 1,

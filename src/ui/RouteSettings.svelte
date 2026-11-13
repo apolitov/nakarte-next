@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey, type Surface, type Climbs, CLIMB_STEPS } from '../lib/brouter';
+  import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey, type Surface, type Climbs, CLIMB_STEPS, type BigRoads, BIG_STEPS } from '../lib/brouter';
   import Segmented from './Segmented.svelte';
 
   let {
@@ -46,6 +46,16 @@
   $effect(() => {
     climb = options.climbs;
   });
+  const BIG_LABEL: Record<BigRoads, string> = {
+    avoid: t('set.bigAvoid'),
+    less: t('set.bigLess'),
+    normal: t('set.bigNormal'),
+    any: t('set.bigAny'),
+  };
+  let big = $state<BigRoads>('normal');
+  $effect(() => {
+    big = options.bigRoads;
+  });
   let surf = $state<Surface>(0);
   $effect(() => {
     surf = options.surface;
@@ -69,6 +79,15 @@
   oninput={(e) => (climb = CLIMB_STEPS[Number(e.currentTarget.value)])}
   onchange={(e) => onchange({ climbs: CLIMB_STEPS[Number(e.currentTarget.value)] })} />
 <div class="ends"><span>{t('set.climbsAvoidEnd')}</span><span title={t('set.climbsSeekTip')}>{t('set.climbsSeekEnd')}</span></div>
+{#if !hike}
+  <!-- walking has its own "away from busy roads" switch below -->
+  <div class="lbl" title={t('set.bigTip')}><label for="nk-big">{t('set.big')}</label><output for="nk-big">{BIG_LABEL[big]}</output></div>
+  <input id="nk-big" class="surf" type="range" min="0" max="3" step="1" value={BIG_STEPS.indexOf(options.bigRoads)}
+    aria-valuetext={BIG_LABEL[big]}
+    oninput={(e) => (big = BIG_STEPS[Number(e.currentTarget.value)])}
+    onchange={(e) => onchange({ bigRoads: BIG_STEPS[Number(e.currentTarget.value)] })} />
+  <div class="ends"><span>{t('set.bigQuietEnd')}</span><span>{t('set.bigAnyEnd')}</span></div>
+{/if}
 <div class="lbl"><label for="nk-steep">{t('set.maxGrade')}</label><output for="nk-steep" class="num">{grade ? `${grade}%` : t('set.noLimit')}</output></div>
 <input id="nk-steep" type="range" min="0" max="20" step="1" value={options.maxGrade}
   oninput={(e) => (grade = Number(e.currentTarget.value))}
