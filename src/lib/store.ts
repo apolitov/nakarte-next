@@ -20,6 +20,8 @@ export interface RouteDoc {
   /** `straight` marks the leg that starts at this waypoint. */
   waypoints: { lng: number; lat: number; straight?: boolean }[];
   checkpoints: Checkpoint[];
+  /** the name was made up by the app ("Route 12 km, 13 Nov"), not given by the person */
+  autoName?: boolean;
   /** Computed legs, so an opened route shows at once without asking the router again. */
   legs?: import('./brouter').StoredLeg[];
   /** first saved; older routes have only `updated` */

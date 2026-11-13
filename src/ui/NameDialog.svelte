@@ -13,6 +13,7 @@
     profileId,
     typeTitle,
     suggestion,
+    suggestions = [],
     onsave,
     onback,
   }: {
@@ -21,6 +22,7 @@
     profileId: string;
     typeTitle: string;
     suggestion: string;
+    suggestions?: string[];
     onsave: (name: string) => void;
     onback: () => void;
   } = $props();
@@ -57,7 +59,14 @@
       <h2 id="nk-name-h">{t('name.title')}</h2>
       <p class="soft">{t('name.why')}</p>
       <label for="nk-name" class="lbl">{t('name.label')}</label>
-      <input id="nk-name" bind:this={input} bind:value={name} placeholder={suggestion} maxlength="120" autocomplete="off" spellcheck="false" />
+      <input id="nk-name" bind:this={input} bind:value={name} placeholder={suggestions[0] ?? suggestion} maxlength="120" autocomplete="off" spellcheck="false" />
+      {#if suggestions.length}
+        <div class="sugs" role="group" aria-label={t('name.suggestions')}>
+          {#each suggestions as sg (sg)}
+            <button type="button" class="sug" onclick={() => { name = sg; input?.focus(); }}>{sg}</button>
+          {/each}
+        </div>
+      {/if}
       <div class="btns">
         <button type="submit" class="pri" aria-disabled={!ok}>{t('name.save')}</button>
         <button type="button" class="sec" onclick={back}>{t('name.back')}</button>
@@ -199,5 +208,21 @@
     dt {
       display: none;
     }
+  }
+  .sugs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 2px;
+  }
+  .sug {
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--tint);
+    font-size: 12.5px;
+    text-align: left;
+  }
+  .sug:hover {
+    background: var(--tint2);
   }
 </style>

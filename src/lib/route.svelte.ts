@@ -72,6 +72,7 @@ export class RouteState {
       id: this.docId,
       kind: 'route',
       name: this.name || this.autoName(),
+      autoName: this.name ? undefined : true,
       profile: this.profile,
       params: { ...this.params },
       waypoints: this.waypoints.map(({ lng, lat, straight }) => (straight ? { lng, lat, straight } : { lng, lat })),
@@ -87,7 +88,9 @@ export class RouteState {
   load(doc: RouteDoc) {
     this.docId = doc.id;
     this.created = doc.created ?? doc.updated ?? 0;
-    this.name = doc.name;
+    // a made-up name stays a placeholder: the route still gets asked for a real one
+    // (older routes carry no mark: a name of the "Route 12 km, 13 Nov" pattern counts as made up)
+    this.name = doc.autoName || /^Route [\d.]+ km, /.test(doc.name) ? '' : doc.name;
     this.profile = normalizeProfile(doc.profile ?? '');
     this.params = { ...(doc.params ?? {}) };
     this.checkpoints = doc.checkpoints ?? [];

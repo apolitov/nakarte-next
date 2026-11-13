@@ -14,6 +14,7 @@
   import { store, newId, type RouteDoc, type TrackDoc } from './lib/store';
   import Orbit3d from './ui/Orbit3d.svelte';
   import NameDialog from './ui/NameDialog.svelte';
+  import { suggestNames } from './lib/routeNames';
   import { trackToRoute, profileForActivity } from './lib/trackRoute';
   import { routeToParam, paramToRoute } from './lib/share';
   import { showPasses, hidePasses } from './lib/passes';
@@ -893,10 +894,17 @@
   let nameOpen = $state(false);
   let afterName: (() => void) | null = null;
   /** True when the name dialog was opened instead; `then` runs after the name is given. */
+  let nameSuggestions = $state<string[]>([]);
   function needName(then?: () => void): boolean {
     if (route.points.length < 2 || route.name) return false;
     afterName = then ?? null;
+    nameSuggestions = [];
     nameOpen = true;
+    // place-based names arrive in a moment (cached on the server); the dialog is usable meanwhile
+    const pts = route.points;
+    suggestNames(pts, route.profileData.length / 1000, profileTitle).then((s) => {
+      if (route.points === pts) nameSuggestions = s;
+    });
     return true;
   }
   function nameGiven(name: string) {
@@ -1354,7 +1362,7 @@
 
 <svelte:window onkeydown={onKey} />
 <NameDialog bind:open={nameOpen} profile={route.profileData} profileId={route.profile} typeTitle={profileTitle}
-  suggestion={route.autoName()} onsave={nameGiven} onback={backToEditing} />
+  suggestion={route.autoName()} suggestions={nameSuggestions} onsave={nameGiven} onback={backToEditing} />
 <div class="app" role="application" ondragover={(e) => e.preventDefault()} ondrop={onDrop}>
   <aside class="side" class:sheet-open={sheetOpen} class:editing aria-label={t('route.panel')}>
     {#if mobile}
