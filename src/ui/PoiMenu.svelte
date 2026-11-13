@@ -203,9 +203,14 @@
   }
   @media (max-width: 639px) {
     .lpop {
-      top: 60px;
-      width: min(260px, calc(100% - 20px));
-      max-height: calc(100% - 140px);
+      /* one sheet for every menu: from the left margin to the column of buttons, which stays
+         visible and shows which menu is open; level with the first button */
+      top: 62px;
+      left: 10px;
+      right: 64px;
+      width: auto;
+      max-height: calc(100% - 150px);
+      border-radius: 14px;
     }
     .row {
       min-height: 36px;

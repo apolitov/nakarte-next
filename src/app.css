@@ -590,6 +590,8 @@ kbd {
     top: 62px;
     right: 10px;
     flex-direction: column;
+    /* the wider POIs button and the square ones share the right edge */
+    align-items: flex-end;
   }
 }
 
@@ -686,4 +688,19 @@ kbd {
   color: var(--marker-ink);
   font-size: 11px;
   line-height: 18px;
+}
+@media (max-width: 639px) {
+  /* a square like the other two, the count as a badge on its corner */
+  .layersbtn.poibtn {
+    position: relative;
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+    font-size: 11.5px;
+  }
+  .layersbtn.poibtn .cnt {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+  }
 }
