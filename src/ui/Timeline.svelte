@@ -13,6 +13,7 @@
     activeD = null,
     pinnedId = null,
     mobile = false,
+    routeType = 'nk-road',
     onhover,
     onpick,
   }: {
@@ -22,6 +23,7 @@
     activeD?: number | null;
     pinnedId?: string | null;
     mobile?: boolean;
+    routeType?: string;
     onhover: (e: TimelineEvent | null) => void;
     onpick: (e: TimelineEvent) => void;
   } = $props();
@@ -62,7 +64,7 @@
     return limitEvents(pool, capacity - 1);
   });
   const hidden = $derived(pool.length - shown.length);
-  const railList = $derived(rails(shown, profile, classes));
+  const railList = $derived(rails(shown, profile, classes, routeType));
 
   /** Row of the stretch that contains the hovered distance. */
   const activeRow = $derived.by(() => {

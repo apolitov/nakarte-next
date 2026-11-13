@@ -575,11 +575,28 @@ kbd {
   box-shadow: var(--shadow);
   color: var(--ink);
 }
-.layersbtn.txt3d {
-  font: 700 13px/1 var(--sans);
-  letter-spacing: 0.02em;
+/* 2D | 3D: two halves of one control, the active one in the marker colour */
+.dim {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  height: 44px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
 }
-.layersbtn[aria-pressed='true'] {
+.dim button {
+  width: 38px;
+  border-radius: 11px;
+  font: 700 13px/1 var(--sans);
+  color: var(--soft);
+}
+.dim button:hover {
+  background: var(--tint);
+}
+.dim button[aria-pressed='true'] {
   background: var(--marker);
   color: var(--marker-ink);
 }
@@ -596,5 +613,14 @@ kbd {
     top: 62px;
     right: 10px;
     flex-direction: column;
+  }
+  .dim {
+    flex-direction: column;
+    width: 44px;
+    height: auto;
+  }
+  .dim button {
+    width: 38px;
+    height: 34px;
   }
 }

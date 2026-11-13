@@ -11,6 +11,7 @@
   import { RouteEditor, type ColorMode } from './lib/routeEditor';
   import { PROFILES, normalizeProfile, ALLOW_KEYS, ALLOW_FOR, type AllowKey, type ProfileId, type RouteOptions } from './lib/brouter';
   import { store, newId, type RouteDoc, type TrackDoc } from './lib/store';
+  import Orbit3d from './ui/Orbit3d.svelte';
   import NameDialog from './ui/NameDialog.svelte';
   import { trackToRoute, profileForActivity } from './lib/trackRoute';
   import { routeToParam, paramToRoute } from './lib/share';
@@ -720,12 +721,14 @@
 
   // ---- 3D: terrain from the open Terrarium tiles (the same as for straight legs), tilt and rotation ----
   let terrain3d = $state(false);
-  /** compass in 3D: drag it to turn and tilt, click it for north up */
-  let compass: maplibregl.NavigationControl | null = null;
+  let orbit: { turn: (deg: number) => void } | undefined = $state();
+  /** the map for the 3D panel (the map itself is not reactive state) */
+  let map3d = $state.raw<maplibregl.Map | null>(null);
   const DEM_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
   function set3d(on: boolean, animate = true) {
     if (!map) return;
     terrain3d = on;
+    map3d = map;
     try {
       localStorage.setItem('nk-3d', on ? '1' : '0');
     } catch {
@@ -741,14 +744,9 @@
       m.dragRotate.enable();
       m.touchZoomRotate.enableRotation();
       m.touchPitch.enable();
-      if (!compass) m.addControl((compass = new maplibregl.NavigationControl({ showZoom: false, visualizePitch: true })), 'bottom-right');
       m.easeTo({ pitch: 62, duration: animate ? 900 : 0 });
     } else {
       m.setTerrain(null);
-      if (compass) {
-        m.removeControl(compass);
-        compass = null;
-      }
       m.dragRotate.disable();
       m.touchZoomRotate.disableRotation();
       m.touchPitch.disable();
@@ -843,6 +841,9 @@
     { title: t('help.straightOne'), keys: ['⇧', t('help.click')] },
     { title: t('help.layers'), keys: ['L'] },
     { title: t('help.fit'), keys: ['F'] },
+    { title: t('help.dim'), keys: ['T'] },
+    { title: t('help.turn'), keys: ['Q'], alt: ['E'] },
+    { title: t('help.tilt'), keys: ['⇧', '↑'], alt: ['⇧', '↓'] },
     { title: t('help.help'), keys: ['?'], alt: [MOD, '/'] },
     { title: t('help.removeLast'), keys: ['⌫'] },
     { title: t('help.escape'), keys: ['Esc'] },
@@ -911,6 +912,9 @@
       case 'KeyB': toggleStraight(true); break;
       case 'KeyL': openMenu('base'); break;
       case 'KeyF': fitRoute(); break;
+      case 'KeyT': set3d(!terrain3d); break;
+      case 'KeyQ': if (!terrain3d) return; orbit?.turn(-45); break;
+      case 'KeyE': if (!terrain3d) return; orbit?.turn(45); break;
       default: return;
     }
     e.preventDefault();
@@ -1258,7 +1262,7 @@
     {#if hasRoute}
       <RouteSummary profile={route.profileData} profileId={route.profile} {classes} loading={route.loading} error={route.error?.error ?? ''} />
       {#if mobile}
-        <ProfileCard bind:open={showProfile} mobile profile={route.profileData} {classes} marks={profileMarks}
+        <ProfileCard bind:open={showProfile} mobile routeType={route.profile} profile={route.profileData} {classes} marks={profileMarks}
           maxGrade={route.options.maxGrade} hoverIdx={markerIdx} band={hoverBand ?? pinnedBand}
           onhover={(i) => setHover(i, 'prof')} onpick={pickProfile} />
       {/if}
@@ -1273,7 +1277,7 @@
     </Fold>
 
     {#if events.length}
-      <Timeline {events} profile={route.profileData} {classes} {activeD} pinnedId={pinned?.id ?? null} {mobile}
+      <Timeline {events} routeType={route.profile} profile={route.profileData} {classes} {activeD} pinnedId={pinned?.id ?? null} {mobile}
         onhover={onTimelineHover} onpick={pickEvent} />
     {:else if !route.waypoints.length}
       <div class="empty">
@@ -1333,9 +1337,14 @@
         title="{t('lay.base')} (L)" onclick={() => openMenu('base')}><Icon name="layers" size={20} /></button>
       <button class="layersbtn" aria-expanded={layersMenu === 'over'} aria-controls="nk-layers" aria-label={t('lay.overlays')}
         title={t('lay.overlays')} onclick={() => openMenu('over')}><Icon name="overlay" size={20} /></button>
-      <button class="layersbtn txt3d" aria-pressed={terrain3d} aria-label={t('map.3d')} data-tip={terrain3d ? t('map.3dOff') : t('map.3dTip')}
-        onclick={() => set3d(!terrain3d)}>3D</button>
+      <div class="dim" role="group" aria-label={t('map.dim')}>
+        <button aria-pressed={!terrain3d} data-tip={t('map.2dTip')} onclick={() => set3d(false)}>2D</button>
+        <button aria-pressed={terrain3d} data-tip={t('map.3dTip')} onclick={() => set3d(true)}>3D</button>
+      </div>
     </div>
+    {#if terrain3d && map3d}
+      <Orbit3d bind:this={orbit} map={map3d} />
+    {/if}
     {#if layersMenu}
       <div bind:this={layersBox}>
         <LayersPopover mode={layersMenu} profile={route.profile} {base} {overlays} {colorMode} pinned={layersPinned} canPin={!mobile} onpin={togglePin} onbase={setBase} onoverlay={toggleOverlay}
@@ -1356,7 +1365,7 @@
     {/if}
     {#if hasRoute && !mobile}
       <div class="profwrap" bind:offsetHeight={profH}>
-        <ProfileCard bind:open={showProfile} profile={route.profileData} {classes} marks={profileMarks}
+        <ProfileCard bind:open={showProfile} routeType={route.profile} profile={route.profileData} {classes} marks={profileMarks}
           maxGrade={route.options.maxGrade} hoverIdx={markerIdx} band={hoverBand ?? pinnedBand}
           onhover={(i) => setHover(i, 'prof')} onpick={pickProfile} />
       </div>

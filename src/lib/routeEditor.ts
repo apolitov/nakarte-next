@@ -310,7 +310,7 @@ export class RouteEditor {
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
       const color =
-        this.colorMode === 'grade' ? gradeColor(prof.grade[i]) : this.colorMode === 'surface' ? SURFACE_STYLE[prof.surface[i]].color : PLAIN;
+        this.colorMode === 'grade' ? gradeColor(prof.grade[i], this.route.profile) : this.colorMode === 'surface' ? SURFACE_STYLE[prof.surface[i]].color : PLAIN;
       const leg = i === 0 ? p.leg : pts[i].leg;
       const surf = prof.surface[i];
       if (i > 0 && (color !== runColor || leg !== runLeg || surf !== runSurf)) {

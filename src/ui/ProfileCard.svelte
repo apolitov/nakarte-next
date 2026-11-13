@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { GRADE_CLASSES, SURFACE_DASH, type Profile } from '../lib/profile';
+  import { gradeClasses, SURFACE_DASH, type Profile } from '../lib/profile';
   import { SEG_ORDER, SEG_SHORT, STRAIGHT_COLOR, dec, type SegClass } from '../lib/timeline';
   import ElevationProfile from './ElevationProfile.svelte';
   import Icon from './Icon.svelte';
@@ -14,6 +14,7 @@
     hoverIdx,
     band,
     mobile = false,
+    routeType = 'nk-road',
     onhover,
     onpick,
   }: {
@@ -25,6 +26,7 @@
     hoverIdx: number | null;
     band: [number, number] | null;
     mobile?: boolean;
+    routeType?: string;
     onhover: (i: number | null) => void;
     onpick: (i: number) => void;
   } = $props();
@@ -72,9 +74,9 @@
     </button>
   </div>
   {#if open}
-    <ElevationProfile {profile} {classes} {marks} {maxGrade} {hoverIdx} {band} height={mobile ? 140 : 150} {onhover} {onpick} />
+    <ElevationProfile {profile} {classes} {marks} {maxGrade} {hoverIdx} {band} {routeType} height={mobile ? 140 : 150} {onhover} {onpick} />
     <div class="leg">
-      {#each GRADE_CLASSES as g, i (g.min)}
+      {#each gradeClasses(routeType) as g, i (g.min)}
         <span class="lg"><i style="background:{g.color}{i === 2 ? ';box-shadow:inset 0 0 0 1.5px #26262b' : ''}"></i>{g.title}</span>
       {/each}
       <span class="sp"></span>

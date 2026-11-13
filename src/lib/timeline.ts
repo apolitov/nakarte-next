@@ -1,7 +1,7 @@
 // Route timeline: notable places along the route computed from its geometry
 // and profile: start, finish, checkpoints, climbs, straight legs and surface
 // changes. Also the surface shares for the summary.
-import { gradeColor, GRADE_CLASSES, type Profile, type SurfaceClass } from './profile';
+import { gradeColor, gradeClasses, type Profile, type SurfaceClass } from './profile';
 import { kindOf } from './checkpointKinds';
 import { t } from './i18n';
 
@@ -343,7 +343,8 @@ export function limitEvents(events: TimelineEvent[], max: number): TimelineEvent
 }
 
 /** Rail for the stretch from each event to the next one: average grade colour and the main surface. */
-export function rails(events: TimelineEvent[], profile: Pick<Profile, 'dist' | 'ele'>, cls: SegClass[]): (Rail | null)[] {
+export function rails(events: TimelineEvent[], profile: Pick<Profile, 'dist' | 'ele'>, cls: SegClass[], routeType = 'nk-road'): (Rail | null)[] {
+  const gc = gradeClasses(routeType);
   const { dist, ele } = profile;
   return events.map((e, k) => {
     const next = events[k + 1];
@@ -358,7 +359,7 @@ export function rails(events: TimelineEvent[], profile: Pick<Profile, 'dist' | '
     let surface: SegClass = cls[b] ?? 'unknown';
     let best = -1;
     for (const [c, m] of acc) if (m > best) { best = m; surface = c; }
-    const flat = g != null && g >= GRADE_CLASSES[2].min && g < GRADE_CLASSES[3].min;
-    return { color: surface === 'straight' ? STRAIGHT_COLOR : gradeColor(g), surface, flat };
+    const flat = g != null && g >= gc[2].min && g < gc[3].min;
+    return { color: surface === 'straight' ? STRAIGHT_COLOR : gradeColor(g, routeType), surface, flat };
   });
 }

@@ -61,20 +61,47 @@ export const SURFACE_STYLE: Record<SurfaceClass, { color: string; title: string 
  * Signed grade classes: descents blue, flat green, climbs yellow to dark red.
  * Thresholds after brouter-web and Garmin ClimbPro (see docs in the repo history).
  */
-export const GRADE_CLASSES: { min: number; color: string; title: string }[] = [
-  { min: -Infinity, color: '#2c7fb8', title: '↓ >8%' },
-  { min: -8, color: '#7fcdbb', title: '↓ 3-8%' },
-  { min: -3, color: '#4fae63', title: t('grade.flat') }, // green: grey read as "no data" on flat routes
-  { min: 3, color: '#fee08b', title: '↑ 3-6%' },
-  { min: 6, color: '#fdae61', title: '↑ 6-10%' },
-  { min: 10, color: '#d73027', title: '↑ 10-15%' },
-  { min: 15, color: '#7f0000', title: '↑ >15%' },
-];
+/**
+ * Grade classes per route type: the same seven colours, the boundaries move. 6% is a climb
+ * on a road bike and nothing on foot, where a mountain path is 20-30%.
+ * [steep descent beyond, flat within ±, then the climb boundaries] in %.
+ */
+const SCALES: Record<string, [number, number, number, number, number]> = {
+  'nk-road': [8, 3, 6, 10, 15],
+  'nk-gravel': [10, 4, 8, 12, 18],
+  'nk-mtb': [15, 5, 10, 15, 25],
+  'nk-hike': [30, 10, 20, 30, 45],
+};
+const COLORS = ['#2c7fb8', '#7fcdbb', '#4fae63', '#fee08b', '#fdae61', '#d73027', '#7f0000'];
+type GradeClass = { min: number; color: string; title: string };
+const classCache = new Map<string, GradeClass[]>();
 
-export function gradeColor(g: number | null): string {
+export function gradeClasses(routeType = 'nk-road'): GradeClass[] {
+  const key = SCALES[routeType] ? routeType : 'nk-road';
+  let c = classCache.get(key);
+  if (!c) {
+    const [dn, f, u1, u2, u3] = SCALES[key];
+    c = [
+      { min: -Infinity, color: COLORS[0], title: `↓ >${dn}%` },
+      { min: -dn, color: COLORS[1], title: `↓ ${f}-${dn}%` },
+      { min: -f, color: COLORS[2], title: t('grade.flat') }, // green: grey read as "no data" on flat routes
+      { min: f, color: COLORS[3], title: `↑ ${f}-${u1}%` },
+      { min: u1, color: COLORS[4], title: `↑ ${u1}-${u2}%` },
+      { min: u2, color: COLORS[5], title: `↑ ${u2}-${u3}%` },
+      { min: u3, color: COLORS[6], title: `↑ >${u3}%` },
+    ];
+    classCache.set(key, c);
+  }
+  return c;
+}
+/** The road scale (the strictest one). */
+export const GRADE_CLASSES = gradeClasses('nk-road');
+
+export function gradeColor(g: number | null, routeType = 'nk-road'): string {
   if (g == null) return SURFACE_STYLE.unknown.color;
-  let c = GRADE_CLASSES[0].color;
-  for (const k of GRADE_CLASSES) if (g >= k.min) c = k.color;
+  const cls = gradeClasses(routeType);
+  let c = cls[0].color;
+  for (const k of cls) if (g >= k.min) c = k.color;
   return c;
 }
 

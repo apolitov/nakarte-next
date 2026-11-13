@@ -12,6 +12,7 @@
     hoverIdx = null,
     band = null,
     height = 150,
+    routeType = 'nk-road',
     onhover,
     onpick,
   }: {
@@ -23,6 +24,8 @@
     /** highlighted stretch, metres */
     band?: [number, number] | null;
     height?: number;
+    /** route type: picks the grade scale */
+    routeType?: string;
     onhover: (i: number | null) => void;
     onpick?: (i: number) => void;
   } = $props();
@@ -127,7 +130,7 @@
       const x0 = X(dist[i - 1]) - 0.4, x1 = X(dist[i]) + 0.4;
       ctx.beginPath();
       ctx.moveTo(x0, Y(e0)); ctx.lineTo(x1, Y(e1)); ctx.lineTo(x1, bottom); ctx.lineTo(x0, bottom); ctx.closePath();
-      ctx.fillStyle = gradeColor(grade[i]);
+      ctx.fillStyle = gradeColor(grade[i], routeType);
       ctx.fill();
       if (pat && (grade[i] ?? 0) > maxGrade) {
         ctx.fillStyle = pat;
@@ -229,7 +232,7 @@
   }
 
   $effect(() => {
-    void profile; void classes; void width; void height; void hoverIdx; void marks; void band; void maxGrade; void themeTick;
+    void profile; void classes; void width; void height; void hoverIdx; void marks; void band; void maxGrade; void themeTick; void routeType;
     draw();
   });
 
