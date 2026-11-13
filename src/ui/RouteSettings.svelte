@@ -2,6 +2,7 @@
   import { t } from '../lib/i18n';
   import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey, type Surface, type Climbs, CLIMB_STEPS, type BigRoads, BIG_STEPS, PROFILES } from '../lib/brouter';
   import Segmented from './Segmented.svelte';
+  import Explain from './Explain.svelte';
 
   let {
     options,
@@ -74,14 +75,14 @@
   <div class="tk" aria-hidden="true">{#each { length: n } as _, i (i)}<i class:d={i === def}></i>{/each}</div>
 {/snippet}
 
-<div class="lbl"><label for="nk-surf">{t('set.surface')}</label><output for="nk-surf" class:on={surf !== 0}>{SURF_LABEL[surf]}</output></div>
+<div class="lbl"><span><label for="nk-surf">{t('set.surface')}</label><Explain label={t('set.surface')} text={t('ex.surfaceSet')} /></span><output for="nk-surf" class:on={surf !== 0}>{SURF_LABEL[surf]}</output></div>
 <input id="nk-surf" class="surf" type="range" min="-2" max="2" step="1" value={options.surface}
   aria-valuetext={SURF_LABEL[surf]}
   oninput={(e) => (surf = Number(e.currentTarget.value) as Surface)}
   onchange={(e) => onchange({ surface: Number(e.currentTarget.value) as Surface })} />
 {@render ticks(5, 2)}
 <div class="ends"><span>{t('set.surfAsphalt')}</span><span>{t('set.surfTrails')}</span></div>
-<div class="lbl"><label for="nk-climbs">{t('set.climbs')}</label>
+<div class="lbl"><span><label for="nk-climbs">{t('set.climbs')}</label><Explain label={t('set.climbs')} text={t('ex.climbsSet')} /></span>
   <output for="nk-climbs" class:on={climb !== 'normal'} title={climb === 'seek' ? t('set.climbsSeekTip') : undefined}>{CLIMB_LABEL[climb]}</output></div>
 <input id="nk-climbs" class="surf" type="range" min="0" max="4" step="1" value={CLIMB_STEPS.indexOf(options.climbs)}
   disabled={options.maxGrade > 0} aria-valuetext={CLIMB_LABEL[climb]}
@@ -91,7 +92,7 @@
 <div class="ends"><span>{t('set.climbsAvoidEnd')}</span><span title={t('set.climbsSeekTip')}>{t('set.climbsSeekEnd')}</span></div>
 {#if !hike}
   <!-- walking has its own "away from busy roads" switch below -->
-  <div class="lbl" title={t('set.bigTip')}><label for="nk-big">{t('set.big')}</label><output for="nk-big" class:on={big !== 'normal'}>{BIG_LABEL[big]}</output></div>
+  <div class="lbl"><span><label for="nk-big">{t('set.big')}</label><Explain label={t('set.big')} text={t('ex.bigSet')} /></span><output for="nk-big" class:on={big !== 'normal'}>{BIG_LABEL[big]}</output></div>
   <input id="nk-big" class="surf" type="range" min="0" max="3" step="1" value={BIG_STEPS.indexOf(options.bigRoads)}
     aria-valuetext={BIG_LABEL[big]}
     oninput={(e) => (big = BIG_STEPS[Number(e.currentTarget.value)])}
@@ -246,6 +247,8 @@
     color: var(--soft);
   }
   .lbl {
+    /* the (?) note opens under this row, across the panel */
+    position: relative;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
