@@ -4,7 +4,7 @@
 import * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { RouteState } from './route.svelte';
-import { gradeColor, SURFACE_STYLE, SURFACE_DASH, type SurfaceClass } from './profile';
+import { gradeColor, haversine, SURFACE_STYLE, SURFACE_DASH, type SurfaceClass } from './profile';
 import { t } from './i18n';
 
 export type ColorMode = 'grade' | 'surface' | 'plain';
@@ -40,6 +40,7 @@ export class RouteEditor {
       id: 'route-casing',
       type: 'line',
       source: 'route',
+      filter: ['!', ['has', 'connector']],
       // dark casing: the light "flat" colour and the gaps of dashes stay readable on any base map
       paint: { 'line-color': '#26262b', 'line-width': 8, 'line-opacity': 0.75 },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
@@ -48,6 +49,7 @@ export class RouteEditor {
       id: 'route-line',
       type: 'line',
       source: 'route',
+      filter: ['!', ['has', 'connector']],
       paint: {
         'line-color': ['get', 'color'],
         'line-width': 5,
@@ -66,7 +68,17 @@ export class RouteEditor {
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
     });
     // wide invisible line to grab for inserting points
-    map.addLayer({ id: 'route-hit', type: 'line', source: 'route', paint: { 'line-color': '#000', 'line-opacity': 0, 'line-width': 18 } });
+    // where the router took a point to (the nearest way it can use): a thin dashed link from
+    // the marker, so a point off the road or two legs that do not meet never look like a break
+    map.addLayer({
+      id: 'route-connector',
+      type: 'line',
+      source: 'route',
+      filter: ['has', 'connector'],
+      paint: { 'line-color': '#26262b', 'line-width': 2, 'line-opacity': 0.7, 'line-dasharray': [1.5, 1.5] },
+      layout: { 'line-cap': 'butt', 'line-join': 'round' },
+    });
+    map.addLayer({ id: 'route-hit', type: 'line', source: 'route', filter: ['!', ['has', 'connector']], paint: { 'line-color': '#000', 'line-opacity': 0, 'line-width': 18 } });
     map.addLayer({
       id: 'route-hover',
       type: 'circle',
@@ -325,6 +337,16 @@ export class RouteEditor {
       run.push([p.lng, p.lat]);
     }
     flush();
+    // connectors: marker -> start of its leg, end of a leg -> next marker
+    const wps = this.route.waypoints;
+    this.route.legs.forEach((l, i) => {
+      if (l.status !== 'ok' || !l.leg.points.length) return;
+      const pts = l.leg.points, a = wps[i], b = wps[i + 1];
+      for (const [w, p] of [[a, pts[0]], [b, pts[pts.length - 1]]] as const) {
+        if (!w || haversine({ lng: w.lng, lat: w.lat, ele: null }, p) < CONNECT_M) continue;
+        features.push({ type: 'Feature', properties: { connector: true, leg: i }, geometry: { type: 'LineString', coordinates: [[w.lng, w.lat], [p.lng, p.lat]] } });
+      }
+    });
     // legs still loading or failed: a thin straight segment
     this.route.legs.forEach((l, i) => {
       if (l.status === 'ok') return;
@@ -347,6 +369,9 @@ export class RouteEditor {
     );
   }
 }
+
+/** A marker closer than this to its route needs no link (the line width covers it). */
+const CONNECT_M = 4;
 
 /** Frames of a dash moving along the line (dash, gap, dash, gap in line widths). */
 const PENDING_DASH: number[][] = [
