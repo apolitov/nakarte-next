@@ -260,6 +260,14 @@ export type PhotoSource = 'commons' | 'mapillary' | 'panoramax';
 export const PHOTO_SOURCES: PhotoSource[] = ['commons', 'mapillary', 'panoramax'];
 const PIECE = 2000; // m of route per request batch
 
+/** "2014-06-02 10:33", "Taken on 2 June 2014" → 2014-06-02 or 2014; '' when there is no year. */
+export function photoDate(v: string): string {
+  const iso = v.match(/\b(1[89]\d\d|20\d\d)-(\d\d)-(\d\d)\b/);
+  if (iso) return iso[0];
+  const y = v.match(/\b(1[89]\d\d|20\d\d)\b/);
+  return y ? y[0] : '';
+}
+
 const strip = (h = '') => h.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 
 type RawPhoto = Omit<Photo, 'm'>;
@@ -267,7 +275,7 @@ const CELL_Z = 15;
 
 /** All Commons files with coordinates in one z15 cell (~1 km), cached in the browser for 30 days. */
 async function commonsCell(x: number, y: number): Promise<RawPhoto[]> {
-  const key = `c:${CELL_Z}/${x}/${y}`;
+  const key = `c3:${CELL_Z}/${x}/${y}`; // c3: dates and large images fixed (older entries are ignored and expire)
   const hit = await cacheGet<RawPhoto>(key);
   if (hit) return hit;
   const n = 2 ** CELL_Z;
@@ -276,14 +284,14 @@ async function commonsCell(x: number, y: number): Promise<RawPhoto[]> {
   const half = ((40075016 * Math.cos((lat * Math.PI) / 180)) / n) * 0.72; // half the cell diagonal, m
   const q = new URLSearchParams({
     action: 'query', generator: 'geosearch', ggscoord: `${lat.toFixed(5)}|${lng.toFixed(5)}`, ggsradius: String(Math.round(half)),
-    ggsnamespace: '6', ggslimit: '50', prop: 'imageinfo|coordinates', iiprop: 'url|extmetadata|mime', iiurlwidth: '320',
+    ggsnamespace: '6', ggslimit: '50', prop: 'imageinfo|coordinates', iiprop: 'url|size|extmetadata|mime', iiurlwidth: '320',
     iiextmetadatafilter: 'LicenseShortName|Artist|DateTimeOriginal', format: 'json', origin: '*',
   });
   const r = await fetch(`${COMMONS}?${q}`, { signal: AbortSignal.timeout(10000) });
   if (!r.ok) throw new Error(`commons ${r.status}`);
   const pages = Object.values((await r.json()).query?.pages ?? {}) as {
     pageid: number; title: string; coordinates?: { lat: number; lon: number }[];
-    imageinfo?: { thumburl?: string; descriptionurl: string; mime: string; extmetadata?: Record<string, { value: string }> }[];
+    imageinfo?: { thumburl?: string; url: string; width?: number; descriptionurl: string; mime: string; extmetadata?: Record<string, { value: string }> }[];
   }[];
   const out: RawPhoto[] = [];
   for (const pg of pages) {
@@ -292,8 +300,10 @@ async function commonsCell(x: number, y: number): Promise<RawPhoto[]> {
     const m = ii.extmetadata ?? {};
     out.push({
       id: `c${pg.pageid}`, src: 'commons', lng: co.lon, lat: co.lat, az: null,
-      date: strip(m.DateTimeOriginal?.value).slice(0, 10), author: strip(m.Artist?.value).slice(0, 80), license: strip(m.LicenseShortName?.value),
-      thumb: ii.thumburl, sd: ii.thumburl.replace(/\/\d+px-/, '/800px-'), url: ii.descriptionurl,
+      date: photoDate(strip(m.DateTimeOriginal?.value)), author: strip(m.Artist?.value).slice(0, 80), license: strip(m.LicenseShortName?.value),
+      // Commons serves thumbnails only in standard widths (1280 is one) and none wider than the
+      // original: small files are shown as they are
+      thumb: ii.thumburl, sd: (ii.width ?? 0) > 1280 ? ii.thumburl.replace(/\/\d+px-/, '/1280px-') : ii.url, url: ii.descriptionurl,
     });
   }
   await cachePut(key, out, 30 * DAY);

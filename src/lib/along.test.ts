@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { photoGroups, simplify, type Photo } from './along';
+import { photoDate, photoGroups, simplify, type Photo } from './along';
 
 describe('along the route', () => {
   it('simplifies a long line to at most the given number of points, keeping the ends', () => {
@@ -16,5 +16,11 @@ describe('along the route', () => {
     const ph = (m: number) => ({ id: String(m), m }) as Photo;
     const g = photoGroups([ph(100), ph(1900), ph(2100), ph(9000)]);
     expect(g.map((x) => [x.from, x.items.length])).toEqual([[0, 2], [2000, 1], [8000, 1]]);
+  });
+
+  it('reads dates of Commons files', () => {
+    expect(photoDate('2014-06-02 10:33:21')).toBe('2014-06-02');
+    expect(photoDate('Taken on 2 June 2014')).toBe('2014');
+    expect(photoDate('Taken in the 1890s')).toBe('');
   });
 });

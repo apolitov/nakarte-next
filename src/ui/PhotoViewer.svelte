@@ -48,7 +48,8 @@
           if (x0 != null && Math.abs(e.clientX - x0) > 40) go(e.clientX < x0 ? 1 : -1);
           x0 = null;
         }}>
-        {#key p.id}<img src={p.sd || p.thumb} alt="" />{/key}
+        <!-- a large version that fails to load falls back to the thumbnail -->
+        {#key p.id}<img src={p.sd || p.thumb} alt="" onerror={(e) => { const i = e.currentTarget as HTMLImageElement; if (i.src !== p.thumb) i.src = p.thumb; }} />{/key}
         {#if photos.length > 1}
           <button class="nav prev" aria-label={t('pv.prev')} onclick={() => go(-1)}>‹</button>
           <button class="nav next" aria-label={t('pv.next')} onclick={() => go(1)}>›</button>
