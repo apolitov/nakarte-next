@@ -1325,7 +1325,7 @@
       onchange={(e) => { addFiles(e.currentTarget.files!); e.currentTarget.value = ''; }} />
   </aside>
 
-  <main class="mapcol" style="--prof-h:{mobile || !hasRoute ? 0 : profH + 12}px">
+  <main class="mapcol" class:t3d={terrain3d} style="--prof-h:{mobile || !hasRoute ? 0 : profH + 12}px">
     <div class="map" bind:this={container}></div>
     <Toolbar {editing} canUndo={route.canUndo} canRedo={route.canRedo} hasRoute={route.waypoints.length > 0} canLoop={hasLegs}
       {straightOn} placing={placing === 'route'} {layersOpen}

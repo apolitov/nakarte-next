@@ -175,6 +175,8 @@ const en = {
   'map.dim': 'Flat or 3D map',
   'map.2dTip': 'Flat map, north up (T)',
   'map.3dTip': '3D terrain (T): turn with Q and E or the round buttons, tilt with Shift+arrows',
+  'orbit.zoomIn': 'Zoom in',
+  'orbit.zoomOut': 'Zoom out',
   'orbit.title': '3D camera',
   'orbit.left': 'Turn left (Q)',
   'orbit.right': 'Turn right (E)',

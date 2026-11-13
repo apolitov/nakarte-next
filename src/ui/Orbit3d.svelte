@@ -71,14 +71,22 @@
   <button class="ob" data-tip={t('orbit.tiltLess')} aria-label={t('orbit.tiltLess')} aria-disabled={pitch <= 0.5} onclick={() => tilt(-15)}>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="6" rx="1" /></svg>
   </button>
+  <!-- zoom lives here in 3D: the standard zoom buttons are hidden so the two blocks never overlap -->
+  <span class="sep"></span>
+  <button class="ob" data-tip={t('orbit.zoomIn')} aria-label={t('orbit.zoomIn')} onclick={() => map.zoomIn()}>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+  </button>
+  <button class="ob" data-tip={t('orbit.zoomOut')} aria-label={t('orbit.zoomOut')} onclick={() => map.zoomOut()}>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
+  </button>
 </div>
 
 <style>
   .orbit {
     position: absolute;
     right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
+    /* under the layer buttons, as far as possible from the location button at the bottom */
+    top: 68px;
     z-index: 4;
     display: flex;
     flex-direction: column;

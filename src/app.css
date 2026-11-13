@@ -447,6 +447,7 @@ kbd {
   .maplibregl-ctrl-bottom-left {
     bottom: calc(66px + env(safe-area-inset-bottom));
   }
+
   .side.sheet-open {
     transform: none;
     overflow-y: auto;
@@ -623,4 +624,9 @@ kbd {
     width: 38px;
     height: 34px;
   }
+}
+
+/* 3D: zoom buttons move into the orbit block (Orbit3d), so the two never overlap */
+.mapcol.t3d .maplibregl-ctrl-group:has(.maplibregl-ctrl-zoom-in) {
+  display: none !important;
 }
