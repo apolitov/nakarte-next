@@ -1665,9 +1665,10 @@
     color: var(--danger);
     font-size: 13px;
   }
+  /* neither the hint nor the list may shrink under their content: squeezed, the hint's text ran
+     over the list; when space is short the whole panel scrolls */
   .empty {
-    flex: 1;
-    min-height: 0;
+    flex: none;
     font-size: 13px;
     color: var(--soft);
     padding: 4px 2px;
@@ -1757,9 +1758,7 @@
     background: var(--tint) center / cover no-repeat;
   }
   .browse {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
+    flex: 1 0 auto;
     margin: 0 -4px;
     padding: 0 4px;
   }
