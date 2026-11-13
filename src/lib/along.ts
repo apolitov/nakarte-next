@@ -198,38 +198,25 @@ function corridorTiles(points: Pt[], radius: number): [number, number][] {
   return [...keys].map((k) => k.split('/').map(Number) as [number, number]);
 }
 
-// ---- springs: not in the OpenMapTiles schema, so from Overpass, per z12 cell (~10 km) ----
+// ---- springs: not in the OpenMapTiles schema; maps-api asks Overpass per z12 cell (~10 km),
+// retries when it is busy and keeps a shared cache; the browser keeps its own for 30 days ----
 
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
 const SPRING_Z = 12;
 type RawPoi = Omit<Poi, 'm' | 'i'>;
 
-/** Springs in one z12 cell; cached in the browser for 30 days. Public Overpass is often slow or
- *  busy: a failed cell is tried again next time, and nothing else waits for it. */
 async function springCell(x: number, y: number): Promise<RawPoi[] | null> {
   const key = `sp:${SPRING_Z}/${x}/${y}`;
   const hit = await cacheGet<RawPoi>(key);
   if (hit) return hit;
-  const n = 2 ** SPRING_Z;
-  const lng = (v: number) => (v / n) * 360 - 180;
-  const lat = (v: number) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * v) / n))) * 180) / Math.PI;
-  const q = `[out:json][timeout:40];node(${lat(y + 1).toFixed(5)},${lng(x).toFixed(5)},${lat(y).toFixed(5)},${lng(x + 1).toFixed(5)})[natural=spring];out 500;`;
-  for (const url of OVERPASS) {
-    try {
-      const r = await fetch(url, { method: 'POST', body: new URLSearchParams({ data: q }), signal: AbortSignal.timeout(45000) });
-      if (!r.ok) continue;
-      const j = await r.json();
-      const out: RawPoi[] = (j.elements ?? []).map((e: { id: number; lon: number; lat: number; tags?: Record<string, string> }) => ({
-        id: `n${e.id}`, cat: 'water' as const, lng: e.lon, lat: e.lat, kind: 'spring',
-        tags: { ...(e.tags?.name ? { name: e.tags.name } : {}), ...(e.tags?.drinking_water ? { drinking_water: e.tags.drinking_water } : {}) },
-      }));
-      await cachePut(key, out, 30 * DAY);
-      return out;
-    } catch {
-      /* next mirror */
-    }
+  try {
+    const r = await fetch(`${API}/springs/${x}/${y}`, { signal: AbortSignal.timeout(120000) });
+    if (!r.ok) return null; // tried again next time
+    const out: RawPoi[] = await r.json();
+    await cachePut(key, out, 30 * DAY);
+    return out;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 /** Springs near the route, with distances; cells that could not be loaded are skipped. */
