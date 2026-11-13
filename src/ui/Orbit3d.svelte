@@ -8,7 +8,51 @@
   import { t } from '../lib/i18n';
   import { track } from '../lib/analytics';
 
-  let { map, three, onset3d, geo = null }: { map: MlMap; three: boolean; onset3d: (on: boolean) => void; geo?: GeolocateControl | null } = $props();
+  let {
+    map,
+    three,
+    onset3d,
+    geo = null,
+    minTop = 0,
+    layout = '',
+  }: {
+    map: MlMap;
+    three: boolean;
+    onset3d: (on: boolean) => void;
+    geo?: GeolocateControl | null;
+    /** the block's top must stay at or below this screen y (below the layer buttons) */
+    minTop?: number;
+    /** changes when something moves the block (window size, the elevation profile card) */
+    layout?: string;
+  } = $props();
+
+  // when the grown 3D block would reach the layer buttons it drops the tilt row, then the turn
+  // buttons; keys (Q, E, Shift+arrows) and dragging the compass still do both
+  let fit = $state(0);
+  let root: HTMLDivElement | undefined = $state();
+  $effect(() => {
+    void three, void minTop, void layout;
+    fit = 0;
+    let raf = 0;
+    const check = () => {
+      if (!root || !minTop) return;
+      if (root.getBoundingClientRect().top < minTop && fit < 2) {
+        fit++;
+        raf = requestAnimationFrame(check);
+      }
+    };
+    raf = requestAnimationFrame(check);
+    const onResize = () => {
+      fit = 0;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(check);
+    };
+    addEventListener('resize', onResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      removeEventListener('resize', onResize);
+    };
+  });
 
   // the control's own states: OFF, WAITING_ACTIVE, ACTIVE_LOCK (follows), BACKGROUND (the map was
   // moved away, still tracking), ACTIVE_ERROR / BACKGROUND_ERROR; 'denied' when the browser refuses
@@ -83,7 +127,7 @@
   }
 </script>
 
-<div class="orbit" class:three role="group" aria-label={t('orbit.title')}>
+<div class="orbit" class:three class:fit1={fit >= 1} class:fit2={fit >= 2} bind:this={root} role="group" aria-label={t('orbit.title')}>
   {#if three}
     <button class="ob sm turn" data-tip={t('orbit.left')} aria-label={t('orbit.left')} onclick={() => turn(-45)}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4" /></svg>
@@ -228,26 +272,26 @@
       height: 40px;
     }
   }
-  /* phones in 3D: tilting is a two-finger drag or a drag of the compass, zoom is a pinch; without
-     those buttons the grown block stays clear of the layer buttons above it */
+  /* phones: zoom is a pinch, so no + and -; leaving them out in 2D and 3D alike keeps the 2D | 3D
+     switch in place when the block grows */
   @media (max-width: 639px), (max-height: 480px) and (orientation: landscape) {
-    .three .zoom,
-    .three .zoomsep,
+    .zoom,
+    .zoomsep {
+      display: none;
+    }
+    /* in 3D tilting is a two-finger drag or a drag of the compass */
     .three .tiltrow {
       display: none;
     }
   }
-  /* very short phones in 3D: the compass alone (dragging it left and right turns the map) */
+  /* short phones in 3D: the compass alone (dragging it turns and tilts the map) */
   @media (max-width: 639px) and (max-height: 600px), (max-height: 480px) and (orientation: landscape) {
     .three .turn {
       display: none;
     }
   }
-  /* short phones: pinch zooms; without + and - the block clears the layer buttons above it */
-  @media (max-width: 639px) and (max-height: 600px), (max-height: 480px) and (orientation: landscape) {
-    .zoom,
-    .zoomsep {
-      display: none;
-    }
+  .fit1 .tiltrow,
+  .fit2 .turn {
+    display: none;
   }
 </style>

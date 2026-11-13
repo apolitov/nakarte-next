@@ -565,9 +565,10 @@ async def D3(ctx):
     await pg.click('.dim button:has-text("3D")')
     phone = is_phone(profile_of(ctx))
     # phones hide the tilt buttons and the pitch readout on purpose (two-finger tilt): wait for the compass
-    await pg.wait_for_selector('.orbit .compass' if phone else '.orbit .deg')
+    await pg.wait_for_selector('.orbit .compass')
     await pg.wait_for_timeout(1200)
-    if not phone:
+    # the pitch readout goes with the tilt row on phones and wherever the block must shrink to fit
+    if await pg.locator('.orbit .deg').is_visible():
         try:  # the tilt is animated
             await pg.wait_for_function("document.querySelector('.orbit .deg')?.textContent.trim().startsWith('6')", timeout=5000)
         except Exception:

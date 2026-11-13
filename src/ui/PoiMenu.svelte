@@ -96,7 +96,8 @@
     right: 0;
     z-index: 5;
     width: 240px;
-    max-height: calc(100% - 200px - var(--prof-h, 0px));
+    /* stops above the map controls block (its height is measured, it grows in 3D) */
+    max-height: calc(var(--ctl-top, 400px) - 74px);
     overflow: auto;
     background: var(--paper);
     border-radius: 12px 0 0 12px;

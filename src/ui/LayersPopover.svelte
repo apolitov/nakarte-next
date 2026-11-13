@@ -87,7 +87,8 @@
     z-index: 5;
     width: 220px;
     /* stops above the zoom and location buttons in the bottom right corner */
-    max-height: calc(100% - 200px - var(--prof-h, 0px));
+    /* stops above the map controls block (its height is measured, it grows in 3D) */
+    max-height: calc(var(--ctl-top, 400px) - 74px);
     overflow: auto;
     background: var(--paper);
     /* one column glued to the right edge of the screen */

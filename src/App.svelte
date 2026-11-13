@@ -230,6 +230,29 @@
   let poiError = $state('');
   let along: AlongLayer | null = null;
   let dimBox: HTMLDivElement | undefined = $state();
+  // where the map controls block starts, so that open menus stop above it, and where the layer
+  // buttons end, so that the block (growing in 3D) stays below them
+  let ctlTop = $state(400);
+  let btnsBottom = $state(0);
+  function measureControls() {
+    if (!dimBox) return;
+    const col = dimBox.closest('.mapcol')?.getBoundingClientRect();
+    ctlTop = Math.round(dimBox.getBoundingClientRect().top - (col?.top ?? 0));
+    const b = document.querySelector('.layersbtns')?.getBoundingClientRect();
+    btnsBottom = b ? Math.round(b.bottom + 8) : 0;
+  }
+  $effect(() => {
+    if (!dimBox) return;
+    const ro = new ResizeObserver(measureControls);
+    ro.observe(dimBox);
+    ro.observe(document.body);
+    measureControls();
+    return () => ro.disconnect();
+  });
+  $effect(() => {
+    void profH, void hasRoute, void terrain3d;
+    requestAnimationFrame(measureControls);
+  });
   let photosOpen = $state(false);
   /** photo viewer: index into `photos`, null when closed */
   let viewer = $state<number | null>(null);
@@ -1539,7 +1562,7 @@
       onchange={(e) => { addFiles(e.currentTarget.files!); e.currentTarget.value = ''; }} />
   </aside>
 
-  <main class="mapcol" class:t3d={terrain3d} style="--prof-h:{mobile || !hasRoute ? 0 : profH + 12}px">
+  <main class="mapcol" class:t3d={terrain3d} style="--prof-h:{mobile || !hasRoute ? 0 : profH + 12}px; --ctl-top:{ctlTop}px">
     <div class="map" bind:this={container}></div>
     <Toolbar {editing} canUndo={route.canUndo} canRedo={route.canRedo} hasRoute={route.waypoints.length > 0} canLoop={hasLegs}
       {straightOn} placing={placing === 'route'} {layersOpen}
@@ -1558,7 +1581,7 @@
     <!-- one block in the map's bottom right corner (a MapLibre control, see onMount): 2D | 3D and
          zoom; in 3D it grows upwards with turning and tilt -->
     <div class="mapctl maplibregl-ctrl" bind:this={dimBox}>
-      {#if map3d}<Orbit3d bind:this={orbit} map={map3d} three={terrain3d} geo={geoCtl} onset3d={(on) => set3d(on)} />{/if}
+      {#if map3d}<Orbit3d bind:this={orbit} map={map3d} three={terrain3d} geo={geoCtl} minTop={btnsBottom} layout={`${profH}|${hasRoute}|${mobile}`} onset3d={(on) => set3d(on)} />{/if}
     </div>
     {#if layersMenu === 'poi'}
       <div bind:this={layersBox}>
