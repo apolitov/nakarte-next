@@ -3,7 +3,7 @@ import { gradeClasses, gradeColor } from './profile';
 
 describe('grade scales', () => {
   it('bikes: fine below 10%, coarse above, black beyond 18%', () => {
-    expect(gradeClasses('nk-road').map((c) => c.min)).toEqual([-Infinity, -8, -4, -1, 1, 3, 5, 7, 10, 14, 18]);
+    expect(gradeClasses('nk-road').map((c) => c.min)).toEqual([-Infinity, -10, -1, 1, 3, 5, 7, 10, 14, 18]);
     expect(gradeClasses('nk-gravel')).toBe(gradeClasses('nk-road'));
     expect(gradeClasses('nk-mtb')).toBe(gradeClasses('nk-road'));
     expect(gradeColor(2, 'nk-road')).not.toBe(gradeColor(0, 'nk-road'));

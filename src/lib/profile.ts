@@ -67,9 +67,9 @@ type GradeClass = { min: number; color: string; title: string; flat?: boolean };
 const up = (a: number, b?: number) => (b == null ? `↑ >${a}%` : `↑ ${a}-${b}%`);
 const down = (a: number, b?: number) => (b == null ? `↓ >${a}%` : `↓ ${a}-${b}%`);
 const BIKE: GradeClass[] = [
-  { min: -Infinity, color: '#08519c', title: down(8) },
-  { min: -8, color: '#4292c6', title: down(4, 8) },
-  { min: -4, color: '#9ecae1', title: down(1, 4) },
+  // descents in two classes only: finer ones made the profile noisy
+  { min: -Infinity, color: '#08519c', title: down(10) },
+  { min: -10, color: '#7fb8dc', title: down(1, 10) },
   { min: -1, color: '#4fae63', title: '', flat: true }, // green: grey read as "no data" on flat routes
   { min: 1, color: '#f2e394', title: up(1, 3) },
   { min: 3, color: '#fdd049', title: up(3, 5) },
