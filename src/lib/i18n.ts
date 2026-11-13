@@ -206,7 +206,7 @@ const en = {
   'poi.photo': 'Photo',
   'poi.photosN': '{n} photos',
   'poi.inTimeline': 'Show in the timeline',
-  'poi.sources': 'Points: OpenStreetMap via OpenFreeMap. Photos: Panoramax.',
+  'poi.sources': 'Points: OpenStreetMap via OpenFreeMap. Photos: Wikimedia Commons and Panoramax.',
   'poi.atKm': 'km {km}',
   'poi.fee': 'paid',
   'poi.failed': 'Could not load points: {error}',

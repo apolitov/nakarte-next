@@ -49,7 +49,7 @@ export interface Poi {
 
 export interface Photo {
   id: string;
-  src: 'panoramax' | 'mapillary';
+  src: 'commons' | 'panoramax';
   lng: number;
   lat: number;
   m: number;
@@ -238,8 +238,76 @@ export async function fetchPois(points: Pt[], radius: number, withSprings = fals
   return out.sort((a, b) => a.m - b.m);
 }
 
+// ---- photos: Wikimedia Commons from the browser, Panoramax street views through maps-api ----
+
+const COMMONS = 'https://commons.wikimedia.org/w/api.php';
+const NEAR = 100; // m from the route
+const SKIP = /orthofoto|orthophoto|luftbild|aerial|\bmap\b|karte|plan\b|\.(svg|pdf|tiff?)$/i;
+
+/** Distance along the route of every point (m). */
+function cumulative(points: Pt[]): number[] {
+  const cum = [0];
+  for (let k = 1; k < points.length; k++) {
+    const a = points[k - 1], b = points[k], kx = Math.cos((a.lat * Math.PI) / 180);
+    cum.push(cum[k - 1] + Math.hypot((b.lng - a.lng) * kx, b.lat - a.lat) * 111320);
+  }
+  return cum;
+}
+
+/** Circles every 250 m along the route (fewer on long routes), each asked for files with coordinates. */
+async function commonsPhotos(points: Pt[]): Promise<Photo[]> {
+  const cum = cumulative(points);
+  const total = cum.at(-1) ?? 0;
+  const step = Math.max(250, total / 160); // at most ~160 requests per route
+  const centres: Pt[] = [];
+  for (let d = 0, k = 0; d <= total; d += step) {
+    while (k < cum.length - 1 && cum[k + 1] < d) k++;
+    centres.push(points[k]);
+  }
+  const strip = (h = '') => h.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  const found = new Map<string, Photo>();
+  const one = async (c: Pt) => {
+    const q = new URLSearchParams({
+      action: 'query', generator: 'geosearch', ggscoord: `${c.lat.toFixed(5)}|${c.lng.toFixed(5)}`, ggsradius: String(Math.round(step / 2 + NEAR)),
+      ggsnamespace: '6', ggslimit: '50', prop: 'imageinfo|coordinates', iiprop: 'url|extmetadata|mime', iiurlwidth: '320',
+      iiextmetadatafilter: 'LicenseShortName|Artist|DateTimeOriginal', format: 'json', origin: '*',
+    });
+    const r = await fetch(`${COMMONS}?${q}`);
+    if (!r.ok) return;
+    const pages = Object.values((await r.json()).query?.pages ?? {}) as {
+      pageid: number; title: string; coordinates?: { lat: number; lon: number }[];
+      imageinfo?: { thumburl?: string; descriptionurl: string; mime: string; extmetadata?: Record<string, { value: string }> }[];
+    }[];
+    for (const pg of pages) {
+      const ii = pg.imageinfo?.[0], co = pg.coordinates?.[0];
+      if (!ii?.thumburl || !co || !/^image\/(jpeg|png|webp)/.test(ii.mime) || SKIP.test(pg.title)) continue;
+      const near = nearestPoint(points, co.lon, co.lat);
+      if (near.i < 0 || near.m > NEAR) continue;
+      const m = ii.extmetadata ?? {};
+      found.set(String(pg.pageid), {
+        id: `c${pg.pageid}`, src: 'commons', lng: co.lon, lat: co.lat, m: cum[near.i], az: null,
+        date: strip(m.DateTimeOriginal?.value).slice(0, 10), author: strip(m.Artist?.value).slice(0, 80), license: strip(m.LicenseShortName?.value),
+        thumb: ii.thumburl, sd: ii.thumburl.replace(/\/\d+px-/, '/800px-'), url: ii.descriptionurl,
+      });
+    }
+  };
+  // two at a time: Commons answers 429 to bursts from one address
+  for (let k = 0; k < centres.length; k += 2) await Promise.all(centres.slice(k, k + 2).map((c) => one(c).catch(() => {})));
+  // one photo per author within ~40 m: series of near-identical shots
+  const out: Photo[] = [];
+  for (const p of [...found.values()].sort((a, b) => a.m - b.m)) {
+    if (out.some((q) => q.author && q.author === p.author && Math.abs(q.m - p.m) < 40)) continue;
+    out.push(p);
+  }
+  return out;
+}
+
 export async function fetchPhotos(points: Pt[]): Promise<Photo[]> {
-  return post<Photo[]>('/photos', simplify(points));
+  const [commons, panoramax] = await Promise.all([
+    commonsPhotos(points).catch(() => [] as Photo[]),
+    post<Photo[]>('/photos', simplify(points)).catch(() => [] as Photo[]),
+  ]);
+  return [...commons, ...panoramax].sort((a, b) => a.m - b.m);
 }
 
 /** Photos grouped by stretches of `step` m along the route, for the list in the panel. */
@@ -391,6 +459,6 @@ export class AlongLayer {
     this.map.easeTo({ center: [p.lng, p.lat], duration: 300 });
     this.open(p.lng, p.lat, `<div class="ap ph"><a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.sd || p.thumb)}" alt="" loading="lazy"></a>
       <span>${t('poi.atKm', { km: km(p.m) })}${p.date ? ` · ${esc(p.date)}` : ''}</span>
-      <small>© ${esc(p.author || 'Panoramax')}${p.license ? `, ${esc(p.license)}` : ''} · <a href="${esc(p.url)}" target="_blank" rel="noopener">Panoramax ↗</a></small></div>`);
+      <small>© ${esc(p.author || '?')}${p.license ? `, ${esc(p.license)}` : ''} · <a href="${esc(p.url)}" target="_blank" rel="noopener">${p.src === 'commons' ? 'Wikimedia Commons' : 'Panoramax'} ↗</a></small></div>`);
   }
 }
