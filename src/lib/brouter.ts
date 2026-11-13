@@ -38,7 +38,9 @@ export const SURFACE_PARAMS: Record<Surface, Record<string, number>> = {
   1: { nk_surface: 1 },
   2: { nk_surface: 1, nk_surf_k: 5, nk_cycle_pen: 1 },
 };
-export type Climbs = 'less' | 'normal' | 'any';
+/** a slider from "avoid climbs" to "seek climbs" */
+export type Climbs = 'avoid' | 'less' | 'normal' | 'any' | 'seek';
+export const CLIMB_STEPS: Climbs[] = ['avoid', 'less', 'normal', 'any', 'seek'];
 export interface RouteOptions {
   surface: Surface;
   climbs: Climbs;
@@ -85,6 +87,13 @@ export function optionsToParams(o: RouteOptions): Record<string, number> {
     // climbing above the limit costs a lot; below it, as the climbs option says
     p.nk_uphillcutoff = o.maxGrade;
     p.nk_uphillcost = 600;
+  } else if (o.climbs === 'avoid') {
+    p.nk_uphillcost = 300;
+    p.nk_uphillcutoff = 1;
+  } else if (o.climbs === 'seek') {
+    // not a profile parameter: fetchLeg asks for the router's alternatives and keeps the hilliest
+    p.nk_uphillcost = 0;
+    p.nk_seek = 1;
   } else if (o.climbs === 'less') {
     p.nk_uphillcost = 120;
     p.nk_uphillcutoff = 1.5;
@@ -121,7 +130,7 @@ export function paramsToOptions(p: Record<string, string | number | boolean> = {
     surface: surfaceOf(n('nk_surface') ?? 0, n('nk_surf_k')),
     cycleways: n('nk_cycle') !== 0,
     maxGrade: cost != null && cost >= 600 && cutoff ? cutoff : 0,
-    climbs: cost == null ? 'normal' : cost === 0 ? 'any' : cost >= 600 ? 'normal' : 'less',
+    climbs: n('nk_seek') === 1 ? 'seek' : cost == null ? 'normal' : cost === 0 ? 'any' : cost >= 600 ? 'normal' : cost >= 250 ? 'avoid' : 'less',
     sac: n('SAC_scale_limit') ?? 3,
     trails: (n('hiking_routes_preference') ?? 0) >= 1,
     nature: n('consider_forest') === 1,
@@ -281,18 +290,44 @@ export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Param
       () => ({ points: [a, b].map((p) => ({ lng: p.lng, lat: p.lat, ele: null })), spans: [] }),
     );
   }
-  const extra = paramString(params);
+  const { nk_seek: seek, ...sent } = params;
+  const extra = paramString(sent);
   const km = straightKm(a, b);
   if (km > MAX_LEG_KM) return Promise.reject(new Error(t('route.legTooLong', { max: MAX_LEG_KM })));
-  const key = legKey(a, b, profile, extra);
+  const key = legKey(a, b, profile, extra) + (seek ? '|seek' : '');
   let p = cache.get(key);
   if (!p) {
-    const url = `${API}?lonlats=${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=${profile}${extra}&alternativeidx=0&format=geojson`;
-    p = slot(() => requestLeg(url));
+    const url = (alt: number) => `${API}?lonlats=${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=${profile}${extra}&alternativeidx=${alt}&format=geojson`;
+    p = seek ? hilliest([0, 1, 2, 3].map((alt) => slot(() => requestLeg(url(alt))))) : slot(() => requestLeg(url(0)));
     p.catch(() => cache.delete(key));
     cache.set(key, p);
   }
   return p;
+}
+
+/** Ascent of a leg in metres, ignoring wiggles under 3 m (DEM noise). */
+export function legAscent(points: LegPoint[]): number {
+  let up = 0, ref: number | null = null;
+  for (const q of points) {
+    if (q.ele == null) continue;
+    if (ref == null) ref = q.ele;
+    else if (q.ele - ref >= 3) (up += q.ele - ref), (ref = q.ele);
+    else if (ref - q.ele >= 3) ref = q.ele;
+  }
+  return up;
+}
+
+/**
+ * "Seek climbs": of the router's alternatives (it computes up to four per leg), the one that
+ * climbs most, as long as it is at most 30% longer than the first. Failed alternatives are skipped.
+ */
+async function hilliest(alts: Promise<Leg>[]): Promise<Leg> {
+  const got = await Promise.allSettled(alts);
+  const legs = got.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+  if (!legs.length) throw (got[0] as PromiseRejectedResult).reason;
+  const len = (l: Leg) => l.points.reduce((s, q, i) => (i ? s + straightKm(l.points[i - 1], q) : 0), 0);
+  const base = len(legs[0]);
+  return legs.filter((l) => len(l) <= base * 1.3).reduce((best, l) => (legAscent(l.points) > legAscent(best.points) ? l : best), legs[0]);
 }
 
 // profile parameters go as profile:<name>=<value>; booleans as 1/0

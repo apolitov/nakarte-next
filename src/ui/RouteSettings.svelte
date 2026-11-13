@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey, type Surface } from '../lib/brouter';
+  import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey, type Surface, type Climbs, CLIMB_STEPS } from '../lib/brouter';
   import Segmented from './Segmented.svelte';
 
   let {
@@ -35,6 +35,17 @@
     1: t('set.surfDirt'),
     2: t('set.surfTrails'),
   };
+  const CLIMB_LABEL: Record<Climbs, string> = {
+    avoid: t('set.climbsAvoid'),
+    less: t('set.climbsLess'),
+    normal: t('set.climbsNormal'),
+    any: t('set.climbsAny'),
+    seek: t('set.climbsSeek'),
+  };
+  let climb = $state<Climbs>('normal');
+  $effect(() => {
+    climb = options.climbs;
+  });
   let surf = $state<Surface>(0);
   $effect(() => {
     surf = options.surface;
@@ -51,10 +62,13 @@
   oninput={(e) => (surf = Number(e.currentTarget.value) as Surface)}
   onchange={(e) => onchange({ surface: Number(e.currentTarget.value) as Surface })} />
 <div class="ends"><span>{t('set.surfAsphalt')}</span><span>{t('set.surfTrails')}</span></div>
-<div class="lbl">{t('set.climbs')}</div>
-<Segmented name="climbs" label={t('set.climbs')} value={options.climbs} disabled={options.maxGrade > 0}
-  items={[['less', t('set.climbsLess')], ['normal', t('set.climbsNormal')], ['any', t('set.climbsAny')]] as const}
-  onchange={(v) => onchange({ climbs: v })} />
+<div class="lbl"><label for="nk-climbs">{t('set.climbs')}</label>
+  <output for="nk-climbs" title={climb === 'seek' ? t('set.climbsSeekTip') : undefined}>{CLIMB_LABEL[climb]}</output></div>
+<input id="nk-climbs" class="surf" type="range" min="0" max="4" step="1" value={CLIMB_STEPS.indexOf(options.climbs)}
+  disabled={options.maxGrade > 0} aria-valuetext={CLIMB_LABEL[climb]}
+  oninput={(e) => (climb = CLIMB_STEPS[Number(e.currentTarget.value)])}
+  onchange={(e) => onchange({ climbs: CLIMB_STEPS[Number(e.currentTarget.value)] })} />
+<div class="ends"><span>{t('set.climbsAvoidEnd')}</span><span title={t('set.climbsSeekTip')}>{t('set.climbsSeekEnd')}</span></div>
 <div class="lbl"><label for="nk-steep">{t('set.maxGrade')}</label><output for="nk-steep" class="num">{grade ? `${grade}%` : t('set.noLimit')}</output></div>
 <input id="nk-steep" type="range" min="0" max="20" step="1" value={options.maxGrade}
   oninput={(e) => (grade = Number(e.currentTarget.value))}

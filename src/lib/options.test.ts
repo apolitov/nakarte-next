@@ -10,6 +10,8 @@ describe('route options', () => {
       { ...base, surface: 1, climbs: 'less' },
       { ...base, surface: -1, climbs: 'any', cycleways: false },
       { ...base, surface: -2 },
+      { ...base, climbs: 'avoid' },
+      { ...base, climbs: 'seek', surface: 1 },
       { ...base, surface: 2, climbs: 'less' },
       { ...base, surface: -1 },
       { ...base, maxGrade: 8 },
@@ -28,5 +30,13 @@ describe('route options', () => {
     expect(normalizeProfile('trekking')).toBe('nk-gravel');
     expect(normalizeProfile('nk-gravel')).toBe('nk-gravel');
     expect(normalizeProfile('whatever')).toBe('nk-gravel');
+  });
+});
+
+describe('seek climbs', () => {
+  it('counts ascent without DEM wiggles under 3 m', async () => {
+    const { legAscent } = await import('./brouter');
+    const pts = [100, 101, 100, 102, 110, 108, 120, 119, 121].map((ele, i) => ({ lng: i * 0.001, lat: 0, ele }));
+    expect(legAscent(pts)).toBe(20);
   });
 });

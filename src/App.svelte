@@ -1291,7 +1291,7 @@
   const optSummary = $derived.by(() => {
     const o = route.options;
     const parts = [({ [-2]: t('set.sumOnlyAsphalt'), [-1]: t('set.sumAsphalt'), 0: t('set.sumAny'), 1: t('set.sumDirt'), 2: t('set.sumSurfTrails') } as Record<number, string>)[o.surface]];
-    if (!o.maxGrade) parts.push(o.climbs === 'less' ? t('set.sumLess') : o.climbs === 'any' ? t('set.sumAnyClimbs') : t('set.sumNormal'));
+    if (!o.maxGrade) parts.push({ avoid: t('set.sumAvoid'), less: t('set.sumLess'), normal: t('set.sumNormal'), any: t('set.sumAnyClimbs'), seek: t('set.sumSeek') }[o.climbs]);
     parts.push(o.maxGrade ? t('set.sumUpTo', { g: o.maxGrade }) : t('set.sumNoLimit'));
     if (o.cycleways && (route.profile === 'nk-road' || route.profile === 'nk-gravel')) parts.push(t('set.sumCycleways'));
     const never = ALLOW_KEYS.filter((k) => o.allow?.[k] === false && ALLOW_FOR[k].includes(route.profile));
