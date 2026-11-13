@@ -5,6 +5,7 @@ import * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { RouteState } from './route.svelte';
 import { gradeColor, haversine, SURFACE_STYLE, SURFACE_DASH, type SurfaceClass } from './profile';
+import { track } from './analytics';
 import { t } from './i18n';
 
 export type ColorMode = 'grade' | 'surface' | 'plain';
@@ -142,9 +143,9 @@ export class RouteEditor {
       };
       el.append(b);
     };
-    btn(straight ? t('leg.roads') : t('leg.straight'), () => this.route.setLegStraight(leg, !straight));
+    btn(straight ? t('leg.roads') : t('leg.straight'), () => (track('route_tool', { tool: 'straight' }), this.route.setLegStraight(leg, !straight)));
     const ll = maplibregl.LngLat.convert(at);
-    if (this.onCopyTo) btn(t('leg.copyTo'), () => this.onCopyTo?.(leg, ll.lng, ll.lat));
+    if (this.onCopyTo) btn(t('leg.copyTo'), () => (track('route_tool', { tool: 'copy_to' }), this.onCopyTo?.(leg, ll.lng, ll.lat)));
     if (this.onSplit) {
       // asks in the menu itself, no modal
       const b = document.createElement('button');
@@ -159,6 +160,7 @@ export class RouteEditor {
         yes.textContent = t('split.do');
         yes.onclick = () => {
           this.popup?.remove();
+          track('route_tool', { tool: 'split' });
           this.onSplit?.(leg, ll.lng, ll.lat);
         };
         const no = document.createElement('button');
@@ -191,7 +193,7 @@ export class RouteEditor {
     const end = i === ws.length - 1, start = i === 0 && ws.length > 1;
     if (start && !this.route.prepend) btn(t('wp.continue'), () => ((this.route.prepend = true), this.render()));
     if (end && this.route.prepend) btn(t('wp.continue'), () => ((this.route.prepend = false), this.render()));
-    btn(t('wp.delete'), () => this.route.remove(id));
+    btn(t('wp.delete'), () => (track('waypoint_delete', { kind: 'menu' }), this.route.remove(id)));
     this.showMenu(el, ws[i], [0, -30]);
   }
 
@@ -291,6 +293,7 @@ export class RouteEditor {
           if (now - lastTap < 350) {
             lastTap = 0;
             this.popup?.remove();
+            track('waypoint_delete', { kind: 'double_tap' });
             this.route.remove(w.id);
             return;
           }

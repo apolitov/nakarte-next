@@ -12,6 +12,7 @@
     onlogout,
     ondelete,
     onsync,
+    oncookies,
   }: {
     user: User | null;
     syncState: '' | 'sync' | 'ok' | 'error';
@@ -20,7 +21,9 @@
     onlogout: () => void;
     ondelete: () => void;
     onsync: () => void;
+    oncookies: () => void;
   } = $props();
+  const BASE = import.meta.env.BASE_URL;
   let askDel = $state(false);
 
   let open = $state(false);
@@ -85,11 +88,39 @@
         </button>
         <button class="alt" onclick={onloginAlt}>{t('acc.alt')}</button>
       {/if}
+      <!-- the fine print, for everyone -->
+      <div class="legal">
+        <a href="{BASE}terms/" target="_blank" rel="noopener">{t('consent.terms')}</a>
+        <a href="{BASE}help/#privacy" target="_blank" rel="noopener">{t('consent.privacy')}</a>
+        <button onclick={() => { open = false; oncookies(); }}>{t('consent.settings')}</button>
+      </div>
     </div>
   {/if}
 </div>
 
 <style>
+  .legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 6px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+  }
+  .legal a,
+  .legal button {
+    color: var(--soft);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    padding: 0;
+    background: none;
+  }
+  .legal a:hover,
+  .legal button:hover {
+    color: var(--ink);
+  }
   .acc {
     position: relative;
   }

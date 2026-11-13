@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { track } from '../lib/analytics';
   import { t } from '../lib/i18n';
   // Send to Garmin (beta): connect a Garmin account once, then send routes as courses.
   // The Garmin password goes to our server once for the login and is not stored there.
@@ -99,6 +100,7 @@
     try {
       result = await call('/send', json({ ...r, to_device: deviceId > 0, device_id: deviceId || null }));
       step = 'done';
+      track('garmin_send', { kind: deviceId > 0 ? 'device' : 'connect' });
     } catch (err) {
       error = (err as Error).message;
       step = 'idle';

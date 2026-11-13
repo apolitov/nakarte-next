@@ -1,5 +1,6 @@
 // Route being edited: waypoints, per-leg mode (road or straight), routing
 // profile, legs between waypoints, undo/redo.
+import { track, pointsBucket } from './analytics';
 import { fetchLeg, seedLeg, packLeg, unpackLeg, type StoredLeg, normalizeProfile, optionsToParams, paramsToOptions, type Leg, type LegPoint, type ProfileId, type RouteOptions } from './brouter';
 import { buildProfile, type Profile } from './profile';
 import { newId, type Checkpoint, type RouteDoc } from './store';
@@ -188,9 +189,17 @@ export class RouteState {
     const token = ++this.seq;
     this.pending.set(key, token);
     this.legs[i] = { status: 'loading' };
+    const t0 = performance.now();
+    const routed = !a.straight;
     fetchLeg(a, b, a.straight ? 'straight' : this.profile, this.params).then(
-      (leg) => this.resolveLeg(key, token, { status: 'ok', leg }),
-      (e) => this.resolveLeg(key, token, { status: 'error', error: (e as Error).message }),
+      (leg) => {
+        if (routed) legDone(this.profile, this.waypoints.length, performance.now() - t0);
+        this.resolveLeg(key, token, { status: 'ok', leg });
+      },
+      (e) => {
+        if (routed) legFailed((e as Error).message);
+        this.resolveLeg(key, token, { status: 'error', error: (e as Error).message });
+      },
     );
   }
 
@@ -365,4 +374,18 @@ export class RouteState {
     this.params = params;
     this.rebuild(this.snapshot().waypoints);
   }
+}
+
+// ---- analytics (docs/analytics-plan.md): the first computed route of a session, failures, slow legs
+let builtOnce = false;
+function legDone(profile: string, points: number, ms: number) {
+  if (!builtOnce) {
+    builtOnce = true;
+    track('route_built', { profile, points: pointsBucket(points) });
+  }
+  if (ms > 5000) track('route_slow', { profile, s: Math.round(ms / 1000) });
+}
+function legFailed(msg: string) {
+  const kind = /no track|not found/i.test(msg) ? 'no_track' : /too long|limit/i.test(msg) ? 'leg_too_long' : /busy|429|503/i.test(msg) ? 'busy' : 'network';
+  track('route_error', { kind });
 }

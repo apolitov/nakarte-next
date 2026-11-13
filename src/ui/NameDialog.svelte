@@ -4,6 +4,7 @@
   // The name is required; the only other way out is back to editing.
   import { t } from '../lib/i18n';
   import { dec } from '../lib/timeline';
+  import { track } from '../lib/analytics';
   import { routeMinutes, formatDuration } from '../lib/eta';
   import type { Profile } from '../lib/profile';
 
@@ -44,6 +45,7 @@
     e?.preventDefault();
     if (!ok) return input?.focus();
     open = false;
+    track('route_named', { kind: suggestions.includes(name.trim()) ? 'suggested' : 'own' });
     onsave(name.trim());
   }
   function back() {

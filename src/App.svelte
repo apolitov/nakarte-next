@@ -29,6 +29,8 @@
   import Segmented from './ui/Segmented.svelte';
   import Fold from './ui/Fold.svelte';
   import Timeline from './ui/Timeline.svelte';
+  import ConsentBanner from './ui/ConsentBanner.svelte';
+  import { initAnalytics, storedConsent, track, kmBucket } from './lib/analytics';
   import MyRoutes from './ui/MyRoutes.svelte';
   import Toolbar from './ui/Toolbar.svelte';
   import LayersPopover from './ui/LayersPopover.svelte';
@@ -102,8 +104,16 @@
   let settingsOpen = $state(false);
   let mineOpen = $state(false);
   function setOpt(patch: Partial<RouteOptions>) {
+    for (const [k, v] of Object.entries(patch)) {
+      if (k === 'allow') {
+        for (const [a, on] of Object.entries(v as Record<string, boolean>))
+          if (route.options.allow[a as keyof typeof route.options.allow] !== on) track('setting_change', { name: `allow_${a}`, value: on ? 'on' : 'off' });
+      } else track('setting_change', { name: k === 'bigRoads' ? 'big_roads' : k === 'maxGrade' ? 'max_grade' : k, value: typeof v === 'boolean' ? (v ? 'on' : 'off') : String(v) });
+    }
     route.setOptions({ ...route.options, ...patch });
   }
+  // the cookie question: shown until answered, reopened from the account menu
+  let consentOpen = $state(storedConsent() === null);
   let savedRoutes = $state<RouteDoc[]>([]);
   let toast = $state('');
   let toastErr = $state(false);
@@ -224,10 +234,12 @@
   /** photo viewer: index into `photos`, null when closed */
   let viewer = $state<number | null>(null);
   function openPhoto(p: Photo) {
+    track('photo_open', { src: p.src });
     const i = photos.findIndex((x) => x.id === p.id);
     viewer = i >= 0 ? i : 0;
   }
   function togglePoiCat(c: PoiCat) {
+    track('poi_toggle', { id: c, on: !poiCats.includes(c) });
     poiCats = poiCats.includes(c) ? poiCats.filter((x) => x !== c) : [...poiCats, c];
     setPoiPref('cats', poiCats);
   }
@@ -385,6 +397,7 @@
   }
 
   function pickEvent(e: TimelineEvent) {
+    track('timeline_pick', { kind: e.kind });
     if (pinned?.id === e.id) {
       pinned = null;
       return;
@@ -535,6 +548,8 @@
     const fromLink = shared ? paramToRoute(shared) : null;
     const got = hp.get('s') ? await loadShort(hp.get('s')!) : null;
     // a link that could not be opened says so instead of showing an empty route
+    if (got) track('link_open', { kind: 'short', value: typeof got === 'object' ? 'ok' : got === 'missing' ? 'missing' : 'error' });
+    else if (hp.get('r')) track('link_open', { kind: 'long', value: 'ok' });
     if (got === 'missing') say(t('toast.linkMissing'), true);
     else if (got === 'failed') {
       say(t('toast.linkFailed'), true);
@@ -612,6 +627,7 @@
   }
 
   function openRoute(r: RouteDoc) {
+    track('routes_open');
     saveRoute();
     route.load(r);
     fitPoints(r.waypoints);
@@ -763,6 +779,7 @@
     try {
       const short = await shareShort(doc);
       await copy(short, t('toast.shortCopied'));
+      track('link_copy', { kind: 'short', profile: route.profile });
       return;
     } catch {
       /* fall back to the long link */
@@ -772,6 +789,7 @@
       formatHash({ zoom: map!.getZoom(), lat: c.lat, lng: c.lng, layers: [base, ...overlays] }) +
       '&r=' + encodeURIComponent(routeToParam(doc));
     await copy(url, t('toast.linkCopied', { n: url.length }));
+    track('link_copy', { kind: 'long', profile: route.profile });
   }
 
   async function copy(text: string, ok: string) {
@@ -808,12 +826,14 @@
       points: route.checkpoints.map((c) => ({ name: c.name, coord: [c.lng, c.lat], kind: c.kind, note: c.note })),
     };
     exportTrack(t);
+    track('gpx_download', { profile: route.profile, km: kmBucket(route.profileData.length) });
   }
 
   let garminOpen = $state(false);
 
   /** Sign-in leaves the page: the open route goes to the server and comes back by its id. */
   async function signIn(reopenGarmin = false) {
+    track('sign_in', { kind: 'google' });
     let hash = location.hash;
     if (route.waypoints.length) {
       saveRoute();
@@ -870,6 +890,7 @@
   const DEM_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
   function set3d(on: boolean, animate = true) {
     if (!map) return;
+    if (on && animate) track('view_3d');
     terrain3d = on;
     map3d = map;
     try {
@@ -931,6 +952,7 @@
 
   function toggleEdit() {
     editing = !editing;
+    if (editing) track('edit_start');
     if (!editing) {
       placing = null;
       needName();
@@ -948,16 +970,19 @@
   }
   function reverse() {
     if (!hasLegs) return;
+    track('route_tool', { tool: 'reverse' });
     route.reverse();
     say(t('toast.reversed'));
   }
   function outAndBack() {
     if (!hasLegs) return;
+    track('route_tool', { tool: 'out_and_back' });
     route.outAndBack();
     say(t('toast.outBack'));
   }
   function backToStart() {
     if (!hasLegs) return;
+    track('route_tool', { tool: 'back_to_start' });
     route.backToStart();
     say(t('toast.backToStart'));
   }
@@ -1102,6 +1127,7 @@
 
   /** A new activity brings its map (CyclOSM / OpenTopoMap), unless another map was chosen by hand. */
   function changeProfile(p: ProfileId) {
+    if (p !== route.profile) track('profile_change', { profile: p });
     const prevDefault = baseForProfile(route.profile);
     route.setProfile(p);
     const next = baseForProfile(p);
@@ -1110,6 +1136,7 @@
 
   async function setBase(id: string) {
     if (id === base && map?.getLayer(`src-${id}`)) return;
+    if (loaded) track('layer_change', { id });
     const prev = base;
     base = id;
     await showRaster(layerById(id)!, firstOverlayOrTracks());
@@ -1120,6 +1147,7 @@
   const passesHelp = () => window.open(`${import.meta.env.BASE_URL}help/#passes`, '_blank', 'noopener');
 
   async function toggleOverlay(id: string) {
+    track('overlay_toggle', { id, on: !overlays.includes(id) });
     if (layerById(id)?.vector === 'passes') {
       if (overlays.includes(id)) {
         overlays = overlays.filter((o) => o !== id);
@@ -1161,6 +1189,7 @@
     for (const f of Array.from(files)) {
       try {
         const trk = parseTrackFile(f.name, await f.text());
+        track('file_import', { kind: f.name.split('.').pop()?.toLowerCase() ?? '' });
         tracks = [...tracks, trk];
         saveDoc(trackToDoc(trk));
         refreshTracks();
@@ -1226,6 +1255,7 @@
   }
 
   onMount(() => {
+    initAnalytics();
     // the lists come from this browser's storage and need no map: show them at once,
     // not after the base map has loaded (slow tiles left "Nothing yet" for seconds)
     void reloadLists();
@@ -1400,7 +1430,7 @@
         </picture>
       </button>
       {#if !mobile && route.waypoints.length}<button class="newb" onclick={newRoute} data-tip={t('mine.newTip')}><Icon name="plus" size={16} /><span>{t('act.new')}</span></button>{/if}
-      {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
+      {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={() => (track('sign_in', { kind: 'alexe' }), loginAuthelia())} onlogout={logout} ondelete={removeAccount} onsync={runSync} oncookies={() => (consentOpen = true)} />{/if}
     </div>
     <div class="titlerow">
     <input
@@ -1417,7 +1447,7 @@
       <button class="del" aria-expanded={askDelete} onclick={() => (askDelete = !askDelete)} aria-label={t('route.delete')} data-tip={t('route.delete')}><Icon name="trash" size={18} /></button>
     {/if}
     <!-- on a phone the account button sits on the title row, the logo is hidden -->
-    {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={loginAuthelia} onlogout={logout} ondelete={removeAccount} onsync={runSync} />{/if}
+    {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={() => (track('sign_in', { kind: 'alexe' }), loginAuthelia())} onlogout={logout} ondelete={removeAccount} onsync={runSync} oncookies={() => (consentOpen = true)} />{/if}
     </div>
     {#if askDelete && route.waypoints.length}
       <InlineConfirm text={t('mine.confirmDelete', { name: route.name || route.autoName() })} action={t('ic.delete')}
@@ -1573,6 +1603,7 @@
     <PhotoViewer {photos} bind:index={viewer} onclose={() => (viewer = null)}
       onshow={(p) => map?.easeTo({ center: [p.lng, p.lat], duration: 400 })} />
   {/if}
+  {#if consentOpen}<ConsentBanner onclose={() => (consentOpen = false)} />{/if}
   <GarminDialog bind:open={garminOpen} loggedIn={!!user} getRoute={garminRoute} onlogin={() => signIn(true)} />
   <HelpDialog bind:open={helpOpen} {shortcuts} />
   <KeyTip />

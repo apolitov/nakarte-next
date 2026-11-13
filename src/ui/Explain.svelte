@@ -6,6 +6,7 @@
 <script lang="ts">
   // A small (?) next to a figure; a tap opens a short note on how the figure was worked out.
   import { t } from '../lib/i18n';
+  import { track } from '../lib/analytics';
 
   let { label, text }: { label: string; text: string } = $props();
   const id = `ex-${Math.random().toString(36).slice(2, 8)}`;
@@ -33,6 +34,7 @@
   <button type="button" class="q" aria-expanded={open} aria-controls={id} aria-label={t('ex.how', { what: label })}
     onclick={(e) => {
       e.stopPropagation();
+      if (!open) track('explain_open', { name: label });
       openId = open ? null : id;
     }}>?</button>
   {#if open}

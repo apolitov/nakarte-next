@@ -6,6 +6,7 @@
   // work, its own button is hidden; this one shows its state).
   import type { Map as MlMap, GeolocateControl } from 'maplibre-gl';
   import { t } from '../lib/i18n';
+  import { track } from '../lib/analytics';
 
   let { map, three, onset3d, geo = null }: { map: MlMap; three: boolean; onset3d: (on: boolean) => void; geo?: GeolocateControl | null } = $props();
 
@@ -31,6 +32,7 @@
   });
   function locate() {
     if (!geo || geoState === 'denied') return;
+    if (geoState === 'OFF') track('locate');
     geo.trigger();
     geoState = (geo as unknown as { _watchState?: string })._watchState ?? 'OFF';
   }
