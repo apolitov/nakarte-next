@@ -5,6 +5,7 @@
 import * as maplibregl from 'maplibre-gl';
 import { VectorTile } from '@mapbox/vector-tile';
 import { PbfReader } from 'pbf';
+import { cacheGet, cachePut, DAY } from './photoCache';
 import { t } from './i18n';
 import { nearestPoint } from './timeline';
 
@@ -259,33 +260,57 @@ const PIECE = 2000; // m of route per request batch
 
 const strip = (h = '') => h.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 
-/** Commons files near one circle; distances along the whole route. */
-async function commonsAround(c: Pt, radius: number, route: Pt[], cum: number[]): Promise<Photo[]> {
+type RawPhoto = Omit<Photo, 'm'>;
+const CELL_Z = 15;
+
+/** All Commons files with coordinates in one z15 cell (~1 km), cached in the browser for 30 days. */
+async function commonsCell(x: number, y: number): Promise<RawPhoto[]> {
+  const key = `c:${CELL_Z}/${x}/${y}`;
+  const hit = await cacheGet<RawPhoto>(key);
+  if (hit) return hit;
+  const n = 2 ** CELL_Z;
+  const lng = ((x + 0.5) / n) * 360 - 180;
+  const lat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 0.5)) / n))) * 180) / Math.PI;
+  const half = ((40075016 * Math.cos((lat * Math.PI) / 180)) / n) * 0.72; // half the cell diagonal, m
   const q = new URLSearchParams({
-    action: 'query', generator: 'geosearch', ggscoord: `${c.lat.toFixed(5)}|${c.lng.toFixed(5)}`, ggsradius: String(Math.round(radius)),
+    action: 'query', generator: 'geosearch', ggscoord: `${lat.toFixed(5)}|${lng.toFixed(5)}`, ggsradius: String(Math.round(half)),
     ggsnamespace: '6', ggslimit: '50', prop: 'imageinfo|coordinates', iiprop: 'url|extmetadata|mime', iiurlwidth: '320',
     iiextmetadatafilter: 'LicenseShortName|Artist|DateTimeOriginal', format: 'json', origin: '*',
   });
   const r = await fetch(`${COMMONS}?${q}`, { signal: AbortSignal.timeout(10000) });
-  if (!r.ok) return [];
+  if (!r.ok) throw new Error(`commons ${r.status}`);
   const pages = Object.values((await r.json()).query?.pages ?? {}) as {
     pageid: number; title: string; coordinates?: { lat: number; lon: number }[];
     imageinfo?: { thumburl?: string; descriptionurl: string; mime: string; extmetadata?: Record<string, { value: string }> }[];
   }[];
-  const out: Photo[] = [];
+  const out: RawPhoto[] = [];
   for (const pg of pages) {
     const ii = pg.imageinfo?.[0], co = pg.coordinates?.[0];
     if (!ii?.thumburl || !co || !/^image\/(jpeg|png|webp)/.test(ii.mime) || SKIP.test(pg.title)) continue;
-    const near = nearestPoint(route, co.lon, co.lat);
-    if (near.i < 0 || near.m > NEAR) continue;
     const m = ii.extmetadata ?? {};
     out.push({
-      id: `c${pg.pageid}`, src: 'commons', lng: co.lon, lat: co.lat, m: cum[near.i], az: null,
+      id: `c${pg.pageid}`, src: 'commons', lng: co.lon, lat: co.lat, az: null,
       date: strip(m.DateTimeOriginal?.value).slice(0, 10), author: strip(m.Artist?.value).slice(0, 80), license: strip(m.LicenseShortName?.value),
       thumb: ii.thumburl, sd: ii.thumburl.replace(/\/\d+px-/, '/800px-'), url: ii.descriptionurl,
     });
   }
+  await cachePut(key, out, 30 * DAY);
   return out;
+}
+
+/** z15 cells within NEAR m of a stretch of the route. */
+function cellsAlong(pts: Pt[]): [number, number][] {
+  const n = 2 ** CELL_Z, keys = new Set<string>();
+  const tx = (lng: number) => Math.floor(((lng + 180) / 360) * n);
+  const ty = (lat: number) => {
+    const r = (lat * Math.PI) / 180;
+    return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n);
+  };
+  for (const p of pts) {
+    const dLat = NEAR / 111320, dLng = dLat / Math.cos((p.lat * Math.PI) / 180);
+    for (let X = tx(p.lng - dLng); X <= tx(p.lng + dLng); X++) for (let Y = ty(p.lat + dLat); Y <= ty(p.lat - dLat); Y++) keys.add(`${X}/${Y}`);
+  }
+  return [...keys].map((k) => k.split('/').map(Number) as [number, number]);
 }
 
 /**
@@ -347,19 +372,27 @@ export class PhotoLoader {
 
   private async loadPiece(a: number, b: number): Promise<Photo[]> {
     const pts = this.route.slice(a, b + 1);
-    const centres: Pt[] = [];
-    for (let d = this.cum[a], k = a; d <= this.cum[b]; d += 250) {
-      while (k < b && this.cum[k + 1] < d) k++;
-      centres.push(this.route[k]);
+    // Commons by map cells (shared by every route through them); two requests at a time
+    const cells = cellsAlong(pts);
+    const raw: RawPhoto[] = [];
+    for (let k = 0; k < cells.length; k += 2) {
+      const got = await Promise.all(cells.slice(k, k + 2).map(([x, y]) => commonsCell(x, y).catch(() => [] as RawPhoto[])));
+      raw.push(...got.flat());
     }
     const commons: Photo[] = [];
-    // two at a time: Commons answers 429 to bursts from one address
-    for (let k = 0; k < centres.length; k += 2) {
-      const got = await Promise.all(centres.slice(k, k + 2).map((c) => commonsAround(c, 125 + NEAR, this.route, this.cum).catch(() => [] as Photo[])));
-      commons.push(...got.flat());
+    for (const p of raw) {
+      const near = nearestPoint(pts, p.lng, p.lat);
+      if (near.i >= 0 && near.m <= NEAR) commons.push({ ...p, m: this.cum[a + near.i] });
     }
-    const street = await post<Photo[]>('/photos', simplify(pts)).catch(() => [] as Photo[]);
-    return [...commons, ...street.map((p) => ({ ...p, m: p.m + this.cum[a] }))];
+    // Mapillary and Panoramax through maps-api, cached here for 12 h (their thumbnail links expire)
+    const line = simplify(pts);
+    const key = `s:${line.map(([x, y]) => `${x.toFixed(4)},${y.toFixed(4)}`).join(';')}`;
+    let street = await cacheGet<Photo>(key);
+    if (!street) {
+      street = await post<Photo[]>('/photos', line).catch(() => null);
+      if (street) await cachePut(key, street, DAY / 2);
+    }
+    return [...commons, ...(street ?? []).map((p) => ({ ...p, m: p.m + this.cum[a] }))];
   }
 }
 
