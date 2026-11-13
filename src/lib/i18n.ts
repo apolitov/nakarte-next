@@ -361,7 +361,7 @@ const en = {
   'prof.overLimit': 'steeper than limit',
 
   // map hints and toasts
-  'hint.edit': 'Click on the map to add a point{where}. Drag a point to move it, double-click to delete it, {key} removes the last one. Drag the line to insert a point. Right-click the line: straight segment.',
+  'hint.edit': 'Click on the map to add a point{where}. Drag a point to move it, click it to delete, {key} removes the last one. Drag the line to insert a point. Right-click the line: straight segment.',
   'hint.editTouch': 'Tap the map to add a point{where}. Long-press the line: straight segment.',
   'hint.atStart': ' at the start',
   'hint.placing': 'Click on the map to place a checkpoint. Esc: cancel',
@@ -391,7 +391,9 @@ const en = {
   'copy.suffix': 'alternative',
   'split.confirm': 'Split “{name}” into two routes at this point? The second part is saved to My routes.',
   'split.done': 'Split into “{a}” and “{b}”',
-  'wp.tip': 'Drag to move. Double-click or right-click deletes. Click an end point to continue the route from it.',
+  'wp.tip': 'Drag to move. Click for a menu: delete the point or continue the route from an end.',
+  'wp.delete': 'Delete point',
+  'wp.continue': 'Continue the route from here',
 
   // checkpoints
   'cp.water': 'Water',

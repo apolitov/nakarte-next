@@ -87,7 +87,7 @@ export class RouteEditor {
     });
 
     map.on('click', (e) => {
-      if (this.dragInsert) return;
+      if (this.dragInsert || onMarker(e.originalEvent)) return;
       if (this.onMapClick?.(e.lngLat.lng, e.lngLat.lat)) return;
       if (!this.editing) return;
       if (map.queryRenderedFeatures(e.point, { layers: ['route-hit'] }).length) return;
@@ -169,10 +169,37 @@ export class RouteEditor {
       };
       el.append(b);
     }
+    this.showMenu(el, at);
+  }
+
+  /** Menu for a waypoint: delete it, or continue the route from an end. */
+  wpMenu(id: number) {
+    const ws = this.route.waypoints;
+    const i = ws.findIndex((w) => w.id === id);
+    if (i < 0) return;
+    const el = document.createElement('div');
+    el.className = 'ctx';
+    const btn = (title: string, fn: () => void) => {
+      const b = document.createElement('button');
+      b.textContent = title;
+      b.onclick = () => {
+        this.popup?.remove();
+        fn();
+      };
+      el.append(b);
+    };
+    const end = i === ws.length - 1, start = i === 0 && ws.length > 1;
+    if (start && !this.route.prepend) btn(t('wp.continue'), () => ((this.route.prepend = true), this.render()));
+    if (end && this.route.prepend) btn(t('wp.continue'), () => ((this.route.prepend = false), this.render()));
+    btn(t('wp.delete'), () => this.route.remove(id));
+    this.showMenu(el, ws[i], [0, -30]);
+  }
+
+  private showMenu(el: HTMLElement, at: maplibregl.LngLatLike, offset: [number, number] = [0, 0]) {
     this.popup?.remove();
     // a long touch ends with touchend + click on the map: closing on that click would remove
     // the menu before it can be used, so it closes on the next tap after a short delay
-    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'ctx-popup' }).setLngLat(at).setDOMContent(el).addTo(this.map);
+    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'ctx-popup', offset }).setLngLat(at).setDOMContent(el).addTo(this.map);
     this.popup = popup;
     setTimeout(() => {
       const close = () => popup.remove();
@@ -191,6 +218,8 @@ export class RouteEditor {
    */
   private pressLine(e: maplibregl.MapLayerMouseEvent | maplibregl.MapLayerTouchEvent) {
     if (!this.editing) return;
+    // a press on a waypoint lying on the line drags that waypoint, not a new one
+    if (onMarker(e.originalEvent)) return;
     const f = e.features?.[0];
     if (!f) return;
     e.preventDefault();
@@ -241,18 +270,22 @@ export class RouteEditor {
       if (!m) {
         const el = markerEl(label, kind);
         m = new maplibregl.Marker({ element: el, draggable: this.editing }).setLngLat([w.lng, w.lat]).addTo(this.map);
+        let dragged = false;
+        m.on('dragstart', () => {
+          dragged = true;
+          this.popup?.remove();
+        });
         m.on('dragend', () => {
+          // the click that may follow this mouseup comes before the timer
+          setTimeout(() => (dragged = false), 0);
           const p = m!.getLngLat();
           this.route.move(w.id, p.lng, p.lat);
         });
         el.addEventListener('click', (ev) => {
           ev.stopPropagation();
-          if (!this.editing) return;
-          // click on an end point continues the route from that end
-          const ws = this.route.waypoints;
-          if (ws.length > 1 && ws[0].id === w.id) this.route.prepend = true;
-          else if (ws.at(-1)?.id === w.id) this.route.prepend = false;
-          this.render();
+          // the click that ends a drag is not a tap on the point
+          if (dragged) return;
+          if (this.editing) this.wpMenu(w.id);
         });
         el.addEventListener('dblclick', (ev) => {
           ev.stopPropagation();
@@ -388,4 +421,10 @@ function markerEl(label: string, kind: string) {
   el.className = `wp wp-${kind}`;
   el.textContent = label;
   return el;
+}
+
+/** True when a DOM event started on a map marker (waypoints, POIs), which handle it themselves. */
+function onMarker(ev: Event): boolean {
+  const t = ev.target;
+  return t instanceof Element && !!t.closest('.maplibregl-marker');
 }
