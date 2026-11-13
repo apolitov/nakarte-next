@@ -2,6 +2,7 @@
   import { t } from '../lib/i18n';
   import type { Profile } from '../lib/profile';
   import { routeMinutes, formatDuration, BIKES } from '../lib/eta';
+  import Explain from './Explain.svelte';
   import { surfaceShares, SEG_SHORT, STRAIGHT_COLOR, dec, type SegClass } from '../lib/timeline';
   import { PROFILES } from '../lib/brouter';
 
@@ -15,6 +16,12 @@
 
   const km = $derived(profile.length / 1000);
   const minutes = $derived(routeMinutes(profile, profileId));
+  const etaText = $derived.by(() => {
+    const b = BIKES[profileId];
+    return b
+      ? t('ex.timeBike', { power: String(b.power), vmax: String(b.vmax) })
+      : t('ex.timeHike');
+  });
   const typeTitle = $derived(PROFILES.find((p) => p.id === profileId)?.title ?? '');
   const shares = $derived(surfaceShares(profile.dist, classes));
 
@@ -34,14 +41,14 @@
 
 <section class="sum" aria-label={t('sum.label')}>
   <div class="row1">
-    <div class="big num">{km ? dec(km) : '0'}<small>{t('unit.km')}</small></div>
-    <div class="st num" data-tip={profileId === 'nk-hike' ? t('sum.etaTipHike') : t('sum.etaTip', { type: typeTitle.toLowerCase(), power: String(BIKES[profileId]?.power ?? 120) })}>
-      {#if loading}<span class="soft">{t('sum.computing')}</span>{:else}<em>~</em>{formatDuration(minutes)}{/if}
+    <div class="big num">{km ? dec(km) : '0'}<small>{t('unit.km')}</small><Explain label={t('ex.length')} text={t('ex.lengthText')} /></div>
+    <div class="st num">
+      {#if loading}<span class="soft">{t('sum.computing')}</span>{:else}<em>~</em>{formatDuration(minutes)}{/if}<Explain label={t('ex.time')} text={etaText} />
     </div>
   </div>
   <div class="row2">
     <div class="st num"><em>↑</em>{Math.round(profile.ascent)} {t('unit.m')}</div>
-    <div class="st num"><em>↓</em>{Math.round(profile.descent)} {t('unit.m')}</div>
+    <div class="st num"><em>↓</em>{Math.round(profile.descent)} {t('unit.m')}<Explain label={t('ex.climb')} text={t('ex.climbText')} /></div>
   </div>
   {#if error}<div class="err" role="alert">{t('route.error', { error })}</div>{/if}
   {#if shares.length}
@@ -52,6 +59,7 @@
       {#each shares as s (s.cls)}
         <span><i class="sw" style="background:{color(s.cls)}"></i>{SEG_SHORT[s.cls]} <b class="num">{pct(s.share)}%</b></span>
       {/each}
+      <Explain label={t('ex.surface')} text={t('ex.surfaceText')} />
     </div>
   {/if}
 </section>
@@ -63,12 +71,14 @@
     flex: none;
   }
   .row1 {
+    position: relative;
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 10px;
   }
   .row2 {
+    position: relative;
     display: flex;
     gap: 16px;
   }
@@ -116,6 +126,7 @@
     border-radius: 1px;
   }
   .covl {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     gap: 2px 12px;
