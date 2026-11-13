@@ -288,6 +288,9 @@ type LngLat = { lng: number; lat: number };
 
 export type Params = Record<string, string | number | boolean>;
 
+/** cost cap of paved roads for the heatmap candidates; 1.3 and 1.6 tested alike, 1.6 uses fewer main roads (docs/routing.md) */
+const HEAT_CAP = 1.6;
+
 export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params = {}): Promise<Leg> {
   if (profile === 'straight') {
     // elevation from terrain tiles; if they fail, the line still works without it
@@ -300,11 +303,16 @@ export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Param
   const extra = paramString(sent);
   const km = straightKm(a, b);
   if (km > MAX_LEG_KM) return Promise.reject(new Error(t('route.legTooLong', { max: MAX_LEG_KM })));
-  const key = legKey(a, b, profile, extra) + (seek ? '|seek' : '') + (heat ? '|heat' : '');
+  const key = legKey(a, b, profile, extra) + (seek ? '|seek' : '') + (heat ? `|heat${HEAT_CAP}` : '');
   let p = cache.get(key);
   if (!p) {
     const url = (alt: number) => `${API}?lonlats=${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=${profile}${extra}&alternativeidx=${alt}&format=geojson`;
-    p = seek || heat ? pickAlternative([0, 1, 2, 3].map((alt) => slot(() => requestLeg(url(alt)))), !!seek, !!heat) : slot(() => requestLeg(url(0)));
+    // Stick to the heatmap: the router's road classes would keep it off busy roads people ride
+    // a lot, so half of the candidates come with every paved road capped at HEAT_CAP (gen.py,
+    // nk_heat_cap) and the hottest of all wins; the first plain one stays the reference
+    const capped = (alt: number) => url(alt).replace('&alternativeidx', `&profile:nk_heat_cap=${HEAT_CAP}&alternativeidx`);
+    const urls = heat ? [url(0), url(1), ...(seek ? [url(2), url(3)] : []), capped(0), capped(1)] : seek ? [0, 1, 2, 3].map(url) : [url(0)];
+    p = seek || heat ? pickAlternative(urls.map((u) => slot(() => requestLeg(u))), !!seek, !!heat) : slot(() => requestLeg(urls[0]));
     p.catch(() => cache.delete(key));
     cache.set(key, p);
   }
