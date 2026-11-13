@@ -53,14 +53,7 @@ npm run check          # types
 
 Layers whose key is missing are hidden.
 
-End-to-end checks of every use case (Python Playwright with Chromium; the dev server must be running):
-
-```bash
-python3 tools/e2e/usecases.py              # all; or ids: A1 B4
-BASE=https://alexe.pt/maps/ python3 tools/e2e/usecases.py
-```
-
-Results go to [docs/use-cases-run.md](docs/use-cases-run.md).
+End-to-end checks follow the use cases; how to run them is in [docs/use-cases.md](docs/use-cases.md).
 
 ## License
 
