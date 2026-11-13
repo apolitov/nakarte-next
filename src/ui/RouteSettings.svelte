@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey, type Surface, type Climbs, CLIMB_STEPS, type BigRoads, BIG_STEPS } from '../lib/brouter';
+  import { SAC_STEPS, ALLOW_KEYS, ALLOW_FOR, type RouteOptions, type AllowKey, type Surface, type Climbs, CLIMB_STEPS, type BigRoads, BIG_STEPS, PROFILES } from '../lib/brouter';
   import Segmented from './Segmented.svelte';
 
   let {
@@ -27,31 +27,34 @@
     6: [t('set.sac6'), t('set.sacHint6')],
   };
 
-  // the slider shows the value while dragging; the route is rebuilt on release
-  const SURF_LABEL: Record<Surface, string> = {
+  // the slider shows the value while dragging; the route is rebuilt on release. The value says
+  // what the route will do; the default position names the route type ("Gravel default") and
+  // stays grey, a changed one is highlighted
+  const typeDefault = $derived(t('set.typeDefault', { type: PROFILES.find((p) => p.id === profile)?.title ?? '' }));
+  const SURF_LABEL: Record<Surface, string> = $derived({
     [-2]: t('set.surfOnlyAsphalt'),
     [-1]: t('set.surfPaved'),
-    0: t('set.surfAny'),
+    0: typeDefault,
     1: t('set.surfDirt'),
     2: t('set.surfTrails'),
-  };
-  const CLIMB_LABEL: Record<Climbs, string> = {
+  });
+  const CLIMB_LABEL: Record<Climbs, string> = $derived({
     avoid: t('set.climbsAvoid'),
     less: t('set.climbsLess'),
-    normal: t('set.climbsNormal'),
+    normal: typeDefault,
     any: t('set.climbsAny'),
     seek: t('set.climbsSeek'),
-  };
+  });
   let climb = $state<Climbs>('normal');
   $effect(() => {
     climb = options.climbs;
   });
-  const BIG_LABEL: Record<BigRoads, string> = {
+  const BIG_LABEL: Record<BigRoads, string> = $derived({
     avoid: t('set.bigAvoid'),
     less: t('set.bigLess'),
-    normal: t('set.bigNormal'),
+    normal: typeDefault,
     any: t('set.bigAny'),
-  };
+  });
   let big = $state<BigRoads>('normal');
   $effect(() => {
     big = options.bigRoads;
@@ -66,29 +69,37 @@
   });
 </script>
 
-<div class="lbl"><label for="nk-surf">{t('set.surface')}</label><output for="nk-surf">{SURF_LABEL[surf]}</output></div>
+{#snippet ticks(n: number, def: number)}
+  <!-- a notch under every step, the default one darker -->
+  <div class="tk" aria-hidden="true">{#each { length: n } as _, i (i)}<i class:d={i === def}></i>{/each}</div>
+{/snippet}
+
+<div class="lbl"><label for="nk-surf">{t('set.surface')}</label><output for="nk-surf" class:on={surf !== 0}>{SURF_LABEL[surf]}</output></div>
 <input id="nk-surf" class="surf" type="range" min="-2" max="2" step="1" value={options.surface}
   aria-valuetext={SURF_LABEL[surf]}
   oninput={(e) => (surf = Number(e.currentTarget.value) as Surface)}
   onchange={(e) => onchange({ surface: Number(e.currentTarget.value) as Surface })} />
+{@render ticks(5, 2)}
 <div class="ends"><span>{t('set.surfAsphalt')}</span><span>{t('set.surfTrails')}</span></div>
 <div class="lbl"><label for="nk-climbs">{t('set.climbs')}</label>
-  <output for="nk-climbs" title={climb === 'seek' ? t('set.climbsSeekTip') : undefined}>{CLIMB_LABEL[climb]}</output></div>
+  <output for="nk-climbs" class:on={climb !== 'normal'} title={climb === 'seek' ? t('set.climbsSeekTip') : undefined}>{CLIMB_LABEL[climb]}</output></div>
 <input id="nk-climbs" class="surf" type="range" min="0" max="4" step="1" value={CLIMB_STEPS.indexOf(options.climbs)}
   disabled={options.maxGrade > 0} aria-valuetext={CLIMB_LABEL[climb]}
   oninput={(e) => (climb = CLIMB_STEPS[Number(e.currentTarget.value)])}
   onchange={(e) => onchange({ climbs: CLIMB_STEPS[Number(e.currentTarget.value)] })} />
+{@render ticks(5, 2)}
 <div class="ends"><span>{t('set.climbsAvoidEnd')}</span><span title={t('set.climbsSeekTip')}>{t('set.climbsSeekEnd')}</span></div>
 {#if !hike}
   <!-- walking has its own "away from busy roads" switch below -->
-  <div class="lbl" title={t('set.bigTip')}><label for="nk-big">{t('set.big')}</label><output for="nk-big">{BIG_LABEL[big]}</output></div>
+  <div class="lbl" title={t('set.bigTip')}><label for="nk-big">{t('set.big')}</label><output for="nk-big" class:on={big !== 'normal'}>{BIG_LABEL[big]}</output></div>
   <input id="nk-big" class="surf" type="range" min="0" max="3" step="1" value={BIG_STEPS.indexOf(options.bigRoads)}
     aria-valuetext={BIG_LABEL[big]}
     oninput={(e) => (big = BIG_STEPS[Number(e.currentTarget.value)])}
     onchange={(e) => onchange({ bigRoads: BIG_STEPS[Number(e.currentTarget.value)] })} />
+  {@render ticks(4, 2)}
   <div class="ends"><span>{t('set.bigQuietEnd')}</span><span>{t('set.bigAnyEnd')}</span></div>
 {/if}
-<div class="lbl"><label for="nk-steep">{t('set.maxGrade')}</label><output for="nk-steep" class="num">{grade ? `${grade}%` : t('set.noLimit')}</output></div>
+<div class="lbl"><label for="nk-steep">{t('set.maxGrade')}</label><output for="nk-steep" class:num={!!grade} class:on={!!grade}>{grade ? `${grade}%` : t('set.noLimit')}</output></div>
 <input id="nk-steep" type="range" min="0" max="20" step="1" value={options.maxGrade}
   oninput={(e) => (grade = Number(e.currentTarget.value))}
   onchange={(e) => onchange({ maxGrade: Number(e.currentTarget.value) })} />
@@ -244,11 +255,33 @@
     color: var(--soft);
   }
   output {
+    color: var(--soft);
+    font-weight: 500;
+    padding: 0 6px;
+    border-radius: 4px;
+  }
+  /* highlighted only when it differs from the route type's own behaviour */
+  output.on {
     color: var(--marker-ink);
     font-weight: 600;
     background: var(--marker);
-    padding: 0 6px;
-    border-radius: 4px;
+  }
+  .tk {
+    display: flex;
+    justify-content: space-between;
+    /* half a thumb on each side, so the notches sit under the thumb's positions */
+    padding: 0 7px;
+    margin-top: 1px;
+    height: 7px;
+  }
+  .tk i {
+    width: 1.5px;
+    height: 4px;
+    background: color-mix(in srgb, var(--soft) 55%, transparent);
+  }
+  .tk i.d {
+    height: 7px;
+    background: var(--soft);
   }
   input[type='range'] {
     width: 100%;

@@ -1341,14 +1341,17 @@
     unpaved: t('set.allowUnpaved').toLowerCase(),
     paths: t('set.allowPaths').toLowerCase(),
   };
+  // only what differs from the route type's own behaviour; nothing changed reads "Gravel defaults"
   const optSummary = $derived.by(() => {
     const o = route.options;
-    const parts = [({ [-2]: t('set.sumOnlyAsphalt'), [-1]: t('set.sumAsphalt'), 0: t('set.sumAny'), 1: t('set.sumDirt'), 2: t('set.sumSurfTrails') } as Record<number, string>)[o.surface]];
-    if (!o.maxGrade) parts.push({ avoid: t('set.sumAvoid'), less: t('set.sumLess'), normal: t('set.sumNormal'), any: t('set.sumAnyClimbs'), seek: t('set.sumSeek') }[o.climbs]);
-    parts.push(o.maxGrade ? t('set.sumUpTo', { g: o.maxGrade }) : t('set.sumNoLimit'));
+    const bike = route.profile === 'nk-road' || route.profile === 'nk-gravel';
+    const parts: string[] = [];
+    if (o.surface !== 0) parts.push(({ [-2]: t('set.sumOnlyAsphalt'), [-1]: t('set.sumAsphalt'), 1: t('set.sumDirt'), 2: t('set.sumSurfTrails') } as Record<number, string>)[o.surface]);
+    if (!o.maxGrade && o.climbs !== 'normal') parts.push({ avoid: t('set.sumAvoid'), less: t('set.sumLess'), any: t('set.sumAnyClimbs'), seek: t('set.sumSeek') }[o.climbs as 'avoid' | 'less' | 'any' | 'seek']);
+    if (o.maxGrade) parts.push(t('set.sumUpTo', { g: o.maxGrade }));
     if (route.profile !== 'nk-hike' && o.bigRoads !== 'normal') parts.push({ avoid: t('set.sumBigAvoid'), less: t('set.sumBigLess'), any: t('set.sumBigAny') }[o.bigRoads as 'avoid' | 'less' | 'any']);
-    if (o.cycleways && (route.profile === 'nk-road' || route.profile === 'nk-gravel')) parts.push(t('set.sumCycleways'));
-    if (o.heat && (route.profile === 'nk-road' || route.profile === 'nk-gravel')) parts.push(t('set.sumHeat'));
+    if (bike && !o.cycleways) parts.push(t('set.sumNoCycleways'));
+    if (o.heat && bike) parts.push(t('set.sumHeat'));
     const never = ALLOW_KEYS.filter((k) => o.allow?.[k] === false && ALLOW_FOR[k].includes(route.profile));
     if (never.length) parts.push(t('set.sumNever', { list: never.map((k) => NEVER_WORD[k]).join(', ') }));
     if (route.profile === 'nk-hike') {
@@ -1357,6 +1360,7 @@
       if (o.nature) parts.push(t('set.sumNature'));
       if (o.quiet) parts.push(t('set.sumQuiet'));
     }
+    if (!parts.length) return t('set.sumDefaults', { type: PROFILES.find((p) => p.id === route.profile)?.title ?? '' });
     return parts.join(' · ');
   });
 </script>
