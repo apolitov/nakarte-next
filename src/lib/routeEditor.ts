@@ -271,6 +271,7 @@ export class RouteEditor {
         const el = markerEl(label, kind);
         m = new maplibregl.Marker({ element: el, draggable: this.editing }).setLngLat([w.lng, w.lat]).addTo(this.map);
         let dragged = false;
+        let lastTap = 0;
         m.on('dragstart', () => {
           dragged = true;
           this.popup?.remove();
@@ -284,13 +285,22 @@ export class RouteEditor {
         el.addEventListener('click', (ev) => {
           ev.stopPropagation();
           // the click that ends a drag is not a tap on the point
-          if (dragged) return;
-          if (this.editing) this.wpMenu(w.id);
+          if (dragged || !this.editing) return;
+          // a second tap within 350 ms deletes the point (dblclick does not fire on every phone)
+          const now = Date.now();
+          if (now - lastTap < 350) {
+            lastTap = 0;
+            this.popup?.remove();
+            this.route.remove(w.id);
+            return;
+          }
+          lastTap = now;
+          this.wpMenu(w.id);
         });
+        // the double click itself is handled above; here it only must not zoom the map
         el.addEventListener('dblclick', (ev) => {
           ev.stopPropagation();
           ev.preventDefault();
-          if (this.editing) this.route.remove(w.id);
         });
         el.addEventListener('contextmenu', (ev) => {
           ev.preventDefault();
