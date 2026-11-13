@@ -207,6 +207,7 @@ const en = {
   'poi.view': 'Viewpoints',
   'poi.photos': 'Street photos (±100 m)',
   'poi.photo': 'Photo',
+  'poi.spring': 'Spring',
   'pv.prev': 'Previous photo',
   'pv.next': 'Next photo',
   'poi.photosN': '{n} photos',

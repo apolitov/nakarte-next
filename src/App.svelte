@@ -34,7 +34,7 @@
   import InlineConfirm from './ui/InlineConfirm.svelte';
   import PoiMenu from './ui/PoiMenu.svelte';
   import PhotoViewer from './ui/PhotoViewer.svelte';
-  import { AlongLayer, CATS, catDef, catTitle, fetchPois, photoGroups, PhotoLoader, PHOTO_MIN_ZOOM, PHOTO_SOURCES, type PhotoSource, type Photo, type Poi, type PoiCat } from './lib/along';
+  import { AlongLayer, CATS, catDef, catTitle, fetchPois, fetchSprings, photoGroups, PhotoLoader, PHOTO_MIN_ZOOM, PHOTO_SOURCES, type PhotoSource, type Photo, type Poi, type PoiCat } from './lib/along';
   import HelpDialog from './ui/HelpDialog.svelte';
   import ProfileCard from './ui/ProfileCard.svelte';
   import KeyTip from './ui/KeyTip.svelte';
@@ -251,8 +251,15 @@
       poiLoading = true;
       poiError = '';
       try {
-        pois = await fetchPois(pts, r, poiCats.includes('water'));
+        pois = await fetchPois(pts, r);
         poisLoaded = true;
+        // springs come from Overpass, often slow: added when they arrive, nothing waits for them
+        if (poiCats.includes('water'))
+          fetchSprings(pts, r).then((sp) => {
+            if (route.points !== pts || !sp.length) return;
+            const have = new Set(pois.map((p) => p.id));
+            pois = [...pois, ...sp.filter((p) => !have.has(p.id))].sort((a, b) => a.m - b.m);
+          });
       } catch (e) {
         poiError = t('poi.failed', { error: (e as Error).message });
       } finally {
@@ -304,7 +311,7 @@
         lastFood = p.m;
       }
       const dense = p.cat === 'eat' || p.cat === 'shop' || p.cat === 'sight';
-      extra.push({ id: `poi:${dense ? 'dense:' : ''}${p.id}`, kind: 'poi', i: p.i, d: p.m, label: p.tags.name ? `${catTitle(p.cat)} · ${p.tags.name}` : catTitle(p.cat), icon: catDef(p.cat).icon, priority: 3, weight: 0 });
+      extra.push({ id: `poi:${dense ? 'dense:' : ''}${p.id}`, kind: 'poi', i: p.i, d: p.m, label: ((k) => (p.tags.name ? `${k} · ${p.tags.name}` : k))(p.kind === 'spring' ? t('poi.spring') : catTitle(p.cat)), icon: catDef(p.cat).icon, priority: p.cat === 'water' ? 1 : p.cat === 'repair' || p.cat === 'fuel' ? 2 : 3, weight: 0 });
     }
     const end = baseEvents.at(-1)!;
     return [...baseEvents.slice(0, -1), ...extra].sort((a, b) => a.d - b.d || (a.kind === 'start' ? -1 : 0)).concat(end);

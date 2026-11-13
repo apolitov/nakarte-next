@@ -198,37 +198,56 @@ function corridorTiles(points: Pt[], radius: number): [number, number][] {
   return [...keys].map((k) => k.split('/').map(Number) as [number, number]);
 }
 
-/** Springs are not in the OpenMapTiles schema: ask Overpass for them, briefly; skipped if it is busy. */
-async function springs(points: Pt[], radius: number): Promise<Omit<Poi, 'm' | 'i'>[]> {
-  const line = simplify(points, 150).map(([lng, lat]) => `${lat.toFixed(5)},${lng.toFixed(5)}`).join(',');
-  const q = `[out:json][timeout:15];node(around:${radius},${line})[natural=spring];out 200;`;
-  try {
-    const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: new URLSearchParams({ data: q }), signal: AbortSignal.timeout(20000) });
-    if (!r.ok) return [];
-    const j = await r.json();
-    return (j.elements ?? []).map((e: { id: number; lon: number; lat: number; tags?: Record<string, string> }) => ({
-      id: `n${e.id}`, cat: 'water' as const, lng: e.lon, lat: e.lat, kind: 'spring', tags: e.tags?.name ? { name: e.tags.name } : {},
-    }));
-  } catch {
-    return [];
+// ---- springs: not in the OpenMapTiles schema, so from Overpass, per z12 cell (~10 km) ----
+
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+const SPRING_Z = 12;
+type RawPoi = Omit<Poi, 'm' | 'i'>;
+
+/** Springs in one z12 cell; cached in the browser for 30 days. Public Overpass is often slow or
+ *  busy: a failed cell is tried again next time, and nothing else waits for it. */
+async function springCell(x: number, y: number): Promise<RawPoi[] | null> {
+  const key = `sp:${SPRING_Z}/${x}/${y}`;
+  const hit = await cacheGet<RawPoi>(key);
+  if (hit) return hit;
+  const n = 2 ** SPRING_Z;
+  const lng = (v: number) => (v / n) * 360 - 180;
+  const lat = (v: number) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * v) / n))) * 180) / Math.PI;
+  const q = `[out:json][timeout:40];node(${lat(y + 1).toFixed(5)},${lng(x).toFixed(5)},${lat(y).toFixed(5)},${lng(x + 1).toFixed(5)})[natural=spring];out 500;`;
+  for (const url of OVERPASS) {
+    try {
+      const r = await fetch(url, { method: 'POST', body: new URLSearchParams({ data: q }), signal: AbortSignal.timeout(45000) });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const out: RawPoi[] = (j.elements ?? []).map((e: { id: number; lon: number; lat: number; tags?: Record<string, string> }) => ({
+        id: `n${e.id}`, cat: 'water' as const, lng: e.lon, lat: e.lat, kind: 'spring',
+        tags: { ...(e.tags?.name ? { name: e.tags.name } : {}), ...(e.tags?.drinking_water ? { drinking_water: e.tags.drinking_water } : {}) },
+      }));
+      await cachePut(key, out, 30 * DAY);
+      return out;
+    } catch {
+      /* next mirror */
+    }
   }
+  return null;
 }
 
-/** Points of interest within `radius` m of the route, with their distance along it. */
-export async function fetchPois(points: Pt[], radius: number, withSprings = false): Promise<Poi[]> {
-  const tiles = corridorTiles(points, radius);
-  const spring = withSprings ? springs(points, radius) : Promise.resolve([]);
-  const lists: Omit<Poi, 'm' | 'i'>[][] = [];
-  for (let k = 0; k < tiles.length; k += 6) lists.push(...(await Promise.all(tiles.slice(k, k + 6).map(([x, y]) => tilePois(x, y)))));
-  lists.push(await spring);
-  // distance along the route, from its own points
-  const cum = [0];
-  for (let k = 1; k < points.length; k++) {
-    const a = points[k - 1], b = points[k], kx = Math.cos((a.lat * Math.PI) / 180);
-    cum.push(cum[k - 1] + Math.hypot((b.lng - a.lng) * kx, b.lat - a.lat) * 111320);
+/** Springs near the route, with distances; cells that could not be loaded are skipped. */
+export async function fetchSprings(points: Pt[], radius: number): Promise<Poi[]> {
+  const n = 2 ** SPRING_Z, keys = new Set<string>();
+  for (const p of points) {
+    const r = (p.lat * Math.PI) / 180;
+    keys.add(`${Math.floor(((p.lng + 180) / 360) * n)}/${Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n)}`);
   }
+  const lists = await Promise.all([...keys].map((k) => springCell(...(k.split('/').map(Number) as [number, number]))));
+  return placeOnRoute(points, lists.flatMap((l) => l ?? []), radius);
+}
+
+/** Keeps points within `radius` m of the route and gives each its distance along it. */
+function placeOnRoute(points: Pt[], raw: RawPoi[], radius: number): Poi[] {
+  const cum = cumulative(points);
   const seen = new Set<string>(), out: Poi[] = [];
-  for (const p of lists.flat()) {
+  for (const p of raw) {
     const key = `${p.cat}|${p.lng.toFixed(5)}|${p.lat.toFixed(5)}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -237,6 +256,14 @@ export async function fetchPois(points: Pt[], radius: number, withSprings = fals
     out.push({ ...p, i: near.i, m: cum[near.i] });
   }
   return out.sort((a, b) => a.m - b.m);
+}
+
+/** Points of interest within `radius` m of the route from the map tiles (springs come separately). */
+export async function fetchPois(points: Pt[], radius: number): Promise<Poi[]> {
+  const tiles = corridorTiles(points, radius);
+  const lists: RawPoi[][] = [];
+  for (let k = 0; k < tiles.length; k += 6) lists.push(...(await Promise.all(tiles.slice(k, k + 6).map(([x, y]) => tilePois(x, y)))));
+  return placeOnRoute(points, lists.flat(), radius);
 }
 
 // ---- photos: Wikimedia Commons from the browser, Mapillary and Panoramax street views through maps-api ----
@@ -551,8 +578,9 @@ export class AlongLayer {
       .filter(Boolean)
       .join(' · ');
     const osm = `https://www.openstreetmap.org/?mlat=${p.lat.toFixed(6)}&mlon=${p.lng.toFixed(6)}#map=19/${p.lat.toFixed(6)}/${p.lng.toFixed(6)}`;
-    this.open(p.lng, p.lat, `<div class="ap"><b>${c.icon} ${esc(p.tags.name || catTitle(p.cat))}</b>
-      <span>${esc(catTitle(p.cat))} · ${t('poi.atKm', { km: km(p.m) })}</span>${extra ? `<span>${extra}</span>` : ''}
+    const title = p.kind === 'spring' ? t('poi.spring') : catTitle(p.cat);
+    this.open(p.lng, p.lat, `<div class="ap"><b>${c.icon} ${esc(p.tags.name || title)}</b>
+      <span>${esc(title)} · ${t('poi.atKm', { km: km(p.m) })}</span>${extra ? `<span>${extra}</span>` : ''}
       <a href="${osm}" target="_blank" rel="noopener">OpenStreetMap ↗</a></div>`);
   }
 
