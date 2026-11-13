@@ -1,8 +1,8 @@
 # Use cases of the planner
 
-What people do in No Mapa (alexe.pt/maps), grouped by goal. Each case has an id; the end-to-end
-check with the same id is in `tools/e2e/usecases.py` (run: `python3 tools/e2e/usecases.py`,
-`BASE=https://alexe.pt/maps/` for the live site). Cases marked *manual* are not automated.
+What people do in No Mapa, grouped by goal. Each case has an id; the end-to-end check with the
+same id is in `tools/e2e/usecases.py` (run `python3 tools/e2e/usecases.py` with the dev server
+running). Cases marked *manual* are not automated.
 
 Actors: **planner** (anonymous, the main one), **signed-in user** (sync, Garmin), **link
 recipient** (opens a shared route).

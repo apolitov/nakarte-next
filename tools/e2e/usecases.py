@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """End-to-end checks of the use cases in docs/use-cases.md (same ids).
 
-Run against the dev server (default) or the live site:
+Run against the dev server (BASE overrides the address):
   python3 tools/e2e/usecases.py                 # http://localhost:5173/maps/
-  BASE=https://alexe.pt/maps/ python3 tools/e2e/usecases.py
   python3 tools/e2e/usecases.py A1 B4           # only these cases
 Needs Python Playwright with Chromium. Routing goes to the real router (through the dev
 proxy or the live API). F4 stores one short link on the server.
@@ -549,7 +548,7 @@ async def F4(ctx):
     check('#s=' in url or '&r=' in url, f'no link copied: {url!r}')
     other = await ctx.browser.new_context(viewport={'width': 1280, 'height': 800})
     p2 = await other.new_page()
-    await p2.goto(url.replace('https://alexe.pt/maps/', BASE))
+    await p2.goto(BASE + '#' + url.split('#', 1)[1])  # the link's state, on the server under test
     await p2.wait_for_selector('.wp', timeout=30000)
     await settle(p2)
     check(abs(await km(p2) - one) < 0.15, 'recipient sees another route')
