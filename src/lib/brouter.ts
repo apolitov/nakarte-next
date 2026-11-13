@@ -3,6 +3,7 @@
 import type { Position } from 'geojson';
 import { straightWithElevation } from './dem';
 import { t } from './i18n';
+import { heatAlong } from './rwheat';
 
 export const PROFILES = [
   { id: 'nk-road', title: t('profile.road') },
@@ -48,6 +49,8 @@ export interface RouteOptions {
   maxGrade: number;
   /** prefer cycleways, cycle lanes and signed cycle routes (on by default in the bike profiles) */
   cycleways: boolean;
+  /** of the router's alternatives, take the one more people ride (Ride with GPS heatmap) */
+  heat: boolean;
   /** hiking: hardest path allowed on the SAC scale (T2…T6); 3 is the profile default */
   sac: number;
   /** hiking: keep to signed hiking routes */
@@ -70,7 +73,7 @@ export const ALLOW_FOR: Record<AllowKey, string[]> = {
   paths: ['nk-road', 'nk-gravel'],
 };
 const ALLOW_ALL: Record<AllowKey, boolean> = { steps: true, ferry: true, busy: true, unpaved: true, paths: true };
-export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', maxGrade: 0, cycleways: true, sac: 3, trails: false, nature: false, quiet: false, allow: { ...ALLOW_ALL } };
+export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', maxGrade: 0, cycleways: true, heat: false, sac: 3, trails: false, nature: false, quiet: false, allow: { ...ALLOW_ALL } };
 /** SAC difficulty steps offered for hiking (OSM sac_scale: T1 hiking … T6 difficult alpine) */
 export const SAC_STEPS = [2, 3, 4, 6] as const;
 
@@ -100,6 +103,8 @@ export function optionsToParams(o: RouteOptions): Record<string, number> {
   } else if (o.climbs === 'any') {
     p.nk_uphillcost = 0;
   }
+  // not a profile parameter either: fetchLeg picks among alternatives by the heatmap
+  if (o.heat) p.nk_heat = 1;
   // hiking only (variables of the stock hiking-mountain profile); defaults are not sent
   if (o.sac !== 3) p.SAC_scale_limit = o.sac;
   if (o.trails) p.hiking_routes_preference = 1;
@@ -129,6 +134,7 @@ export function paramsToOptions(p: Record<string, string | number | boolean> = {
   return {
     surface: surfaceOf(n('nk_surface') ?? 0, n('nk_surf_k')),
     cycleways: n('nk_cycle') !== 0,
+    heat: n('nk_heat') === 1,
     maxGrade: cost != null && cost >= 600 && cutoff ? cutoff : 0,
     climbs: n('nk_seek') === 1 ? 'seek' : cost == null ? 'normal' : cost === 0 ? 'any' : cost >= 600 ? 'normal' : cost >= 250 ? 'avoid' : 'less',
     sac: n('SAC_scale_limit') ?? 3,
@@ -290,15 +296,15 @@ export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Param
       () => ({ points: [a, b].map((p) => ({ lng: p.lng, lat: p.lat, ele: null })), spans: [] }),
     );
   }
-  const { nk_seek: seek, ...sent } = params;
+  const { nk_seek: seek, nk_heat: heat, ...sent } = params;
   const extra = paramString(sent);
   const km = straightKm(a, b);
   if (km > MAX_LEG_KM) return Promise.reject(new Error(t('route.legTooLong', { max: MAX_LEG_KM })));
-  const key = legKey(a, b, profile, extra) + (seek ? '|seek' : '');
+  const key = legKey(a, b, profile, extra) + (seek ? '|seek' : '') + (heat ? '|heat' : '');
   let p = cache.get(key);
   if (!p) {
     const url = (alt: number) => `${API}?lonlats=${a.lng.toFixed(6)},${a.lat.toFixed(6)}|${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=${profile}${extra}&alternativeidx=${alt}&format=geojson`;
-    p = seek ? hilliest([0, 1, 2, 3].map((alt) => slot(() => requestLeg(url(alt))))) : slot(() => requestLeg(url(0)));
+    p = seek || heat ? pickAlternative([0, 1, 2, 3].map((alt) => slot(() => requestLeg(url(alt)))), !!seek, !!heat) : slot(() => requestLeg(url(0)));
     p.catch(() => cache.delete(key));
     cache.set(key, p);
   }
@@ -318,16 +324,23 @@ export function legAscent(points: LegPoint[]): number {
 }
 
 /**
- * "Seek climbs": of the router's alternatives (it computes up to four per leg), the one that
- * climbs most, as long as it is at most 30% longer than the first. Failed alternatives are skipped.
+ * "Seek climbs" and "Stick to heatmap": of the router's alternatives (up to four per leg), the
+ * one that climbs most and/or that more people ride (Ride with GPS heatmap), among those at most
+ * 30% longer than the first. With both, each counts relative to the first alternative.
  */
-async function hilliest(alts: Promise<Leg>[]): Promise<Leg> {
+async function pickAlternative(alts: Promise<Leg>[], seek: boolean, heat: boolean): Promise<Leg> {
   const got = await Promise.allSettled(alts);
   const legs = got.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
   if (!legs.length) throw (got[0] as PromiseRejectedResult).reason;
   const len = (l: Leg) => l.points.reduce((s, q, i) => (i ? s + straightKm(l.points[i - 1], q) : 0), 0);
   const base = len(legs[0]);
-  return legs.filter((l) => len(l) <= base * 1.3).reduce((best, l) => (legAscent(l.points) > legAscent(best.points) ? l : best), legs[0]);
+  const ok = legs.filter((l) => len(l) <= base * 1.3);
+  const up = ok.map((l) => legAscent(l.points));
+  const hot = heat ? await Promise.all(ok.map((l) => heatAlong(l.points).catch(() => 0))) : ok.map(() => 0);
+  const score = (i: number) => (seek ? up[i] / Math.max(1, up[0]) : 0) + (heat ? hot[i] / Math.max(0.01, hot[0]) : 0);
+  let best = 0;
+  for (let i = 1; i < ok.length; i++) if (score(i) > score(best) * 1.03) best = i; // 3%: not for noise
+  return ok[best];
 }
 
 // profile parameters go as profile:<name>=<value>; booleans as 1/0

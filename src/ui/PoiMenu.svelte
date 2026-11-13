@@ -2,7 +2,7 @@
   // POIs dropdown at the top right: categories along the route with their counts,
   // the distance from the route, and whether they also go into the timeline.
   import { t } from '../lib/i18n';
-  import { CATS, catTitle, type PoiCat } from '../lib/along';
+  import { CATS, catTitle, PHOTO_SOURCES, type PoiCat, type PhotoSource } from '../lib/along';
   import Icon from './Icon.svelte';
 
   let {
@@ -12,6 +12,8 @@
     inTimeline,
     loading = false,
     photoZoomHint = false,
+    photoSrc = PHOTO_SOURCES,
+    onphotosrc,
     error = '',
     pinned,
     canPin = true,
@@ -27,6 +29,8 @@
     inTimeline: boolean;
     loading?: boolean;
     photoZoomHint?: boolean;
+    photoSrc?: PhotoSource[];
+    onphotosrc: (s: PhotoSource) => void;
     error?: string;
     pinned: boolean;
     canPin?: boolean;
@@ -43,6 +47,7 @@
     ['photo', t('poi.groupPhotos')],
   ] as const;
   const RADII = [100, 300, 1000];
+  const SRC_NAME: Record<PhotoSource, string> = { commons: 'Wikimedia Commons', mapillary: 'Mapillary', panoramax: 'Panoramax' };
   const rlabel = (r: number) => (r < 1000 ? `${r} m` : `${r / 1000} km`);
 </script>
 
@@ -66,6 +71,13 @@
         <span class="nm">{catTitle(c.id)}</span>
         <span class="n num">{counts[c.id] ?? (loading ? '…' : '')}</span>
       </label>
+      {#if c.id === 'photos' && enabled.includes('photos')}
+        <div class="srcs" role="group" aria-label={t('poi.photoSources')}>
+          {#each PHOTO_SOURCES as x (x)}
+            <label class="sub"><input type="checkbox" checked={photoSrc.includes(x)} onchange={() => onphotosrc(x)} /><span>{SRC_NAME[x]}</span></label>
+          {/each}
+        </div>
+      {/if}
     {/each}
   {/each}
   {#if photoZoomHint}<p class="src">{t('poi.photosZoom')}</p>{/if}
@@ -198,5 +210,22 @@
     .row {
       min-height: 36px;
     }
+  }
+  .srcs {
+    display: grid;
+    padding: 0 8px 4px 34px;
+  }
+  .sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;
+    font-size: 12px;
+    color: var(--soft);
+    cursor: pointer;
+  }
+  .sub input {
+    margin: 0;
+    accent-color: var(--ink);
   }
 </style>

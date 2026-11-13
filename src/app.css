@@ -579,9 +579,10 @@ kbd {
 /* 2D | 3D: two halves of one control, the active one in the marker colour */
 .dim {
   display: flex;
+  flex-direction: column;
   padding: 3px;
   gap: 2px;
-  height: 44px;
+  width: 40px;
   box-sizing: border-box;
   border-radius: 14px;
   background: color-mix(in srgb, var(--paper) 92%, transparent);
@@ -589,7 +590,7 @@ kbd {
   box-shadow: var(--shadow);
 }
 .dim button {
-  width: 38px;
+  height: 32px;
   border-radius: 11px;
   font: 700 13px/1 var(--sans);
   color: var(--soft);

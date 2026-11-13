@@ -11,6 +11,7 @@ describe('route options', () => {
       { ...base, surface: -1, climbs: 'any', cycleways: false },
       { ...base, surface: -2 },
       { ...base, climbs: 'avoid' },
+      { ...base, heat: true, climbs: 'seek' },
       { ...base, climbs: 'seek', surface: 1 },
       { ...base, surface: 2, climbs: 'less' },
       { ...base, surface: -1 },

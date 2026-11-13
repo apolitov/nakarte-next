@@ -113,6 +113,13 @@
     <span class="t">{t('set.cycleways')}<small>{t('set.cyclewaysHint')}</small></span>
   </label>
 {/if}
+{#if cycle}
+  <label class="sw">
+    <input type="checkbox" role="switch" checked={options.heat} onchange={(e) => onchange({ heat: e.currentTarget.checked })} />
+    <span class="tr" aria-hidden="true"></span>
+    <span class="t">{t('set.heat')}<small>{t('set.heatHint')}</small></span>
+  </label>
+{/if}
 
 <style>
   .allow {

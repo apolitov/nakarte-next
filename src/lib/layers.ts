@@ -156,7 +156,7 @@ const ALL: LayerDef[] = [
     title: t('layer.rwgpsHeat'),
     kind: 'overlay',
     group: t('layerGroup.routes'),
-    tiles: ['https://heatmap.ridewithgps.com/normalized/{z}/{x}/{y}.png'],
+    tiles: ['rwheat://{z}/{x}/{y}'], // repainted in violet, lib/rwheat.ts
     attribution: 'Heatmap © <a href="https://ridewithgps.com">Ride with GPS</a>',
     maxzoom: 18,
     activity: 'bike',

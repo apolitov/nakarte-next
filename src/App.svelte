@@ -5,6 +5,7 @@
   import { DEFAULT_BASE, baseForProfile, layerById, type LayerDef } from './lib/layers';
   import { registerYandexProtocol } from './lib/yandex';
   import { registerGpsHeatProtocol } from './lib/gpsheat';
+  import { registerRwHeatProtocol } from './lib/rwheat';
   import { parseHash, formatHash } from './lib/hash';
   import { parseTrackFile, toGpx, trackToGeoJSON, bboxOf, type Track } from './lib/gpx';
   import { RouteState } from './lib/route.svelte';
@@ -32,7 +33,7 @@
   import LayersPopover from './ui/LayersPopover.svelte';
   import InlineConfirm from './ui/InlineConfirm.svelte';
   import PoiMenu from './ui/PoiMenu.svelte';
-  import { AlongLayer, CATS, catDef, catTitle, fetchPois, photoGroups, PhotoLoader, PHOTO_MIN_ZOOM, type Photo, type Poi, type PoiCat } from './lib/along';
+  import { AlongLayer, CATS, catDef, catTitle, fetchPois, photoGroups, PhotoLoader, PHOTO_MIN_ZOOM, PHOTO_SOURCES, type PhotoSource, type Photo, type Poi, type PoiCat } from './lib/along';
   import HelpDialog from './ui/HelpDialog.svelte';
   import ProfileCard from './ui/ProfileCard.svelte';
   import KeyTip from './ui/KeyTip.svelte';
@@ -207,12 +208,14 @@
   let poiCats = $state<PoiCat[]>(readPoi<PoiCat[]>('cats', CATS.filter((c) => c.def).map((c) => c.id)).filter((c) => CATS.some((d) => d.id === c)));
   let poiRadius = $state<number>(readPoi('radius', 300));
   let poiTimeline = $state<boolean>(readPoi('timeline', true));
+  let photoSrc = $state<PhotoSource[]>(readPoi<PhotoSource[]>('photoSrc', PHOTO_SOURCES).filter((x) => PHOTO_SOURCES.includes(x)));
   let pois = $state<Poi[]>([]);
   let photos = $state<Photo[]>([]);
   let poiLoading = $state(false);
   let poisLoaded = $state(false);
   let poiError = $state('');
   let along: AlongLayer | null = null;
+  let dimBox: HTMLDivElement | undefined = $state();
   let photosOpen = $state(false);
   function togglePoiCat(c: PoiCat) {
     poiCats = poiCats.includes(c) ? poiCats.filter((x) => x !== c) : [...poiCats, c];
@@ -257,8 +260,8 @@
   let mapZoom = $state(0);
   $effect(() => {
     const ready = route.points.length > 1 && !route.loading;
-    const pts = route.points;
-    photoLoader = ready ? new PhotoLoader(pts) : null;
+    const pts = route.points, src = photoSrc;
+    photoLoader = ready ? new PhotoLoader(pts, src) : null;
     photos = [];
     if (ready && photosOn) queueMicrotask(loadPhotosInView);
   });
@@ -1195,6 +1198,7 @@
     void reloadLists();
     registerYandexProtocol();
     registerGpsHeatProtocol();
+    registerRwHeatProtocol();
     cityView();
     map = new maplibregl.Map({
       container,
@@ -1210,8 +1214,10 @@
     });
     map.touchZoomRotate.disableRotation();
     // rarely used: bottom right, the top right corner is for layers
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    // bottom corners stack upwards: location at the bottom, zoom above it, the 2D | 3D switch on top
     map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'bottom-right');
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    if (dimBox) map.addControl({ onAdd: () => dimBox!, onRemove: () => dimBox?.remove() }, 'bottom-right');
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
     map.on('load', async () => {
@@ -1318,6 +1324,7 @@
     if (!o.maxGrade) parts.push({ avoid: t('set.sumAvoid'), less: t('set.sumLess'), normal: t('set.sumNormal'), any: t('set.sumAnyClimbs'), seek: t('set.sumSeek') }[o.climbs]);
     parts.push(o.maxGrade ? t('set.sumUpTo', { g: o.maxGrade }) : t('set.sumNoLimit'));
     if (o.cycleways && (route.profile === 'nk-road' || route.profile === 'nk-gravel')) parts.push(t('set.sumCycleways'));
+    if (o.heat && (route.profile === 'nk-road' || route.profile === 'nk-gravel')) parts.push(t('set.sumHeat'));
     const never = ALLOW_KEYS.filter((k) => o.allow?.[k] === false && ALLOW_FOR[k].includes(route.profile));
     if (never.length) parts.push(t('set.sumNever', { list: never.map((k) => NEVER_WORD[k]).join(', ') }));
     if (route.profile === 'nk-hike') {
@@ -1472,17 +1479,18 @@
         title={t('lay.overlays')} onclick={() => openMenu('over')}><Icon name="overlay" size={20} /></button>
       <button class="layersbtn poibtn" class:on={poiCats.length > 0} aria-expanded={layersMenu === 'poi'} aria-controls="nk-pois"
         aria-label={t('poi.title')} title={t('poi.title')} onclick={() => openMenu('poi')}>{t('poi.button')}{#if poiCats.length}<span class="cnt num">{poiCats.length}</span>{/if}</button>
-      <div class="dim" role="group" aria-label={t('map.dim')}>
-        <button aria-pressed={!terrain3d} data-tip={t('map.2dTip')} onclick={() => set3d(false)}>2D</button>
-        <button aria-pressed={terrain3d} data-tip={t('map.3dTip')} onclick={() => set3d(true)}>3D</button>
-      </div>
+    </div>
+    <!-- moved into the map's bottom right corner, right above zoom (a MapLibre control, see onMount) -->
+    <div class="dim maplibregl-ctrl" role="group" aria-label={t('map.dim')} bind:this={dimBox}>
+      <button aria-pressed={!terrain3d} data-tip={t('map.2dTip')} onclick={() => set3d(false)}>2D</button>
+      <button aria-pressed={terrain3d} data-tip={t('map.3dTip')} onclick={() => set3d(true)}>3D</button>
     </div>
     {#if terrain3d && map3d}
       <Orbit3d bind:this={orbit} map={map3d} />
     {/if}
     {#if layersMenu === 'poi'}
       <div bind:this={layersBox}>
-        <PoiMenu enabled={poiCats} counts={poiCounts} photoZoomHint={photosOn && mapZoom < PHOTO_MIN_ZOOM} radius={poiRadius} inTimeline={poiTimeline} loading={poiLoading} error={poiError}
+        <PoiMenu enabled={poiCats} counts={poiCounts} {photoSrc} onphotosrc={(x) => setPoiPref('photoSrc', (photoSrc = photoSrc.includes(x) ? photoSrc.filter((y) => y !== x) : [...photoSrc, x]))} photoZoomHint={photosOn && mapZoom < PHOTO_MIN_ZOOM} radius={poiRadius} inTimeline={poiTimeline} loading={poiLoading} error={poiError}
           pinned={layersPinned} canPin={!mobile} onpin={togglePin} ontoggle={togglePoiCat} onradius={(r) => setPoiPref('radius', (poiRadius = r))}
           ontimeline={(on) => setPoiPref('timeline', (poiTimeline = on))} onclose={() => { layersMenu = null; if (layersPinned) togglePin(); }} />
       </div>

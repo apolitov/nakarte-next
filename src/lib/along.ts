@@ -256,6 +256,8 @@ function cumulative(points: Pt[]): number[] {
 }
 
 export const PHOTO_MIN_ZOOM = 13;
+export type PhotoSource = 'commons' | 'mapillary' | 'panoramax';
+export const PHOTO_SOURCES: PhotoSource[] = ['commons', 'mapillary', 'panoramax'];
 const PIECE = 2000; // m of route per request batch
 
 const strip = (h = '') => h.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
@@ -325,7 +327,7 @@ export class PhotoLoader {
   private done = new Map<number, Photo[]>();
   private busy = new Set<number>();
 
-  constructor(private route: Pt[]) {
+  constructor(private route: Pt[], private sources: PhotoSource[] = PHOTO_SOURCES) {
     this.cum = cumulative(route);
     let a = 0;
     for (let k = 1; k < route.length; k++) {
@@ -373,7 +375,7 @@ export class PhotoLoader {
   private async loadPiece(a: number, b: number): Promise<Photo[]> {
     const pts = this.route.slice(a, b + 1);
     // Commons by map cells (shared by every route through them); two requests at a time
-    const cells = cellsAlong(pts);
+    const cells = this.sources.includes('commons') ? cellsAlong(pts) : [];
     const raw: RawPhoto[] = [];
     for (let k = 0; k < cells.length; k += 2) {
       const got = await Promise.all(cells.slice(k, k + 2).map(([x, y]) => commonsCell(x, y).catch(() => [] as RawPhoto[])));
@@ -387,12 +389,13 @@ export class PhotoLoader {
     // Mapillary and Panoramax through maps-api, cached here for 12 h (their thumbnail links expire)
     const line = simplify(pts);
     const key = `s:${line.map(([x, y]) => `${x.toFixed(4)},${y.toFixed(4)}`).join(';')}`;
-    let street = await cacheGet<Photo>(key);
+    const wantStreet = this.sources.some((x) => x !== 'commons');
+    let street = wantStreet ? await cacheGet<Photo>(key) : [];
     if (!street) {
       street = await post<Photo[]>('/photos', line).catch(() => null);
       if (street) await cachePut(key, street, DAY / 2);
     }
-    return [...commons, ...(street ?? []).map((p) => ({ ...p, m: p.m + this.cum[a] }))];
+    return [...commons, ...(street ?? []).filter((p) => this.sources.includes(p.src)).map((p) => ({ ...p, m: p.m + this.cum[a] }))];
   }
 }
 
