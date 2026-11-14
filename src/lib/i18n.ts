@@ -296,7 +296,7 @@ const en = {
   'name.sugAround': 'Around {a}',
   'name.suggestions': 'Suggestions',
   'name.title': 'Name this route',
-  'name.why': 'A name tells your routes apart in My routes, in the GPX file and on the watch.',
+  'name.why': 'A name tells your routes apart in My routes, in the GPX file and wherever you send it: a bike computer, Garmin Connect or a navigation app.',
   'name.label': 'Name',
   'name.save': 'Save',
   'name.back': 'Back to editing',
