@@ -10,7 +10,7 @@
   import { parseTrackFile, toGpx, trackToGeoJSON, bboxOf, type Track } from './lib/gpx';
   import { RouteState } from './lib/route.svelte';
   import { RouteEditor, type ColorMode } from './lib/routeEditor';
-  import { PROFILES, normalizeProfile, ALLOW_KEYS, ALLOW_FOR, type AllowKey, type ProfileId, type RouteOptions } from './lib/brouter';
+  import { PROFILES, normalizeProfile, ALLOW_KEYS, ALLOW_FOR, type AllowKey, type ProfileId, type RouteOptions, DEFAULT_OPTIONS } from './lib/brouter';
   import { store, newId, type RouteDoc, type TrackDoc } from './lib/store';
   import Orbit3d from './ui/Orbit3d.svelte';
   import NameDialog from './ui/NameDialog.svelte';
@@ -28,7 +28,9 @@
   import RoutesScreen from './ui/RoutesScreen.svelte';
   import LoopPanel from './ui/LoopPanel.svelte';
   import { findLoops, type LoopCandidate } from './lib/loops';
+  import { placeAt } from './lib/routeNames';
   import RouteSettings from './ui/RouteSettings.svelte';
+  import SettingsSentence from './ui/SettingsSentence.svelte';
   import Segmented from './ui/Segmented.svelte';
   import Fold from './ui/Fold.svelte';
   import Timeline from './ui/Timeline.svelte';
@@ -105,6 +107,30 @@
   let colorMode = $state<ColorMode>('grade');
   let showProfile = $state(true);
   let settingsOpen = $state(false);
+  /** what the panel shows: the route (main), All settings, or the loop planner */
+  let panelView = $state<'main' | 'settings' | 'loop'>('main');
+  let routeMenu = $state(false);
+  let titleEl: HTMLInputElement | undefined = $state();
+  function renameRoute() {
+    routeMenu = false;
+    titleEl?.focus();
+    titleEl?.select();
+  }
+  function copyRoute() {
+    routeMenu = false;
+    if (!route.waypoints.length) return;
+    saveRoute();
+    const doc = route.toDoc();
+    route.load({ ...doc, id: newId('r'), name: `${doc.name} · ${t('copy.suffix')}`, created: Date.now(), updated: Date.now() });
+    saveRoute();
+    say(t('route.copied'));
+  }
+  $effect(() => {
+    if (!routeMenu) return;
+    const away = (e: PointerEvent) => !(e.target as HTMLElement).closest?.('.rmenu, .dotsb') && (routeMenu = false);
+    addEventListener('pointerdown', away, true);
+    return () => removeEventListener('pointerdown', away, true);
+  });
   let mineOpen = $state(false);
   function setOpt(patch: Partial<RouteOptions>) {
     for (const [k, v] of Object.entries(patch)) {
@@ -420,7 +446,6 @@
   }
   function padding() {
     // the loop card covers the left of the map on a desktop and the bottom on a phone
-    if (loopOpen) return { top: 76, bottom: 40, left: 30, right: 70 }; // on top of the map padding the loop card sets
     return { top: 76, bottom: (mobile ? 0 : profH + 12) + 30, left: 50, right: 70 };
   }
 
@@ -871,9 +896,8 @@
   let garminOpen = $state(false);
   let routesOpen = $state(false);
 
-  // ---- the loop generator: "a loop of N km from here" (lib/loops.ts) ----
+  // ---- the loop generator: "a loop of N km from here" (lib/loops.ts), a mode of the panel ----
   const LOOP_COLORS = ['#e4572e', '#2e86de', '#8e44ad'];
-  let loopOpen = $state(false);
   let loopKm = $state(30);
   let loopBearing = $state<number | null>(null);
   let loopBusy = $state(false);
@@ -882,46 +906,72 @@
   let loopCands = $state<LoopCandidate[]>([]);
   let loopActive = $state<number | null>(null);
   let loopAbort: AbortController | null = null;
-  /** where the found loops start (drawn on the map; the crosshair shows where the next search starts) */
+  /** where the loop starts: asked first (my location or a point on the map), then a draggable marker */
   let loopStart = $state<{ lng: number; lat: number } | null>(null);
-  /** height of the loop card on a phone: the map is padded so its centre stays in the visible part */
-  let loopCardH = $state(0);
-  const loopPad = $derived(loopOpen ? (mobile ? { top: 60, bottom: loopCardH + 90, left: 0, right: 0 } : { top: 0, bottom: 0, left: 320, right: 0 }) : { top: 0, bottom: 0, left: 0, right: 0 });
-  $effect(() => {
-    const pad = loopPad;
-    map?.setPadding(pad);
-  });
+  let loopStartName = $state('');
+  let loopPicking = $state(false);
+  let loopMarker: maplibregl.Marker | null = null;
   function openLoop() {
     if (editing) toggleEdit();
-    loopOpen = true;
+    panelView = 'loop';
     layersMenu = null;
-    if (mobile) sheetOpen = false;
+    if (mobile) sheetOpen = true;
     track('loop_open');
   }
   function closeLoop() {
     loopAbort?.abort();
-    loopOpen = false;
+    panelView = 'main';
     loopBusy = false;
     loopCands = [];
     loopActive = null;
     loopError = '';
-    loopStart = null;
+    loopPicking = false;
+    setLoopStart(null);
     drawLoops();
+  }
+  function setLoopStart(p: { lng: number; lat: number } | null) {
+    loopStart = p;
+    loopStartName = '';
+    loopCands = [];
+    loopActive = null;
+    drawLoops();
+    if (!p) {
+      loopMarker?.remove();
+      loopMarker = null;
+      return;
+    }
+    if (!loopMarker && map) {
+      const el = document.createElement('div');
+      el.className = 'loopstart';
+      loopMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat([p.lng, p.lat]).addTo(map);
+      loopMarker.on('dragend', () => {
+        const q = loopMarker!.getLngLat();
+        setLoopStart({ lng: q.lng, lat: q.lat });
+      });
+    } else loopMarker?.setLngLat([p.lng, p.lat]);
+    const at = p;
+    placeAt(at).then((n) => loopStart === at && (loopStartName = n));
+  }
+  /** Pick on the map: the next tap on the map is the start (the sheet steps aside on a phone) */
+  function pickStartOnMap() {
+    loopPicking = true;
+    if (mobile) sheetOpen = false;
+  }
+  function onLoopMapClick(e: maplibregl.MapMouseEvent) {
+    if (!loopPicking) return;
+    loopPicking = false;
+    setLoopStart({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+    if (mobile) sheetOpen = true;
   }
   function drawLoops() {
     if (!map) return;
     const data = {
       type: 'FeatureCollection' as const,
-      features: [
-        ...loopCands.map((c, i) => ({
-          type: 'Feature' as const,
-          properties: { i, color: LOOP_COLORS[i] },
-          geometry: { type: 'LineString' as const, coordinates: c.points.map((p) => [p.lng, p.lat]) as [number, number][] },
-        })),
-        ...(loopStart && loopCands.length
-          ? [{ type: 'Feature' as const, properties: { i: -1, color: '#141414' }, geometry: { type: 'Point' as const, coordinates: [loopStart.lng, loopStart.lat] as [number, number] } }]
-          : []),
-      ],
+      features: loopCands.map((c, i) => ({
+        type: 'Feature' as const,
+        properties: { i, color: LOOP_COLORS[i] },
+        geometry: { type: 'LineString' as const, coordinates: c.points.map((p) => [p.lng, p.lat]) as [number, number][] },
+      })),
     };
     const src = map.getSource('loops') as maplibregl.GeoJSONSource | undefined;
     if (src) src.setData(data);
@@ -931,16 +981,8 @@
         id: 'loops-line',
         type: 'line',
         source: 'loops',
-        filter: ['==', ['geometry-type'], 'LineString'],
         paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-opacity': 0.75 },
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-      });
-      map.addLayer({
-        id: 'loops-start',
-        type: 'circle',
-        source: 'loops',
-        filter: ['==', ['geometry-type'], 'Point'],
-        paint: { 'circle-radius': 8, 'circle-color': '#ffd83d', 'circle-stroke-color': '#141414', 'circle-stroke-width': 3 },
       });
     }
     if (map.getLayer('loops-line')) {
@@ -950,11 +992,9 @@
     }
   }
   async function findLoopsHere() {
-    if (!map || loopBusy) return;
+    if (!map || loopBusy || !loopStart) return;
     loopAbort?.abort();
     loopAbort = new AbortController();
-    const c = map.getCenter();
-    loopStart = { lng: c.lng, lat: c.lat };
     const { nk_heat: _h, nk_seek: _s, ...params } = route.params;
     loopBusy = true;
     loopError = '';
@@ -965,12 +1005,11 @@
     track('loop_find', { km: loopKm, value: loopBearing == null ? 'any' : String(loopBearing), profile: route.profile });
     try {
       loopCands = await findLoops({
-        start: { lng: c.lng, lat: c.lat }, km: loopKm, profile: route.profile, params, bearing: loopBearing,
-        signal: loopAbort.signal, onprogress: (d, t) => (loopProgress = [d, t]),
+        start: loopStart, km: loopKm, profile: route.profile, params, bearing: loopBearing,
+        signal: loopAbort.signal, onprogress: (d, n) => (loopProgress = [d, n]),
       });
       if (!loopCands.length) loopError = t('loop.none');
-      // after the card has folded (phone) and the map padding follows it
-      else setTimeout(() => fitPoints(loopCands.flatMap((x) => x.points.filter((_, i) => i % 20 === 0)), 14), 120);
+      else fitPoints([loopStart, ...loopCands.flatMap((x) => x.points.filter((_, i) => i % 20 === 0))], 14);
     } catch (e) {
       if ((e as Error).name !== 'AbortError') loopError = t('loop.failed');
     } finally {
@@ -991,12 +1030,19 @@
     fitPoints(c.points.filter((_, k) => k % 20 === 0));
   }
   function locateForLoop() {
-    navigator.geolocation?.getCurrentPosition(
-      (p) => map?.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: Math.max(map.getZoom(), 12) }),
+    loopPicking = false;
+    if (!navigator.geolocation) return say(t('orbit.locateDenied'), true);
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        const at = { lng: p.coords.longitude, lat: p.coords.latitude };
+        setLoopStart(at);
+        map?.flyTo({ center: [at.lng, at.lat], zoom: Math.max(map.getZoom(), 12) });
+      },
       () => say(t('orbit.locateDenied'), true),
       { enableHighAccuracy: false, timeout: 10000 },
     );
   }
+
 
   /** Sign-in leaves the page: the open route goes to the server and comes back by its id. */
   async function signIn(reopenGarmin = false) {
@@ -1480,6 +1526,7 @@
         layout: { 'line-cap': 'round', 'line-join': 'round' },
       });
       editor = new RouteEditor(map!, route);
+      map!.on('click', onLoopMapClick);
       along = new AlongLayer(map!);
       along.onPhoto = openPhoto;
       editor.onMapClick = placeCheckpoint;
@@ -1618,122 +1665,139 @@
       {#if !mobile && route.waypoints.length}<button class="newb" onclick={newRoute} data-tip={t('mine.newTip')}><Icon name="plus" size={16} /><span>{t('act.new')}</span></button>{/if}
       {#if !mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={() => (track('sign_in', { kind: 'alexe' }), loginAuthelia())} onlogout={logout} ondelete={removeAccount} onsync={runSync} oncookies={() => (consentOpen = true)} onopen={() => mobile && (sheetOpen = true)} />{/if}
     </div>
+    {#if panelView === 'settings'}
+      <!-- All settings: the full list behind the sentence -->
+      <div class="pview">
+        <button class="back" onclick={() => (panelView = 'main')}><Icon name="chevron" size={14} stroke={2.4} />{route.name || (route.waypoints.length ? route.autoName() : t('route.newName'))}</button>
+        <div class="pvh"><h2>{t('ss.all')}</h2><button class="reset" onclick={() => setOpt({ ...DEFAULT_OPTIONS, allow: { ...DEFAULT_OPTIONS.allow } })}>{t('ss.reset')}</button></div>
+        <RouteSettings options={route.options} profile={route.profile} hike={route.profile === 'nk-hike'} cycle={route.profile === 'nk-road' || route.profile === 'nk-gravel'} onchange={setOpt} />
+      </div>
+    {:else if panelView === 'loop'}
+      <LoopPanel bind:km={loopKm} bind:bearing={loopBearing} typeTitle={profileTitle} summary={optSummary} busy={loopBusy} progress={loopProgress}
+        error={loopError} candidates={loopCands} active={loopActive} colors={LOOP_COLORS} start={loopStart} startName={loopStartName} picking={loopPicking}
+        onfind={findLoopsHere} onpick={pickLoop} onhover={(i) => { loopActive = i; drawLoops(); }} onlocate={locateForLoop}
+        onpickmap={pickStartOnMap} onclose={closeLoop} />
+    {:else}
     <div class="titlerow">
-    <input
-      class="title"
-      value={route.name}
-      placeholder={route.waypoints.length ? route.autoName() : t('route.newName')}
-      aria-label={t('route.nameLabel')}
-      spellcheck="false"
-      onchange={(e) => route.rename(e.currentTarget.value)}
-      onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-    />
-    {#if route.waypoints.length}
-      {#if mobile}<button class="newb" onclick={newRoute} data-tip={t('mine.newTip')}><Icon name="plus" size={16} /><span>{t('act.new')}</span></button>{/if}
-      <button class="del" aria-expanded={askDelete} onclick={() => (askDelete = !askDelete)} aria-label={t('route.delete')} data-tip={t('route.delete')}><Icon name="trash" size={18} /></button>
-    {/if}
-    <!-- on a phone the account button sits on the title row, the logo is hidden -->
-    {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={() => (track('sign_in', { kind: 'alexe' }), loginAuthelia())} onlogout={logout} ondelete={removeAccount} onsync={runSync} oncookies={() => (consentOpen = true)} onopen={() => mobile && (sheetOpen = true)} />{/if}
-    </div>
-    {#if askDelete && route.waypoints.length}
-      <InlineConfirm text={t('mine.confirmDelete', { name: route.name || route.autoName() })} action={t('ic.delete')}
-        onconfirm={deleteCurrent} oncancel={() => (askDelete = false)} />
-    {/if}
-    <Segmented name="kind" label={t('route.typeLabel')} value={route.profile}
-      items={PROFILES.map((p) => [p.id, p.title] as const)}
-      onchange={(v) => changeProfile(v as ProfileId)} />
-
-    {#if hasRoute}
-      <RouteSummary profile={route.profileData} profileId={route.profile} {classes} loading={route.loading} error={route.error?.error ?? ''} />
-      {#if mobile}
-        <ProfileCard bind:open={showProfile} mobile routeType={route.profile} profile={route.profileData} {classes} marks={profileMarks}
-          maxGrade={route.options.maxGrade} hoverIdx={markerIdx} band={hoverBand ?? pinnedBand}
-          onhover={(i) => setHover(i, 'prof')} onpick={pickProfile} />
+      <input
+        bind:this={titleEl}
+        class="title"
+        value={route.name}
+        placeholder={route.waypoints.length ? route.autoName() : t('route.newName')}
+        aria-label={t('route.nameLabel')}
+        spellcheck="false"
+        onchange={(e) => route.rename(e.currentTarget.value)}
+        onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+      {#if route.waypoints.length}
+        {#if mobile}<button class="newb" onclick={newRoute} data-tip={t('mine.newTip')}><Icon name="plus" size={16} /><span>{t('act.new')}</span></button>{/if}
+        <button class="del dotsb" aria-haspopup="menu" aria-expanded={routeMenu} onclick={() => (routeMenu = !routeMenu)} aria-label={t('route.menu')} data-tip={t('route.menu')}><Icon name="dots" size={18} /></button>
       {/if}
-    {:else if route.loading}
-      <p class="soft">{t('route.computing')}</p>
-    {:else if route.error}
-      <p class="errline" role="alert">{t('route.error', { error: route.error.error })}</p>
-    {/if}
-
-    <Fold id="nk-settings" title={t('set.title')} summary={optSummary} bind:open={settingsOpen}>
-      <RouteSettings options={route.options} profile={route.profile} hike={route.profile === 'nk-hike'} cycle={route.profile === 'nk-road' || route.profile === 'nk-gravel'} onchange={setOpt} />
-    </Fold>
-
-    {#if events.length}
-      <Timeline {events} routeType={route.profile} profile={route.profileData} {classes} {activeD} pinnedId={pinned?.id ?? null} {mobile}
-        onhover={onTimelineHover} onpick={pickEvent} />
-      {#if photosOn && photos.length}
-        <Fold id="nk-photos" title={t('poi.photosTitle')} summary={String(photos.length)} bind:open={photosOpen}>
-          <div class="phl">
-            {#each photoGroups(photos) as g (g.from)}
-              <div class="phg">
-                <span class="num">{t('poi.photosGroup', { a: Math.round(g.from / 1000), b: Math.round(g.to / 1000) })} · {g.items.length}</span>
-                <div class="phs">
-                  {#each g.items.slice(0, 8) as p (p.id)}
-                    <button style="background-image:url('{p.thumb}')" aria-label={t('poi.photo')} onclick={() => openPhoto(p)}></button>
-                  {/each}
-                </div>
-              </div>
-            {/each}
-          </div>
-        </Fold>
-      {/if}
-    {:else if !route.waypoints.length}
-      <div class="empty">
-        {#if mobile}
-          <p>{t('route.empty1')} <button class="inl" onclick={toggleEdit}><Icon name="edit" size={14} /></button> {t('route.empty2Touch')}</p>
-        {:else}
-          <p>{t('route.empty1')}
-            <button class="inl" onclick={toggleEdit}><Icon name="edit" size={14} /></button>
-            (<kbd>D</kbd>) {t('route.empty2')} {t('route.emptyFiles')}</p>
-        {/if}
-        <button class="loopbtn" onclick={openLoop}><Icon name="locate" size={16} />{t('loop.empty')}</button>
+      <!-- on a phone the account button sits on the title row, the logo is hidden -->
+      {#if mobile}<AccountMenu bind:this={accountMenu} {user} {syncState} onlogin={() => signIn()} onloginAlt={() => (track('sign_in', { kind: 'alexe' }), loginAuthelia())} onlogout={logout} ondelete={removeAccount} onsync={runSync} oncookies={() => (consentOpen = true)} onopen={() => mobile && (sheetOpen = true)} />{/if}
       </div>
-      <!-- no route open: the panel is the list of my routes and tracks -->
-      <div class="browse">
-        <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
-          onopen={openRoute} ondelete={deleteRoute} onnew={newRoute} onopenfile={() => fileInput.click()}
-          onopentrack={openTrack} onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
-          onplace={(id) => (placing = placing === id ? null : id)} onall={() => (routesOpen = true)} />
-      </div>
-    {/if}
-
-    <div class="acts">
-      <!-- route actions appear only when there is a route -->
-      {#if hasRoute}
-        <!-- GPX is the main way out; Garmin is an experimental extra -->
-        <button class="garmin" onclick={exportRoute}>
-          <Icon name="download" size={20} /><span>{t('act.gpx')}</span>
-        </button>
-        <div class="sec3">
-          <button class="sbtn" onclick={shareRoute}><Icon name="link" size={15} />&nbsp;{t('act.share')}</button>
-          <button class="sbtn" onclick={() => needName(() => (garminOpen = true)) || (garminOpen = true)} data-tip={t('act.garminTip')}><Icon name="watch" size={15} />&nbsp;Garmin</button>
+      {#if routeMenu && route.waypoints.length}
+        <div class="rmenu" role="menu">
+          <button role="menuitem" onclick={renameRoute}>{t('route.rename')}</button>
+          <button role="menuitem" onclick={copyRoute}>{t('route.copy')}</button>
+          <button role="menuitem" class="d" onclick={() => { routeMenu = false; askDelete = true; }}>{t('route.deleteMenu')}</button>
         </div>
       {/if}
+      {#if askDelete && route.waypoints.length}
+        <InlineConfirm text={t('route.confirmDelete', { name: route.name || route.autoName() })} action={t('ic.delete')}
+          onconfirm={deleteCurrent} oncancel={() => (askDelete = false)} />
+      {/if}
+      <Segmented name="kind" label={t('route.typeLabel')} value={route.profile}
+        items={PROFILES.map((p) => [p.id, p.title] as const)}
+        onchange={(v) => changeProfile(v as ProfileId)} />
+  
+      {#if hasRoute}
+        <RouteSummary profile={route.profileData} profileId={route.profile} {classes} loading={route.loading} error={route.error?.error ?? ''} />
+        {#if mobile}
+          <ProfileCard bind:open={showProfile} mobile routeType={route.profile} profile={route.profileData} {classes} marks={profileMarks}
+            maxGrade={route.options.maxGrade} hoverIdx={markerIdx} band={hoverBand ?? pinnedBand}
+            onhover={(i) => setHover(i, 'prof')} onpick={pickProfile} />
+        {/if}
+      {:else if route.loading}
+        <p class="soft">{t('route.computing')}</p>
+      {:else if route.error}
+        <p class="errline" role="alert">{t('route.error', { error: route.error.error })}</p>
+      {/if}
+  
       {#if route.waypoints.length}
-      <Fold id="nk-mine" title={t('mine.title')} summary={t('mine.saved', { n: savedRoutes.length + tracks.length })} bind:open={mineOpen}>
-        <div class="mine-scroll">
+      <SettingsSentence options={route.options} profile={route.profile as ProfileId} onchange={setOpt} onall={() => (panelView = 'settings')} />
+    {/if}
+  
+      {#if events.length}
+        <Timeline {events} routeType={route.profile} profile={route.profileData} {classes} {activeD} pinnedId={pinned?.id ?? null} {mobile}
+          onhover={onTimelineHover} onpick={pickEvent} />
+        {#if photosOn && photos.length}
+          <Fold id="nk-photos" title={t('poi.photosTitle')} summary={String(photos.length)} bind:open={photosOpen}>
+            <div class="phl">
+              {#each photoGroups(photos) as g (g.from)}
+                <div class="phg">
+                  <span class="num">{t('poi.photosGroup', { a: Math.round(g.from / 1000), b: Math.round(g.to / 1000) })} · {g.items.length}</span>
+                  <div class="phs">
+                    {#each g.items.slice(0, 8) as p (p.id)}
+                      <button style="background-image:url('{p.thumb}')" aria-label={t('poi.photo')} onclick={() => openPhoto(p)}></button>
+                    {/each}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </Fold>
+        {/if}
+      {:else if !route.waypoints.length}
+        <div class="empty">
+          <!-- three ways to start -->
+          <div class="starts" class:small={savedRoutes.length > 0}>
+            <button class="start p" onclick={() => !editing && toggleEdit()}><Icon name="edit" size={18} /><span>{t('start.draw')}</span></button>
+            <button class="start" onclick={openLoop}><Icon name="locate" size={18} /><span>{t('start.loop')}</span></button>
+            <button class="start" onclick={() => fileInput.click()}><Icon name="file" size={18} /><span>{t('start.file')}</span></button>
+          </div>
+          {#if !savedRoutes.length}<p>{mobile ? t('start.hintTouch') : t('start.hint')}</p>{/if}
+        </div>
+        <!-- no route open: the panel is the list of my routes and tracks -->
+        <div class="browse">
           <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
             onopen={openRoute} ondelete={deleteRoute} onnew={newRoute} onopenfile={() => fileInput.click()}
             onopentrack={openTrack} onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
-            onplace={(id) => (placing = placing === id ? null : id)} onall={() => (routesOpen = true)} />
+            onplace={(id) => (placing = placing === id ? null : id)} onall={() => (routesOpen = true)} starts />
         </div>
-      </Fold>
       {/if}
-    </div>
+  
+      <div class="acts">
+        <!-- route actions appear only when there is a route -->
+        {#if hasRoute}
+          <!-- GPX is the main way out; Garmin is an experimental extra -->
+          <button class="garmin" onclick={exportRoute}>
+            <Icon name="download" size={20} /><span>{t('act.gpx')}</span>
+          </button>
+          <div class="sec3">
+            <button class="sbtn" onclick={shareRoute}><Icon name="link" size={15} />&nbsp;{t('act.share')}</button>
+            <button class="sbtn" onclick={() => needName(() => (garminOpen = true)) || (garminOpen = true)} data-tip={t('act.garminTip')}><Icon name="watch" size={15} />&nbsp;Garmin</button>
+          </div>
+        {/if}
+        {#if route.waypoints.length}
+        <Fold id="nk-mine" title={t('mine.title')} summary={t('mine.saved', { n: savedRoutes.length + tracks.length })} bind:open={mineOpen}>
+          <div class="mine-scroll">
+            <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
+              onopen={openRoute} ondelete={deleteRoute} onnew={newRoute} onopenfile={() => fileInput.click()}
+              onopentrack={openTrack} onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
+              onplace={(id) => (placing = placing === id ? null : id)} onall={() => (routesOpen = true)} />
+          </div>
+        </Fold>
+        {/if}
+      </div>
+    {/if}
     <input bind:this={fileInput} class="hidden" type="file" accept=".gpx,.kml" multiple
       onchange={(e) => { addFiles(e.currentTarget.files!); e.currentTarget.value = ''; }} />
   </aside>
 
   <main class="mapcol" class:t3d={terrain3d} style="--prof-h:{mobile || !hasRoute ? 0 : profH + 12}px; --ctl-top:{ctlTop}px">
     <div class="map" bind:this={container}></div>
-    {#if loopOpen}
-      <!-- the loop starts at the map centre -->
-      <div class="loopstart" aria-hidden="true" style="left:calc(50% + {(loopPad.left - loopPad.right) / 2}px);top:calc(50% + {(loopPad.top - loopPad.bottom) / 2}px)"></div>
-      <LoopPanel bind:height={loopCardH} bind:km={loopKm} bind:bearing={loopBearing} typeTitle={profileTitle} busy={loopBusy} progress={loopProgress}
-        error={loopError} candidates={loopCands} active={loopActive} colors={LOOP_COLORS} {mobile}
-        onfind={findLoopsHere} onpick={pickLoop} onhover={(i) => { loopActive = i; drawLoops(); }} onlocate={locateForLoop} onclose={closeLoop} />
+    {#if loopPicking}
+      <div class="pickhint" role="status">{t('loop.pickNow')} <button onclick={() => { loopPicking = false; if (mobile) sheetOpen = true; }}>{t('ic.cancel')}</button></div>
     {/if}
     <Toolbar {editing} canUndo={route.canUndo} canRedo={route.canRedo} hasRoute={route.waypoints.length > 0} canLoop={hasLegs}
       {straightOn} placing={placing === 'route'} {layersOpen}
@@ -1908,37 +1972,138 @@
   }
   /* neither the hint nor the list may shrink under their content: squeezed, the hint's text ran
      over the list; when space is short the whole panel scrolls */
-  .loopbtn {
-    margin-top: 8px;
-    font: inherit;
-    font-size: 13.5px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border: 1px solid var(--line);
-    background: var(--paper);
-    color: var(--ink);
-    border-radius: 10px;
-    padding: 7px 12px;
-    cursor: pointer;
-  }
-  .loopbtn:hover {
-    background: var(--tint);
-  }
-  .loopstart {
-    position: absolute;
-    left: 50%;
-    top: 50%;
+  :global(.loopstart) {
     width: 22px;
     height: 22px;
-    margin: -11px 0 0 -11px;
     border-radius: 50%;
     border: 3px solid #141414;
     box-shadow: 0 0 0 3px #ffd83d;
-    background: rgb(255 216 61 / 0.35);
-    z-index: 3;
-    pointer-events: none;
+    background: rgb(255 216 61 / 0.6);
+    cursor: grab;
+  }
+  .pickhint {
+    position: absolute;
+    z-index: 6;
+    left: 50%;
+    top: 64px;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 12px;
+    padding: 8px 8px 8px 14px;
+    font-size: 13.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+  }
+  .pickhint button {
+    font: inherit;
+    font-size: 13px;
+    color: var(--paper);
+    border: 1px solid rgb(255 255 255 / 0.35);
+    background: none;
+    border-radius: 8px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+  .starts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 2px 0 10px;
+  }
+  .start {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    padding: 12px 4px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 550 12.5px/1.25 var(--sans);
+    text-align: center;
+    cursor: pointer;
+  }
+  .start:hover {
+    background: var(--tint);
+  }
+  .start.p {
+    background: var(--marker);
+    border-color: var(--marker);
+    color: var(--marker-ink);
+  }
+  .starts.small .start {
+    padding: 8px 4px;
+  }
+  .rmenu {
+    display: grid;
+    align-self: end;
+    justify-self: end;
+    min-width: 170px;
+    margin: -2px 0 6px auto;
+    padding: 5px;
+    background: var(--paper);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .rmenu button {
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font: 500 13.5px/1.2 var(--sans);
+    color: var(--ink);
+  }
+  .rmenu button:hover {
+    background: var(--tint);
+  }
+  .rmenu .d {
+    color: var(--danger);
+  }
+  .pview {
+    display: grid;
+    gap: 4px;
+    flex: none;
+  }
+  .back {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font: 500 13px/1.2 var(--sans);
+    color: var(--soft);
+    padding: 4px 6px 4px 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .back :global(svg) {
+    transform: rotate(90deg);
+    flex: none;
+  }
+  .back:hover {
+    color: var(--ink);
+  }
+  .pvh {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .pvh h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .reset {
+    font: 500 12.5px/1 var(--sans);
+    color: var(--soft);
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
   }
   .empty {
     flex: none;
@@ -1949,19 +2114,6 @@
   .empty p {
     margin: 0 0 8px;
     line-height: 1.6;
-  }
-  .inl {
-    display: inline-grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    background: var(--tint);
-    color: var(--ink);
-    vertical-align: middle;
-  }
-  .inl:hover {
-    background: var(--tint2);
   }
   .acts {
     display: grid;

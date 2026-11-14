@@ -1,6 +1,6 @@
 <script lang="ts">
-  // The loop generator's card: distance, direction, then the three loops found (lib/loops.ts).
-  // The start is the map centre, marked by a crosshair while the card is open.
+  // The loop planner, a mode of the panel: first where the ride starts (my location or a point
+  // on the map), then distance and direction, then the three loops found (lib/loops.ts).
   import { t } from '../lib/i18n';
   import { dec } from '../lib/timeline';
   import type { LoopCandidate } from '../lib/loops';
@@ -9,37 +9,43 @@
 
   let {
     km = $bindable(30),
-    height = $bindable(0),
     bearing = $bindable<number | null>(null),
     typeTitle,
+    summary,
     busy,
     progress,
     error,
     candidates,
     active,
     colors,
-    mobile = false,
+    start,
+    startName,
+    picking,
     onfind,
     onpick,
     onhover,
     onlocate,
+    onpickmap,
     onclose,
   }: {
     km: number;
-    height?: number;
     bearing: number | null;
     typeTitle: string;
+    summary: string;
     busy: boolean;
     progress: [number, number];
     error: string;
     candidates: LoopCandidate[];
     active: number | null;
     colors: string[];
-    mobile?: boolean;
+    start: { lng: number; lat: number } | null;
+    startName: string;
+    picking: boolean;
     onfind: () => void;
     onpick: (i: number) => void;
     onhover: (i: number | null) => void;
     onlocate: () => void;
+    onpickmap: () => void;
     onclose: () => void;
   } = $props();
 
@@ -51,43 +57,40 @@
     ['270', 'W'],
   ] as const;
   const dir = $derived(bearing == null ? 'any' : String(bearing));
-  // phone: once loops are found the form folds into one line, so the map shows them
-  let changing = $state(false);
-  const folded = $derived(mobile && candidates.length > 0 && !busy && !changing);
-  $effect(() => {
-    if (busy) changing = false;
-  });
 </script>
 
-<section class="loop" class:mobile aria-label={t('loop.title')} bind:offsetHeight={height}>
-  <header>
-    <h2>{t('loop.title')}</h2>
-    <button class="x" aria-label={t('lay.close')} onclick={onclose}><Icon name="close" size={18} /></button>
-  </header>
-  {#if folded}
-    <p class="from">{km} {t('unit.km')} · {DIRS.find(([v]) => v === dir)?.[1]} · {typeTitle}
-      <button class="loc" onclick={() => (changing = true)}>{t('loop.change')}</button></p>
+<section class="loop" aria-label={t('loop.title')}>
+  <button class="back" onclick={onclose}><Icon name="chevron" size={14} stroke={2.4} />{t('loop.back')}</button>
+  <h2>{t('loop.title')}</h2>
+
+  {#if !start}
+    <p class="q">{t('loop.where')}</p>
+    <button class="go" onclick={onlocate}><Icon name="locate" size={16} />{t('loop.locate')}</button>
+    <button class="sec" class:on={picking} aria-pressed={picking} onclick={onpickmap}>{t('loop.pickMap')}</button>
+    <p class="hint">{t('loop.pickHelp')}</p>
   {:else}
-  <p class="from">{t('loop.from', { type: typeTitle })}
-    <button class="loc" onclick={onlocate} data-tip={t('loop.locateTip')}><Icon name="locate" size={14} />{t('loop.locate')}</button></p>
-
-  <div class="lbl"><label for="nk-loop-km">{t('loop.distance')}</label><output for="nk-loop-km" class="num">{km} {t('unit.km')}</output></div>
-  <input id="nk-loop-km" type="range" min="10" max="150" step="5" bind:value={km} disabled={busy} />
-
-  <div class="lbl">{t('loop.direction')}</div>
-  <Segmented name="loopdir" label={t('loop.direction')} value={dir} items={DIRS} disabled={busy}
-    onchange={(v) => (bearing = v === 'any' ? null : Number(v))} />
-
-  <button class="go" onclick={onfind} disabled={busy}>
-    {#if busy}
-      {t('loop.finding')} <span class="num">{progress[0]}/{progress[1]}</span>
-    {:else}
-      <Icon name="loop" size={16} />{candidates.length ? t('loop.again') : t('loop.find')}
-    {/if}
-  </button>
-  {#if busy}<div class="pb" aria-hidden="true"><i style="width:{progress[1] ? (100 * progress[0]) / progress[1] : 0}%"></i></div>{/if}
-  {#if error}<p class="err" role="alert">{error}</p>{/if}
+    <p class="from">{startName ? t('loop.fromPlace', { place: startName }) : t('loop.fromMarker')} ·
+      <button class="lnk" onclick={onpickmap}>{t('loop.changeStart')}</button> ·
+      <button class="lnk" onclick={onlocate}>{t('loop.locate')}</button></p>
   {/if}
+
+  <div class="form" class:off={!start}>
+    <div class="lbl"><label for="nk-loop-km">{t('loop.distance')}</label><output for="nk-loop-km" class="num">{km} {t('unit.km')}</output></div>
+    <input id="nk-loop-km" type="range" min="10" max="150" step="5" bind:value={km} disabled={busy || !start} />
+    <div class="lbl">{t('loop.direction')}</div>
+    <Segmented name="loopdir" label={t('loop.direction')} value={dir} items={DIRS} disabled={busy || !start}
+      onchange={(v) => (bearing = v === 'any' ? null : Number(v))} />
+    <p class="hint">{typeTitle} · {summary}</p>
+    <button class="go" onclick={onfind} disabled={busy || !start}>
+      {#if busy}
+        {t('loop.finding')} <span class="num">{progress[0]}/{progress[1]}</span>
+      {:else}
+        <Icon name="loop" size={16} />{candidates.length ? t('loop.findAgain') : t('loop.find')}
+      {/if}
+    </button>
+    {#if busy}<div class="pb" aria-hidden="true"><i style="width:{progress[1] ? (100 * progress[0]) / progress[1] : 0}%"></i></div>{/if}
+  </div>
+  {#if error}<p class="err" role="alert">{error}</p>{/if}
 
   {#if candidates.length && !busy}
     <ul class="cands">
@@ -102,113 +105,105 @@
         </li>
       {/each}
     </ul>
-    {#if !folded}<p class="hint">{t('loop.pickHint')}</p>{/if}
+    <p class="hint">{t('loop.pickHint')}</p>
   {/if}
 </section>
 
 <style>
   .loop {
-    position: absolute;
-    z-index: 5;
-    top: 64px;
-    left: 12px;
-    width: 300px;
-    max-height: calc(100% - 140px);
-    overflow: auto;
-    background: var(--paper);
-    color: var(--ink);
-    border-radius: 16px;
-    box-shadow: var(--shadow);
-    padding: 8px 14px 12px;
-    box-sizing: border-box;
+    display: grid;
+    gap: 6px;
+    flex: none;
   }
-  .loop.mobile {
-    top: auto;
-    left: 10px;
-    right: 64px;
-    bottom: 86px;
-    width: auto;
-    max-height: calc(100% - 160px);
-  }
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  h2 {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 650;
-  }
-  .x {
-    border: 0;
-    background: none;
-    color: var(--ink);
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .x:hover {
-    background: var(--tint);
-  }
-  .from {
-    margin: 2px 0 6px;
-    font-size: 12.5px;
-    color: var(--soft);
-    line-height: 1.5;
-  }
-  .loc {
-    font: inherit;
-    font-size: 12.5px;
+  .back {
+    justify-self: start;
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    border: 0;
-    background: none;
+    font: 500 13px/1.2 var(--sans);
+    color: var(--soft);
+    padding: 4px 6px 4px 0;
+  }
+  .back :global(svg) {
+    transform: rotate(90deg);
+  }
+  .back:hover {
+    color: var(--ink);
+  }
+  h2 {
+    margin: 0 0 2px;
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .q {
+    margin: 2px 0 2px;
+    font-size: 14px;
+  }
+  .from {
+    margin: 0;
+    font-size: 13px;
+    color: var(--soft);
+    line-height: 1.5;
+  }
+  .lnk {
+    font: inherit;
     color: var(--ink);
     text-decoration: underline dotted;
     text-underline-offset: 3px;
-    padding: 0;
-    cursor: pointer;
+  }
+  .form {
+    display: grid;
+    gap: 4px;
+  }
+  .form.off {
+    opacity: 0.45;
   }
   .lbl {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin: 10px 0 5px;
+    margin: 8px 0 2px;
     font-size: 13.5px;
     font-weight: 500;
   }
   input[type='range'] {
     width: 100%;
   }
-  .go {
-    margin-top: 12px;
-    width: 100%;
+  .go,
+  .sec {
     height: 40px;
-    border: 0;
     border-radius: 12px;
-    background: var(--ink);
-    color: var(--paper);
-    font: inherit;
-    font-size: 14px;
-    font-weight: 600;
+    font: 600 14px/1 var(--sans);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     cursor: pointer;
   }
+  .go {
+    margin-top: 6px;
+    background: var(--ink);
+    color: var(--paper);
+  }
   .go:disabled {
-    opacity: 0.75;
-    cursor: progress;
+    opacity: 0.5;
+    cursor: default;
+  }
+  .sec {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .sec.on {
+    border-color: var(--ink);
+    background: var(--marker);
   }
   .pb {
     height: 3px;
     background: var(--tint);
     border-radius: 2px;
-    margin-top: 6px;
     overflow: hidden;
   }
   .pb i {
@@ -220,11 +215,17 @@
   .err {
     color: var(--danger);
     font-size: 12.5px;
-    margin: 8px 0 0;
+    margin: 4px 0 0;
+  }
+  .hint {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--soft);
+    line-height: 1.45;
   }
   .cands {
     list-style: none;
-    margin: 10px 0 0;
+    margin: 6px 0 0;
     padding: 0;
     display: grid;
     gap: 6px;
@@ -265,11 +266,6 @@
     margin-left: 6px;
   }
   .sub {
-    font-size: 12px;
-    color: var(--soft);
-  }
-  .hint {
-    margin: 8px 0 0;
     font-size: 12px;
     color: var(--soft);
   }

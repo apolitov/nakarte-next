@@ -7,7 +7,7 @@ const API = `${import.meta.env.BASE_URL}api`;
 type Pt = { lng: number; lat: number };
 
 const places = new Map<string, Promise<string>>();
-function placeAt(p: Pt): Promise<string> {
+export function placeAt(p: Pt): Promise<string> {
   const key = `${p.lat.toFixed(3)}/${p.lng.toFixed(3)}`;
   let v = places.get(key);
   if (!v) {

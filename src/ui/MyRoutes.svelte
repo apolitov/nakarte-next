@@ -23,6 +23,7 @@
     onremovetrack,
     onplace,
     onall,
+    starts = false,
   }: {
     routes: RouteDoc[];
     tracks: Track[];
@@ -38,6 +39,8 @@
     onremovetrack: (t: Track) => void;
     onplace: (trackId: string) => void;
     onall?: () => void;
+    /** the panel's start tiles are shown above: no empty text and no New / Open buttons here */
+    starts?: boolean;
   } = $props();
 
   /** id of the route or track whose deletion is being confirmed */
@@ -108,13 +111,15 @@
       {/each}
     </ul>
   {/if}
-  {#if !routes.length && !tracks.length}
+  {#if !routes.length && !tracks.length && !starts}
     <p class="empty">{t('mine.empty')}</p>
   {/if}
+  {#if !starts}
   <div class="newrow">
     <button class="newr" onclick={onnew}><Icon name="plus" size={16} />{t('mine.new')}</button>
     <button class="newr" onclick={onopenfile}><Icon name="file" size={16} />{t('mine.openFile')}</button>
   </div>
+  {/if}
 </div>
 
 <style>
