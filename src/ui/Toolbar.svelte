@@ -23,6 +23,7 @@
     onlayers,
     onfit,
     onhelp,
+    onsave,
   }: {
     editing: boolean;
     canUndo: boolean;
@@ -43,6 +44,8 @@
     onlayers: () => void;
     onfit: () => void;
     onhelp: () => void;
+    /** finish editing: shown as a button under the toolbar while editing a route */
+    onsave?: () => void;
   } = $props();
 
   let menuOpen = $state(false);
@@ -86,6 +89,9 @@
   <i class="tsep"></i>
   <button class="tb" aria-label={t('tb.help')} data-tip={t('tb.help')} data-keys="?" onclick={onhelp}><Icon name="help" /></button>
 </div>
+    {#if editing && hasRoute && onsave}
+      <button class="save" data-tip={t('tb.saveTip')} data-keys="Esc" onclick={onsave}><Icon name="check" size={16} stroke={2.6} />{t('tb.save')}</button>
+    {/if}
     {#if menuOpen}
       <div class="menu" role="menu">
         <button role="menuitem" disabled={!canLoop} onclick={() => { menuOpen = false; onreverse(); }}>
@@ -129,6 +135,26 @@
     display: grid;
     place-items: center;
     flex: none;
+  }
+  .save {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 14px 0 12px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--marker);
+    color: #141414;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .save:hover {
+    filter: brightness(0.96);
   }
   .tb.narrow {
     width: 20px;
