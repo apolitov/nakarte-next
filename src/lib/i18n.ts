@@ -49,6 +49,7 @@ const en = {
   'surf.unpaved': 'Gravel',
   'surf.ground': 'Dirt',
   'surf.path': 'Trail',
+  'surf.ferry': 'Ferry',
   'surf.straight': 'Straight line',
   'surf.unknown': 'No data',
   'surfLong.paved': 'Asphalt',
@@ -56,6 +57,7 @@ const en = {
   'surfLong.unpaved': 'Gravel, dirt road',
   'surfLong.ground': 'Dirt',
   'surfLong.path': 'Trail',
+  'surfLong.ferry': 'Ferry',
   'surfLong.unknown': 'No data',
   'grade.flat': 'flat',
 

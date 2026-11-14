@@ -4,7 +4,7 @@
 import * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { RouteState } from './route.svelte';
-import { gradeColor, haversine, SURFACE_STYLE, SURFACE_DASH, type SurfaceClass } from './profile';
+import { gradeColor, haversine, FERRY_COLOR, SURFACE_STYLE, SURFACE_DASH, type SurfaceClass } from './profile';
 import { track } from './analytics';
 import { t } from './i18n';
 
@@ -368,7 +368,7 @@ export class RouteEditor {
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
       const color =
-        this.colorMode === 'grade' ? gradeColor(prof.grade[i], this.route.profile) : this.colorMode === 'surface' ? SURFACE_STYLE[prof.surface[i]].color : PLAIN;
+        this.colorMode === 'grade' ? (prof.surface[i] === 'ferry' ? FERRY_COLOR : gradeColor(prof.grade[i], this.route.profile)) : this.colorMode === 'surface' ? SURFACE_STYLE[prof.surface[i]].color : PLAIN;
       const leg = i === 0 ? p.leg : pts[i].leg;
       const surf = prof.surface[i];
       if (i > 0 && (color !== runColor || leg !== runLeg || surf !== runSurf)) {

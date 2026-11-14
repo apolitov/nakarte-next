@@ -33,27 +33,29 @@ export const BIKES: Record<string, Bike> = {
   // (fastbike's own 100 W made road bikes slower than gravel bikes); road tyres per surface
   'nk-road': {
     mass: 90, cda: cdaOf(0.225), power: 150, vmax: 45,
-    crr: { paved: 0.004, compact: 0.012, unpaved: 0.012, ground: 0.016, path: 0.025, unknown: 0.004 },
+    crr: { paved: 0.004, compact: 0.012, unpaved: 0.012, ground: 0.016, path: 0.025, ferry: 0.004, unknown: 0.004 },
   },
   // BRouter gravel.brf: 150 W, 90 kg, S_C_x 0.300, C_r 0.005, max 35 km/h; gravel tyres
   'nk-gravel': {
     mass: 90, cda: cdaOf(0.3), power: 150, vmax: 35,
-    crr: { paved: 0.005, compact: 0.006, unpaved: 0.009, ground: 0.012, path: 0.02, unknown: 0.005 },
+    crr: { paved: 0.005, compact: 0.006, unpaved: 0.009, ground: 0.012, path: 0.02, ferry: 0.005, unknown: 0.005 },
   },
   // BRouter mtb.brf sets nothing, so its defaults: 100 W, 90 kg, S_C_x 0.225, max 45 km/h
   'nk-mtb': {
     mass: 90, cda: cdaOf(0.225), power: 100, vmax: 45,
-    crr: { paved: 0.005, compact: 0.006, unpaved: 0.009, ground: 0.01, path: 0.02, unknown: 0.006 },
+    crr: { paved: 0.005, compact: 0.006, unpaved: 0.009, ground: 0.01, path: 0.02, ferry: 0.005, unknown: 0.006 },
   },
 };
 /**
  * Downhill speed caps off tarmac: GraphHopper's surface speeds relative to its tarmac speed
  * (bike profile: compacted 14, gravel 12, ground 10, grass 8 of 18 km/h).
  */
-const SURF_CAP: Record<SurfaceClass, number> = { paved: 1, compact: 14 / 18, unpaved: 12 / 18, ground: 10 / 18, path: 8 / 18, unknown: 1 };
+const SURF_CAP: Record<SurfaceClass, number> = { paved: 1, compact: 14 / 18, unpaved: 12 / 18, ground: 10 / 18, path: 8 / 18, ferry: 1, unknown: 1 };
 /** drivetrain efficiency (Martin et al. 1998) */
 const ETA = 0.977;
 const G = 9.81;
+/** a boat crossing: about 20 km/h under way (Tagus ferries), waiting at the pier not counted */
+const FERRY_MS = 20 / 3.6;
 /** pushing the bike: GraphHopper's walking speed for bikes, 4 km/h */
 const V_MIN = 4 / 3.6;
 
@@ -88,6 +90,7 @@ export function routeMinutes(p: Pick<Profile, 'dist' | 'grade' | 'surface'>, pro
   for (let i = 1; i < n; i++) {
     const d = p.dist[i] - p.dist[i - 1];
     if (d <= 0) continue;
+    if (p.surface[i] === 'ferry') { s += d / FERRY_MS; continue; }
     const g = (p.grade[i] ?? 0) / 100;
     s += bike ? d / bikeSpeed(bike, g, p.surface[i] ?? 'unknown', pace) : d / ((walkSpeed(g, pace) * 1000) / 3600);
   }

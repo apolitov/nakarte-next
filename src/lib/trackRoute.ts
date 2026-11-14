@@ -74,13 +74,13 @@ export function transferSpans(track: LegPoint[], routed: Leg): WaySpan[] {
     }
     return best <= MATCH_M && bi >= 0 ? tagsAt[bi] : null;
   });
-  const key = (s: WaySpan | null) => (s ? `${s.highway ?? ''}|${s.surface ?? ''}|${s.tracktype ?? ''}` : '');
+  const key = (s: WaySpan | null) => (s ? `${s.highway ?? ''}|${s.surface ?? ''}|${s.tracktype ?? ''}|${s.route ?? ''}` : '');
   const spans: WaySpan[] = [];
   let from = 0;
   for (let i = 1; i <= own.length; i++) {
     if (i < own.length && key(own[i]) === key(own[from])) continue;
     const s = own[from];
-    if (s) spans.push({ from, to: i - 1, highway: s.highway, surface: s.surface, tracktype: s.tracktype });
+    if (s) spans.push({ from, to: i - 1, highway: s.highway, surface: s.surface, tracktype: s.tracktype, ...(s.route ? { route: s.route } : {}) });
     from = i;
   }
   return spans;

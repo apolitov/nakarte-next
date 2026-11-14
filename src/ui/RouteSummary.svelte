@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { FERRY_COLOR } from '../lib/profile';
   import { t } from '../lib/i18n';
   import type { Profile } from '../lib/profile';
   import { routeMinutes, formatDuration, BIKES } from '../lib/eta';
@@ -25,6 +26,7 @@
     unpaved: '#c99a1e',
     ground: '#9a5a2c',
     path: '#4e8a3a',
+    ferry: FERRY_COLOR,
     straight: STRAIGHT_COLOR,
     unknown: 'var(--line)',
   } as Record<SegClass, string>;

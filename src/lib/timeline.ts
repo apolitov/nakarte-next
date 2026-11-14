@@ -7,13 +7,14 @@ import { t } from './i18n';
 
 export type SegClass = SurfaceClass | 'straight';
 
-export const SEG_ORDER: SegClass[] = ['paved', 'compact', 'unpaved', 'ground', 'path', 'straight', 'unknown'];
+export const SEG_ORDER: SegClass[] = ['paved', 'compact', 'unpaved', 'ground', 'path', 'ferry', 'straight', 'unknown'];
 export const SEG_SHORT: Record<SegClass, string> = {
   paved: t('surf.paved'),
   compact: t('surf.compact'),
   unpaved: t('surf.unpaved'),
   ground: t('surf.ground'),
   path: t('surf.path'),
+  ferry: t('surf.ferry'),
   straight: t('surf.straight'),
   unknown: t('surf.unknown'),
 };
@@ -217,7 +218,7 @@ export function surfaceRuns(dist: number[], cls: SegClass[], minLen = 300) {
   let lead = -1; // start of bits before the first significant run
   for (const r of classRuns(cls)) {
     const len = dist[r.b] - dist[r.a];
-    const weak = r.cls === 'straight' || r.cls === 'unknown' || len < minLen;
+    const weak = r.cls === 'straight' || r.cls === 'unknown' || (len < minLen && r.cls !== 'ferry');
     const last = sig.at(-1);
     if (weak) {
       if (last) last.b = r.b;
@@ -320,7 +321,7 @@ export function buildTimeline({ points, profile, checkpoints }: TimelineInput): 
       d2: dist[r.b],
       label: t('tl.surface', { surface: SEG_SHORT[r.cls], km: km1(len) }),
       surface: r.cls,
-      priority: 3,
+      priority: r.cls === 'ferry' ? 1 : 3, // a boat crossing is as notable as a climb
       weight: len,
     });
   });

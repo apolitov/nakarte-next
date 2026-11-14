@@ -24,14 +24,15 @@ export interface Profile {
   maxEle: number | null;
 }
 
-export type SurfaceClass = 'paved' | 'compact' | 'unpaved' | 'ground' | 'path' | 'unknown';
+export type SurfaceClass = 'paved' | 'compact' | 'unpaved' | 'ground' | 'path' | 'ferry' | 'unknown';
 
 const PAVED = new Set(['asphalt', 'paved', 'concrete', 'concrete:plates', 'concrete:lanes', 'paving_stones', 'chipseal']);
 const COMPACT = new Set(['compacted', 'fine_gravel', 'sett', 'cobblestone', 'unhewn_cobblestone', 'metal', 'wood']);
 const UNPAVED = new Set(['gravel', 'unpaved', 'pebblestone', 'rock', 'shells']);
 const GROUND = new Set(['ground', 'dirt', 'earth', 'grass', 'mud', 'sand', 'grass_paver', 'woodchips', 'clay']);
 
-export function surfaceClass(s: Pick<WaySpan, 'surface' | 'highway' | 'tracktype'>): SurfaceClass {
+export function surfaceClass(s: Pick<WaySpan, 'surface' | 'highway' | 'tracktype' | 'route'>): SurfaceClass {
+  if (s.route === 'ferry') return 'ferry';
   const v = s.surface;
   if (v) {
     if (PAVED.has(v)) return 'paved';
@@ -48,12 +49,16 @@ export function surfaceClass(s: Pick<WaySpan, 'surface' | 'highway' | 'tracktype
   return 'unknown';
 }
 
+/** boat crossings: blue on the line, the strips and the profile */
+export const FERRY_COLOR = '#2f7fc1';
+
 export const SURFACE_STYLE: Record<SurfaceClass, { color: string; title: string }> = {
   paved: { color: '#5b6b7a', title: t('surfLong.paved') },
   compact: { color: '#c9a227', title: t('surfLong.compact') },
   unpaved: { color: '#d4772c', title: t('surfLong.unpaved') },
   ground: { color: '#8c5a2b', title: t('surfLong.ground') },
   path: { color: '#3d9a46', title: t('surfLong.path') },
+  ferry: { color: FERRY_COLOR, title: t('surfLong.ferry') },
   unknown: { color: '#b3b3b8', title: t('surfLong.unknown') },
 };
 
@@ -154,6 +159,7 @@ export const SURFACE_DASH: Record<SurfaceClass, number[]> = {
   unpaved: [2, 1.5],
   ground: [1, 1.2],
   path: [0.3, 1.2],
+  ferry: [1.5, 1.5],
   unknown: [1, 0],
 };
 
@@ -192,11 +198,28 @@ export function buildProfile(points: LegPoint[], spans: WaySpan[] = [], win = 10
 
   const surface: SurfaceClass[] = new Array(n).fill('unknown');
   for (const s of spans) {
-    const c = surfaceClass(s);
+    // legs stored before the route tag was kept: a long stretch with no way tags at all is a ferry
+    // (BRouter routes only on highways and ferry lines)
+    const bare = !s.highway && !s.surface && !s.tracktype && !s.route && s.to < n && dist[s.to] - dist[s.from] > 300;
+    const c = bare ? 'ferry' : surfaceClass(s);
     for (let i = s.from + 1; i <= s.to && i < n; i++) surface[i] = c;
   }
   if (n > 1) surface[0] = surface[1];
+  // on a boat the terrain model gives sea level and shore noise: no grade there
+  for (let i = 0; i < n; i++) if (surface[i] === 'ferry') grade[i] = null;
 
+  if (surface.includes('ferry')) {
+    // climbing counts only on land: restart the hysteresis after each crossing
+    ascent = 0; descent = 0; ref = null;
+    for (let i = 0; i < n; i++) {
+      const e = ele[i];
+      if (surface[i] === 'ferry') { ref = null; continue; }
+      if (e == null) continue;
+      if (ref == null) ref = e;
+      else if (e - ref >= H) { ascent += e - ref; ref = e; }
+      else if (ref - e >= H) { descent += ref - e; ref = e; }
+    }
+  }
   return { dist, ele, grade, surface, length: dist[n - 1] ?? 0, ascent, descent, minEle, maxEle };
 }
 

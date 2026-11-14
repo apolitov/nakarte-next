@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { gradeColor, SURFACE_DASH, type Profile } from '../lib/profile';
+  import { FERRY_COLOR, gradeColor, SURFACE_DASH, type Profile } from '../lib/profile';
   import { kindOf } from '../lib/checkpointKinds';
   import { SEG_SHORT, STRAIGHT_COLOR, dec, type SegClass } from '../lib/timeline';
 
@@ -130,7 +130,7 @@
       const x0 = X(dist[i - 1]) - 0.4, x1 = X(dist[i]) + 0.4;
       ctx.beginPath();
       ctx.moveTo(x0, Y(e0)); ctx.lineTo(x1, Y(e1)); ctx.lineTo(x1, bottom); ctx.lineTo(x0, bottom); ctx.closePath();
-      ctx.fillStyle = gradeColor(grade[i], routeType);
+      ctx.fillStyle = classes[i] === 'ferry' ? 'rgba(47,127,193,.22)' : gradeColor(grade[i], routeType);
       ctx.fill();
       if (pat && (grade[i] ?? 0) > maxGrade) {
         ctx.fillStyle = pat;
@@ -150,6 +150,28 @@
     }
     ctx.stroke();
 
+    // boat crossings: the word over the stretch, when there is room for it
+    ctx.save();
+    ctx.font = `600 11px ${getComputedStyle(canvas).fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    for (let i0 = 1; i0 < n; ) {
+      let i1 = i0;
+      while (i1 + 1 < n && classes[i1 + 1] === classes[i0]) i1++;
+      if (classes[i0] === 'ferry') {
+        const xa = X(dist[i0 - 1]), xb = X(dist[i1]);
+        let top = Infinity;
+        for (let i = i0 - 1; i <= i1; i++) if (ele[i] != null) top = Math.min(top, Y(ele[i]!));
+        const label = '⛴ ' + SEG_SHORT.ferry;
+        if (xb - xa >= ctx.measureText(label).width + 6) {
+          ctx.fillStyle = FERRY_COLOR;
+          ctx.fillText(label, (xa + xb) / 2, Math.min(top, bottom) - 4);
+        }
+      }
+      i0 = i1 + 1;
+    }
+    ctx.restore();
+
     // surface strip: the dash patterns of the map line
     const sy = bottom + 10;
     ctx.lineCap = 'butt';
@@ -159,7 +181,7 @@
       let i1 = i0;
       while (i1 + 1 < n && classes[i1 + 1] === c) i1++;
       const d = c === 'straight' ? [2, 2] : c === 'unknown' ? [1, 0] : SURFACE_DASH[c];
-      ctx.strokeStyle = c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? grid : ink;
+      ctx.strokeStyle = c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? grid : c === 'ferry' ? FERRY_COLOR : ink;
       ctx.setLineDash(d[1] === 0 ? [] : d.map((x) => Math.max(1, x * 5)));
       ctx.beginPath();
       ctx.moveTo(X(dist[i0 - 1]), sy);

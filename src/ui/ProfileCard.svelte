@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { gradeClasses, SURFACE_DASH, type Profile } from '../lib/profile';
+  import { FERRY_COLOR, gradeClasses, SURFACE_DASH, type Profile } from '../lib/profile';
   import { SEG_ORDER, SEG_SHORT, STRAIGHT_COLOR, dec, type SegClass } from '../lib/timeline';
   import ElevationProfile from './ElevationProfile.svelte';
   import Icon from './Icon.svelte';
@@ -83,7 +83,7 @@
       {#each present as c (c)}
         {@const d = dash(c)}
         <span class="lg"><svg width="24" height="8" aria-hidden="true"><line x1="0" y1="4" x2="24" y2="4"
-          stroke={c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? 'var(--line)' : 'currentColor'} stroke-width="3"
+          stroke={c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? 'var(--line)' : c === 'ferry' ? FERRY_COLOR : 'currentColor'} stroke-width="3"
           stroke-dasharray={d[1] === 0 ? 'none' : d.map((v) => v * 3.5).join(' ')} /></svg>{SEG_SHORT[c]}</span>
       {/each}
       {#if maxGrade}

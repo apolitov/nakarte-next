@@ -171,6 +171,8 @@ export interface WaySpan {
   highway?: string;
   surface?: string;
   tracktype?: string;
+  /** 'ferry' on a boat crossing (route=ferry, no highway tag) */
+  route?: string;
 }
 
 export interface Leg {
@@ -217,7 +219,7 @@ export function parseBrouter(json: any): Leg {
       }
       if (to < 0) continue;
       const tags = parseTags(row[iTags] ?? '');
-      spans.push({ from, to, highway: tags.highway, surface: tags.surface, tracktype: tags.tracktype });
+      spans.push({ from, to, highway: tags.highway, surface: tags.surface, tracktype: tags.tracktype, ...(tags.route === 'ferry' ? { route: 'ferry' } : {}) });
       from = to;
       cursor = to;
     }

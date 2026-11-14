@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gradeClasses, gradeColor, bikeGradeColor, flatLimit } from './profile';
+import { buildProfile, gradeClasses, gradeColor, bikeGradeColor, flatLimit } from './profile';
 
 describe('grade colours', () => {
   it('bikes: a gradient in 1% steps, black from 18%', () => {
@@ -18,5 +18,19 @@ describe('grade colours', () => {
     expect(gradeClasses('nk-hike').at(-1)!.title).toBe('↑ >45%');
     expect(gradeClasses('nk-road').at(-1)!.title).toBe('↑ >18%');
     expect(flatLimit('nk-hike')).toBe(10);
+  });
+});
+
+describe('ferry', () => {
+  const pts = Array.from({ length: 21 }, (_, i) => ({ lng: -9.1 + i * 0.002, lat: 38.7, ele: i < 5 || i > 15 ? 20 + i : (i % 2) * 8 }));
+  it('a route=ferry span is a ferry with no grade and no climbing', () => {
+    const p = buildProfile(pts, [{ from: 0, to: 4, highway: 'residential' }, { from: 4, to: 16, route: 'ferry' }, { from: 16, to: 20, highway: 'residential' }]);
+    expect(p.surface[10]).toBe('ferry');
+    expect(p.grade[10]).toBeNull();
+    expect(p.ascent).toBeLessThan(10);
+  });
+  it('an old stored span without any tags and longer than 300 m reads as a ferry', () => {
+    const p = buildProfile(pts, [{ from: 0, to: 4, highway: 'residential' }, { from: 4, to: 16 }, { from: 16, to: 20, highway: 'residential' }]);
+    expect(p.surface[10]).toBe('ferry');
   });
 });

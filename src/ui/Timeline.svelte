@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
   import type { Profile } from '../lib/profile';
-  import { SURFACE_DASH } from '../lib/profile';
+  import { FERRY_COLOR, SURFACE_DASH } from '../lib/profile';
   import { kindSvg } from '../lib/checkpointKinds';
   import { limitEvents, rails, dec, STRAIGHT_COLOR, type SegClass, type TimelineEvent } from '../lib/timeline';
   import Icon from './Icon.svelte';
@@ -54,7 +54,7 @@
     events.filter((e) =>
       e.kind === 'poi'
         ? !e.id.startsWith('poi:dense:') // cafes, shops and sights only in "All": a town has dozens of them
-        : e.kind !== 'surface' || (e.d2 ?? e.d) - e.d >= Math.max(1000, profile.length * 0.15),
+        : e.kind !== 'surface' || e.surface === 'ferry' || (e.d2 ?? e.d) - e.d >= Math.max(1000, profile.length * 0.15),
     ),
   );
   const pool = $derived(view === 'key' ? keyEvents : events);
@@ -138,7 +138,7 @@
               {@const c = e.surface ?? 'unknown'}
               {@const d = c === 'straight' ? [2, 2] : c === 'unknown' ? [1, 0] : SURFACE_DASH[c]}
               <span class="eico"><svg width="18" height="6" aria-hidden="true"><line x1="0" y1="3" x2="18" y2="3"
-                stroke={c === 'straight' ? STRAIGHT_COLOR : 'currentColor'} stroke-width="3"
+                stroke={c === 'straight' ? STRAIGHT_COLOR : c === 'ferry' ? FERRY_COLOR : 'currentColor'} stroke-width="3"
                 stroke-dasharray={d[1] === 0 ? 'none' : d.map((v) => v * 3.5).join(' ')} /></svg></span>
             {/if}
             <span class="tx">{e.label}</span>
