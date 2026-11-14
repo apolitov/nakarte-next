@@ -1,7 +1,7 @@
 <script lang="ts">
-  // Confirmation inside the panel instead of a modal: slides open under the control
-  // that asked for it and pushes the controls below down.
-  import { slide } from 'svelte/transition';
+  // Confirmation inside the panel instead of a modal: opens under the control that asked for it
+  // and pushes the controls below down. No slide: an interrupted slide (the route name changes while
+  // the route computes) could freeze it half open, the text cut off (14.11.2026).
   import { t } from '../lib/i18n';
 
   let {
@@ -16,7 +16,7 @@
   });
 </script>
 
-<div class="ic" role="alertdialog" tabindex="-1" aria-label={text} transition:slide={{ duration: 160 }}
+<div class="ic" role="alertdialog" tabindex="-1" aria-label={text}
   onkeydown={(e) => e.key === 'Escape' && (e.stopPropagation(), oncancel())}>
   <p>{text}</p>
   <div class="b">
@@ -32,7 +32,6 @@
     border-radius: 10px;
     background: var(--tint);
     font-size: 12.5px;
-    overflow: hidden;
   }
   p {
     margin: 0 0 6px;

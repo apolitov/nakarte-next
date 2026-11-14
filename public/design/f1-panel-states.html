@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel states</title>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fff;--ink:#141414;--soft:#5f5f5c;--line:#e4e2dc;--marker:#ffd83d;--tint:#f6f5f1;--tint2:#ecebe5;--danger:#c62828;--mapbg:#e8e6e1;--sans:'Onest',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--mapbg);font-family:var(--sans);color:var(--ink);padding:24px}
+h1{font-size:22px;margin:0 0 4px}
+.lead{color:var(--soft);font-size:14px;margin:0 0 20px;max-width:900px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,300px);gap:22px;align-items:start}
+.st h2{font-size:13px;font-weight:600;margin:0 0 6px}
+.st p.why{font-size:12px;color:var(--soft);margin:0 0 8px;min-height:32px}
+.pn{background:var(--paper);border-radius:16px;padding:14px 16px;box-shadow:0 1px 2px rgb(20 20 20/.06),0 8px 28px rgb(20 20 20/.1);font-size:13px}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.logo{width:56px;height:20px;border-bottom:4px solid var(--marker);border-radius:0 0 30px 30px}
+.av{width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;font-size:11px;display:grid;place-items:center}
+.ttl{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:4px 0 10px}
+.ttl b{font-size:18px;font-weight:650;letter-spacing:-.01em}
+.dots{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;border:1px solid var(--line);font-weight:700;color:var(--soft)}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--tint);border-radius:12px;padding:3px;margin-bottom:10px}
+.tabs span{text-align:center;padding:6px 0;border-radius:9px;font-size:12.5px}
+.tabs .on{background:var(--marker);font-weight:600}
+.big{font-size:26px;font-weight:600;letter-spacing:-.04em}
+.big small{font-size:12px;color:var(--soft);font-weight:500}
+.row{display:flex;justify-content:space-between;align-items:baseline}
+.mono{font-family:var(--mono);font-size:12.5px}
+.bar{display:flex;gap:2px;height:8px;margin:8px 0 4px}.bar i{display:block;border-radius:1px}
+.sent{margin:10px 0;padding:10px 12px;background:var(--tint);border-radius:12px;line-height:2;font-size:13.5px}
+.sent .k{color:var(--soft);font-size:12px;display:flex;justify-content:space-between;line-height:1.4;margin-bottom:2px}
+.tok{border:0;font:inherit;background:none;padding:0 1px;border-bottom:1.5px dashed #b8901a;cursor:pointer;color:var(--ink);font-weight:500}
+.tok.def{border-bottom-color:#c9c7bf;color:var(--soft);font-weight:400}
+.tok.on{background:#fff4c2;border-radius:4px}
+.lnk{font-size:12.5px;color:var(--ink);text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer;background:none;border:0;padding:0;font-family:inherit}
+.menu{position:relative}
+.pop{position:absolute;z-index:3;left:0;top:4px;background:var(--paper);border-radius:12px;box-shadow:0 8px 28px rgb(20 20 20/.18);padding:6px;min-width:190px}
+.pop div{padding:7px 10px;border-radius:8px;font-size:13px;display:flex;justify-content:space-between;gap:10px}
+.pop div:hover{background:var(--tint)}
+.pop .sel{font-weight:600}.pop .sel::after{content:'✓'}
+.pop small{color:var(--soft);font-size:11.5px}
+.cta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0 12px}
+.cta div{border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;font-size:12px;font-weight:500;line-height:1.3}
+.cta div i{display:block;font-style:normal;font-size:18px;margin-bottom:4px}
+.cta .p{background:var(--marker);border-color:var(--marker)}
+.hint{color:var(--soft);font-size:12px;line-height:1.45;margin:0}
+.sec{font-size:12px;font-weight:600;color:var(--soft);margin:12px 0 4px;display:flex;justify-content:space-between}
+.item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--tint2);font-size:13px}
+.item small{color:var(--soft)}
+.acts{display:grid;gap:6px;margin-top:12px}
+.btn{border:1.5px solid var(--ink);border-radius:12px;padding:9px;text-align:center;font-weight:600;font-size:13.5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.two .btn{border:1px solid var(--line);font-weight:500;font-size:12.5px}
+.conf{background:#fdecea;border-radius:12px;padding:10px 12px;margin:-4px 0 10px}
+.conf p{margin:0 0 8px;font-size:13px}
+.conf .b{display:flex;justify-content:flex-end;gap:6px}
+.conf span{padding:6px 12px;border-radius:8px;font-weight:600;font-size:12.5px}
+.conf .y{background:var(--danger);color:#fff}
+.dmenu{background:var(--paper);border-radius:12px;box-shadow:0 8px 28px rgb(20 20 20/.18);padding:6px;margin:-6px 0 10px 120px}
+.dmenu div{padding:7px 10px;font-size:13px;border-radius:8px}.dmenu .d{color:var(--danger)}
+.back{font-size:12.5px;color:var(--soft);margin-bottom:6px}
+.set{padding:8px 0;border-bottom:1px solid var(--tint2)}
+.set .row b{font-weight:500}
+.set output{font-size:12px;color:var(--soft)}
+.set output.ch{background:var(--marker);color:var(--ink);padding:1px 6px;border-radius:5px;font-weight:600}
+.rng{height:4px;background:var(--line);border-radius:2px;margin:9px 0 3px;position:relative}
+.rng i{position:absolute;top:-6px;width:16px;height:16px;border-radius:50%;background:var(--ink)}
+.rng b{position:absolute;height:4px;background:var(--ink);border-radius:2px;left:0}
+.sw{display:flex;justify-content:space-between;align-items:center}
+.sw i{width:34px;height:20px;border-radius:10px;background:var(--line);position:relative}
+.sw i::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:2px;left:2px}
+.sw i.on{background:var(--ink)}.sw i.on::after{left:16px;background:var(--marker)}
+.grp{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin:12px 0 0}
+.seg{display:grid;grid-auto-flow:column;background:var(--tint);border-radius:10px;padding:2px;font-size:12px;text-align:center;margin-top:6px}
+.seg span{padding:5px 0;border-radius:8px}.seg .on{background:var(--marker);font-weight:600}
+.cand{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-top:6px;display:grid;grid-template-columns:12px 1fr;gap:0 8px;align-items:center}
+.cand i{grid-row:span 2;width:12px;height:12px;border-radius:4px}
+.cand small{color:var(--soft);font-size:11.5px}
+.go{background:var(--ink);color:#fff;border-radius:12px;padding:10px;text-align:center;font-weight:600;margin-top:10px}
+</style>
+</head>
+<body>
+<h1>Panel, all states</h1>
+<p class="lead">One column, the same 300 px panel. Settings become a sentence: every underlined word is a setting (dashed and dark when changed, grey when at the default); a click opens its choices; "All settings" opens the full list with sliders and switches. Click the words in state 4.</p>
+<div class="grid">
+
+<section class="st"><h2>1 · First visit, nothing saved</h2><p class="why">Three ways to start, side by side, not a sentence with a pencil icon inside.</p>
+<div class="pn">
+ <div class="top"><div class="logo"></div><div class="av">AP</div></div>
+ <div class="tabs"><span>Road</span><span class="on">Gravel</span><span>MTB</span><span>Hike</span></div>
+ <div class="cta"><div class="p"><i>✎</i>Draw a route</div><div><i>◎</i>Plan a loop</div><div><i>⇪</i>Open GPX</div></div>
+ <p class="hint">Draw: click the map to add points (D). Loop: a round ride of the length you want from any point. Or drop a GPX or KML file on the map.</p>
+</div></section>
+
+<section class="st"><h2>2 · Nothing open, routes saved</h2><p class="why">Same three starts, smaller; the list below; All routes opens the full screen.</p>
+<div class="pn">
+ <div class="top"><div class="logo"></div><div class="av">AP</div></div>
+ <div class="tabs"><span>Road</span><span class="on">Gravel</span><span>MTB</span><span>Hike</span></div>
+ <div class="cta"><div class="p"><i>✎</i>Draw</div><div><i>◎</i>Loop</div><div><i>⇪</i>GPX</div></div>
+ <div class="sec"><span>Your routes · 7</span><button class="lnk">All routes</button></div>
+ <div class="item"><span>Portela → Vila Franca<br><small>98 km · gravel · 14 Nov</small></span></div>
+ <div class="item"><span>Sintra hills<br><small>32 km · gravel · 12 Nov</small></span></div>
+ <div class="item"><span>Arrábida coast<br><small>61 km · road · 9 Nov</small></span></div>
+</div></section>
+
+<section class="st"><h2>3 · A route open</h2><p class="why">Name with one ⋯ menu (rename, copy, delete) instead of a lone trash can; settings as one sentence.</p>
+<div class="pn">
+ <div class="top"><div class="logo"></div><div class="av">AP</div></div>
+ <div class="ttl"><b>Sintra hills</b><span class="dots">⋯</span></div>
+ <div class="tabs"><span>Road</span><span class="on">Gravel</span><span>MTB</span><span>Hike</span></div>
+ <div class="row"><span class="big">31.6<small> km</small></span><span class="mono">~1 h 48 min</span></div>
+ <div class="mono" style="color:var(--soft)">↑568 m ↓568 m</div>
+ <div class="bar"><i style="flex:5;background:#141414"></i><i style="flex:2;background:#7d8b99"></i><i style="flex:2;background:#c99a1e"></i><i style="flex:1;background:#4e8a3a"></i></div>
+ <div class="sent"><div class="k"><span>Settings</span><button class="lnk">All settings</button></div>
+  Ride <button class="tok def">gravel and tarmac</button>, <button class="tok">fewer climbs</button>, <button class="tok def">usual roads</button>, <button class="tok def">prefer cycleways</button>, <button class="tok">popular roads</button>.</div>
+ <div class="acts"><div class="btn">↓ Download GPX</div><div class="two"><div class="btn">Copy link</div><div class="btn">Garmin</div></div></div>
+</div></section>
+
+<section class="st"><h2>4 · Settings: click a word</h2><p class="why">Each word opens the same choices its slider had; "All settings" is one tap away.</p>
+<div class="pn">
+ <div class="ttl"><b>Sintra hills</b><span class="dots">⋯</span></div>
+ <div class="sent" id="s4"><div class="k"><span>Settings</span><button class="lnk" data-go="7">All settings</button></div>
+  Ride <span class="menu"><button class="tok def" data-m="surf">gravel and tarmac</button></span>, <span class="menu"><button class="tok" data-m="climb">fewer climbs</button></span>, <span class="menu"><button class="tok def" data-m="big">usual roads</button></span>, <span class="menu"><button class="tok def" data-m="cyc">prefer cycleways</button></span>, <span class="menu"><button class="tok" data-m="heat">popular roads</button></span>.</div>
+ <p class="hint">Grey words are the Gravel defaults; dark ones are changed. The fold header shows the same sentence, shortened: "fewer climbs · popular roads".</p>
+</div></section>
+
+<section class="st"><h2>5 · Delete from ⋯</h2><p class="why">The confirmation opens in place with the full text; it cannot be squeezed.</p>
+<div class="pn">
+ <div class="ttl"><b>Route 45 km, 14 Nov</b><span class="dots">⋯</span></div>
+ <div class="dmenu"><div>Rename</div><div>Make a copy</div><div class="d">Delete…</div></div>
+ <div class="conf"><p>Delete “Route 45 km, 14 Nov”? It can’t be undone.</p><div class="b"><span>Cancel</span><span class="y">Delete</span></div></div>
+ <div class="tabs"><span>Road</span><span class="on">Gravel</span><span>MTB</span><span>Hike</span></div>
+</div></section>
+
+<section class="st"><h2>6a · Plan a loop: where from?</h2><p class="why">First the start: my location or a point on the map. Nothing to search until it is set.</p>
+<div class="pn">
+ <div class="back">← Back</div>
+ <div class="ttl"><b>Plan a loop</b></div>
+ <p class="hint" style="margin-bottom:8px">Where does the ride start?</p>
+ <div class="go" style="margin-top:0">◎ Use my location</div>
+ <div class="btn" style="margin-top:6px;border:1px solid var(--line);font-weight:500">Pick on the map</div>
+ <p class="hint" style="margin-top:8px">Pick on the map: tap the map, then drag the yellow marker to adjust.</p>
+ <div class="set" style="opacity:.45"><div class="row"><b>Distance</b><output class="mono">40 km</output></div><div class="rng"><b style="width:22%"></b><i style="left:20%"></i></div></div>
+ <div class="go" style="opacity:.35">Find loops</div>
+</div></section>
+
+<section class="st"><h2>6b · Plan a loop: start set</h2><p class="why">The loop is a mode of the panel, not a card thrown over the map; Back returns to where you were.</p>
+<div class="pn">
+ <div class="back">← Back</div>
+ <div class="ttl"><b>Plan a loop</b></div>
+ <p class="hint">From <b>Rua Barata Salgueiro</b> (the yellow marker) · <u>change</u></p>
+ <div class="set"><div class="row"><b>Distance</b><output class="mono">40 km</output></div><div class="rng"><b style="width:22%"></b><i style="left:20%"></i></div></div>
+ <div class="set" style="border:0"><b>Head</b><div class="seg"><span class="on">Any</span><span>N</span><span>E</span><span>S</span><span>W</span></div></div>
+ <p class="hint" style="margin-top:6px">Gravel · fewer climbs · popular roads (route settings)</p>
+ <div class="go">Find loops</div>
+ <div class="cand"><i style="background:#e4572e"></i><b class="mono">41.2 km ↑410 m</b><small>heatmap 82% · no stretch twice</small></div>
+ <div class="cand"><i style="background:#2e86de"></i><b class="mono">39.8 km ↑520 m</b><small>heatmap 71% · no stretch twice</small></div>
+ <div class="cand"><i style="background:#8e44ad"></i><b class="mono">40.5 km ↑365 m</b><small>heatmap 76% · 8% twice</small></div>
+</div></section>
+
+<section class="st" id="st7"><h2>7 · All settings</h2><p class="why">The full list, grouped. Steps stay sliders; on/off things are switches; nothing new to learn.</p>
+<div class="pn">
+ <div class="back">← Sintra hills</div>
+ <div class="ttl"><b>All settings</b><span class="lnk">Reset</span></div>
+ <div class="grp">The way</div>
+ <div class="set"><div class="row"><b>Surface</b><output>Gravel default</output></div><div class="rng"><b style="width:50%"></b><i style="left:47%"></i></div><div class="row hint"><span>Asphalt</span><span>Trails</span></div></div>
+ <div class="set"><div class="row"><b>Climbs</b><output class="ch">Fewer climbs</output></div><div class="rng"><b style="width:25%"></b><i style="left:22%"></i></div><div class="row hint"><span>Flat</span><span>Hilly</span></div></div>
+ <div class="set"><div class="row"><b>Big roads</b><output>Gravel default</output></div><div class="rng"><b style="width:66%"></b><i style="left:63%"></i></div><div class="row hint"><span>Quiet roads</span><span>Any roads</span></div></div>
+ <div class="set"><div class="row"><b>Cycleways</b><output>Prefer</output></div><div class="seg"><span>Ignore</span><span class="on">Prefer</span><span>Stick to</span></div></div>
+ <div class="set sw"><b>Popular roads (heatmap)</b><i class="on"></i></div>
+ <div class="set sw"><b>Avoid cobblestones</b><i></i></div>
+ <div class="grp">Limits</div>
+ <div class="set"><div class="row"><b>Steepness limit</b><output>No limit</output></div><div class="rng"><i style="left:0"></i></div></div>
+ <div class="set sw"><b>Steps</b><i class="on"></i></div>
+ <div class="set sw"><b>Ferries</b><i class="on"></i></div>
+ <div class="set sw"><b>Main roads</b><i class="on"></i></div>
+ <div class="set sw" style="border:0"><b>Footpaths</b><i class="on"></i></div>
+</div></section>
+</div>
+
+<script>
+const M = {
+  surf: [['Only asphalt',''],['Mostly asphalt',''],['Gravel and tarmac','default'],['Mostly dirt',''],['Trails','']],
+  climb: [['Flat as possible',''],['Fewer climbs',''],['Usual climbs','default'],['Climbs are fine',''],['Seek climbs','']],
+  big: [['Quiet roads only',''],['Fewer big roads',''],['Usual roads','default'],['Big roads OK','']],
+  cyc: [['Ignore cycleways',''],['Prefer cycleways','default'],['Stick to cycleways','']],
+  heat: [['Popular roads','heatmap'],['Any roads','default']],
+};
+let open = null;
+document.querySelectorAll('#s4 .tok').forEach((b) => b.addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.querySelectorAll('.pop').forEach((p) => p.remove());
+  if (open === b) { open = null; return; }
+  open = b;
+  const pop = document.createElement('div'); pop.className = 'pop';
+  for (const [label, note] of M[b.dataset.m]) {
+    const d = document.createElement('div');
+    if (label.toLowerCase() === b.textContent.toLowerCase()) d.className = 'sel';
+    d.innerHTML = label + (note && !d.className ? ` <small>${note}</small>` : '');
+    d.onclick = () => { b.textContent = label.charAt(0).toLowerCase() + label.slice(1); b.classList.toggle('def', note === 'default'); pop.remove(); open = null; };
+    pop.appendChild(d);
+  }
+  b.parentElement.appendChild(pop);
+}));
+document.addEventListener('click', () => { document.querySelectorAll('.pop').forEach((p) => p.remove()); open = null; });
+document.querySelector('[data-go="7"]').onclick = () => document.getElementById('st7').scrollIntoView({ behavior: 'smooth' });
+</script>
+</body>
+</html>

@@ -38,7 +38,7 @@ const en = {
   'ex.how': 'How {what} works',
   'ex.surfaceSet': 'Chooses between paved and unpaved ways.\nMostly asphalt or Mostly dirt: the other surface counts as 2.5 times longer.\nAsphalt only or Trails: 5–6 times longer.\nWhen there is no other way, the route still uses it.',
   'ex.climbsSet': 'Decides how far a detour may go round a hill.\nAvoid climbs: 100 m up counts as 30 km more.\nFewer climbs: 100 m up counts as 12 km more.\nClimbs welcome: hills count for nothing.\nSeek climbs: the hilliest of four options, if at most 30% longer.',
-  'ex.bigSet': 'Keeps the route off trunk and primary roads, or lets it use them. Secondary and tertiary roads are affected less.\nAvoid big roads: they count as 4 times longer.\nFewer big roads: 2 times longer.\nBig roads OK: 3 times shorter, so the route takes them readily.\nOn roads with a cycle lane the effect is half as strong.',
+  'ex.bigSet': 'Keeps the route off trunk and primary roads, or lets it use them. Secondary and tertiary roads are affected less.\nAvoid big roads: they count as 4 times longer.\nFewer big roads: 2 times longer.\nBig roads OK: they count like a quiet street, no more, no less.\nOn roads with a cycle lane the effect is half as strong.',
   'sum.etaTip': 'Moving time without breaks, from the grade and surface of every piece of the route: {type} at {power} W, as in the router\'s own model',
   'sum.etaTipHike': 'Walking time without breaks, from the grade of every piece of the route (Tobler\'s hiking function): fastest on gentle descents, slow on steep ones',
   'sum.surface': 'Surface: {list}',
