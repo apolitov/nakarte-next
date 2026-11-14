@@ -583,7 +583,7 @@
       // our own route (e.g. back from sign-in) or one already saved from this link opens as the saved copy;
       // only a route we do not have yet becomes a new one
       const mine = savedRoutes.find((r) => r.id === short.id) ?? sameSaved(short);
-      if (mine) route.load(mine);
+      if (mine) route.load(ownDoc(mine));
       else {
         route.load({ ...short, id: newId('r'), updated: Date.now() });
         say(t('toast.fromLink'));
@@ -599,7 +599,7 @@
       say(t('toast.trackFromLink'));
     } else if (fromLink) {
       const saved = sameSaved(fromLink);
-      if (saved) route.load(saved);
+      if (saved) route.load(ownDoc(saved));
       else {
         route.load({ id: newId('r'), kind: 'route', name: '', checkpoints: [], updated: Date.now(), ...fromLink });
         say(t('toast.fromLink'));
@@ -613,7 +613,7 @@
       try {
         const cur = sessionStorage.getItem('nk-current');
         const doc = cur ? savedRoutes.find((r) => r.id === cur) : null;
-        if (doc) route.load(doc);
+        if (doc) route.load(ownDoc(doc));
       } catch {
         /* ignore */
       }
@@ -649,10 +649,16 @@
     if (pts.length) fitPoints(pts);
   }
 
+  /** a saved route made from an imported track keeps the track's line: never routed again
+   *  (routes made before RouteDoc.routing existed are known by the track that points to them) */
+  function ownDoc(d: RouteDoc): RouteDoc {
+    return d.routing || !tracks.some((x) => x.routeId === d.id) ? d : { ...d, routing: 'track' };
+  }
+
   function openRoute(r: RouteDoc) {
     track('routes_open');
     saveRoute();
-    route.load(r);
+    route.load(ownDoc(r));
     fitPoints(r.waypoints);
     fitWhenReady = true;
   }
@@ -672,6 +678,7 @@
       const doc: RouteDoc = {
         id: newId('r'),
         kind: 'route',
+        routing: 'track',
         name: tr.name,
         profile,
         params: {},

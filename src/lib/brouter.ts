@@ -388,6 +388,13 @@ export function seedLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params
   if (profile !== 'straight') cache.set(cacheKey(a, b, profile, params), Promise.resolve(leg));
 }
 
+/**
+ * Version of the routing rules the stored legs were computed with. Legs of an older version are
+ * routed again on open (the waypoints stay). Bump together with ROUTE_CACHE_VER in maps-api when the
+ * nk-* profiles change the lines (w1: 14.11.2026, oneway penalty no longer cut by the cost caps).
+ */
+export const ROUTING_VER = 'w1';
+
 /** Compact form of a leg for storage: [lng, lat, ele] with 6 and 1 decimals. */
 export type StoredLeg = { p: [number, number, number | null][]; s: WaySpan[] };
 export function packLeg(l: Leg): StoredLeg {

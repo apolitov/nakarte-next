@@ -1,7 +1,7 @@
 // Route being edited: waypoints, per-leg mode (road or straight), routing
 // profile, legs between waypoints, undo/redo.
 import { track, pointsBucket } from './analytics';
-import { fetchLeg, seedLeg, packLeg, unpackLeg, type StoredLeg, normalizeProfile, optionsToParams, paramsToOptions, type Leg, type LegPoint, type ProfileId, type RouteOptions } from './brouter';
+import { ROUTING_VER, fetchLeg, seedLeg, packLeg, unpackLeg, type StoredLeg, normalizeProfile, optionsToParams, paramsToOptions, type Leg, type LegPoint, type ProfileId, type RouteOptions } from './brouter';
 import { buildProfile, type Profile } from './profile';
 import { newId, type Checkpoint, type RouteDoc } from './store';
 import { t, LOCALE } from './i18n';
@@ -72,6 +72,7 @@ export class RouteState {
     return {
       id: this.docId,
       kind: 'route',
+      routing: this.legsFrom === 'track' ? 'track' : ROUTING_VER,
       name: this.name || this.autoName(),
       autoName: this.name ? undefined : true,
       profile: this.profile,
@@ -88,6 +89,7 @@ export class RouteState {
 
   load(doc: RouteDoc) {
     this.docId = doc.id;
+    this.legsFrom = doc.routing ?? '';
     this.created = doc.created ?? doc.updated ?? 0;
     // a made-up name stays a placeholder: the route still gets asked for a real one
     // (older routes carry no mark: a name of the "Route 12 km, 13 Nov" pattern counts as made up)
@@ -164,6 +166,8 @@ export class RouteState {
       stored.forEach((sl, i) => {
         const a = this.waypoints[i];
         try {
+          // routed legs of older routing rules are computed again: the same points, today's rules
+          if (!a.straight && this.legsFrom !== ROUTING_VER && this.legsFrom !== 'track') return;
           seedLeg(a, this.waypoints[i + 1], a.straight ? 'straight' : this.profile, this.params, unpackLeg(sl));
           if (a.straight) this.legs[i] = { status: 'ok', leg: unpackLeg(sl) };
         } catch {
@@ -179,6 +183,8 @@ export class RouteState {
     this.version++;
   }
 
+  /** RouteDoc.routing of the loaded route: which rules made its stored legs */
+  private legsFrom = '';
   private pending = new Map<string, number>();
   private seq = 0;
 

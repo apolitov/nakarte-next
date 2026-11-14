@@ -13,6 +13,8 @@ export interface Checkpoint {
 
 export interface RouteDoc {
   id: string;
+  /** what made the stored legs: ROUTING_VER of the router rules, or 'track' (the line of an imported track) */
+  routing?: string;
   kind: 'route';
   name: string;
   profile: string;
