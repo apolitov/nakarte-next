@@ -986,17 +986,6 @@
     editing = true;
   }
 
-  /** the Save route button: leave editing, ask for a name if there is none, say where the route is */
-  function finishEdit() {
-    if (!editing) return;
-    editing = false;
-    placing = null;
-    track('edit_done');
-    if (!needName()) {
-      saveRoute();
-      say(t('toast.routeSaved'));
-    }
-  }
   function toggleEdit() {
     editing = !editing;
     if (editing) track('edit_start');
@@ -1611,7 +1600,7 @@
       {straightOn} placing={placing === 'route'} {layersOpen}
       onedit={toggleEdit} onundo={undo} onredo={redo} onreverse={reverse} onoutback={outAndBack} onbacktostart={backToStart}
       onstraight={() => toggleStraight(false)} oncheckpoint={toggleCheckpoint} onlayers={() => openMenu('base')}
-      onfit={fitRoute} onhelp={() => (helpOpen = true)} onsave={finishEdit} />
+      onfit={fitRoute} onhelp={() => (helpOpen = true)} />
     <div class="layersbtns">
       <button class="layersbtn" aria-expanded={layersMenu === 'base'} aria-controls="nk-layers" aria-label={t('lay.base')}
         title="{t('lay.base')} (L)" onclick={() => openMenu('base')}><Icon name="layers" size={20} /></button>

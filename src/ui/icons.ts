@@ -6,7 +6,6 @@ export const ICONS = {
   reverse: '<path d="M4 7h14l-3-3M20 17H6l3 3"/>',
   straight: '<circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M7 17l10-10" stroke-dasharray="2 3"/>',
   checkpoint: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
-  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   pin: '<path d="M9 4h6l-1 6 3 3H7l3-3-1-6Z"/><path d="M12 13v7"/>',
   overlay: '<path d="M12 4 3 9l9 5 9-5-9-5Z"/><path d="M17 14v6M14 17h6"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5" opacity=".7"/>',
