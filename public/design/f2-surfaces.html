@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surface options</title>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fff;--ink:#141414;--soft:#5f5f5c;--line:#e4e2dc;--marker:#ffd83d;--tint:#f6f5f1;--mapbg:#e8e6e1;--sans:'Onest',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+--s-paved:#141414;--s-compact:#7d8b99;--s-unpaved:#c99a1e;--s-ground:#9a5a2c;--s-path:#4e8a3a;--s-ferry:#2f7fc1;--s-unknown:#cfccc4}
+*{box-sizing:border-box}
+body{margin:0;background:var(--mapbg);font-family:var(--sans);color:var(--ink);padding:24px}
+h1{font-size:22px;margin:0 0 4px}
+.lead{color:var(--soft);font-size:14px;margin:0 0 20px;max-width:960px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:22px;align-items:start}
+.st h2{font-size:14px;font-weight:600;margin:0 0 4px}
+.st p.why{font-size:12.5px;color:var(--soft);margin:0 0 8px;line-height:1.45}
+.card{background:var(--paper);border-radius:16px;padding:14px 16px;box-shadow:0 1px 2px rgb(20 20 20/.06),0 8px 28px rgb(20 20 20/.1);font-size:13px}
+.map{border-radius:12px;background:#efece4;display:block;width:100%}
+.lg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;margin-top:8px;color:var(--ink)}
+.lg span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+.tog{display:inline-grid;grid-auto-flow:column;background:var(--tint);border-radius:10px;padding:2px;font-size:12px;margin-bottom:8px}
+.tog span{padding:5px 10px;border-radius:8px;cursor:pointer}.tog .on{background:var(--marker);font-weight:600}
+.words{font-size:13.5px;line-height:1.55;margin:6px 0 0}
+.words b{font-weight:600}
+.bar{display:flex;gap:2px;height:10px;margin:6px 0}.bar i{display:block;border-radius:1px}
+.k{font-size:12px;color:var(--soft)}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 6px;border-radius:6px;background:#fff4c2;color:#633806}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cmp .k{margin-bottom:4px}
+</style>
+</head>
+<body>
+<h1>Surface, more explicit</h1>
+<p class="lead">The same 18 km route drawn several ways. Today surface is a colour in the summary, black dashes under the profile and dashes on the map line: three languages for one thing. Options 1, 2 and 6 together are the proposal; 3 and 4 are for comparison.</p>
+<div class="grid">
+
+<section class="st"><h2>Now</h2><p class="why">Summary in colour, profile and map in dashes. On a small map scale the dashes merge into a line.</p>
+<div class="card">
+ <div class="bar"><i style="flex:55;background:var(--s-paved)"></i><i style="flex:15;background:var(--s-compact)"></i><i style="flex:18;background:var(--s-unpaved)"></i><i style="flex:7;background:var(--s-ground)"></i><i style="flex:5;background:var(--s-path)"></i></div>
+ <svg class="map" viewBox="0 0 400 120" id="m0"></svg>
+ <svg viewBox="0 0 400 46" width="100%" id="p0"></svg>
+</div></section>
+
+<section class="st"><h2>1 · One colour per surface, everywhere</h2><p class="why">The profile strip takes the summary's colours, in a row of its own under the grade fill. Ochre is gravel in every place.</p>
+<div class="card">
+ <div class="bar"><i style="flex:55;background:var(--s-paved)"></i><i style="flex:15;background:var(--s-compact)"></i><i style="flex:18;background:var(--s-unpaved)"></i><i style="flex:7;background:var(--s-ground)"></i><i style="flex:5;background:var(--s-path)"></i></div>
+ <svg viewBox="0 0 400 70" width="100%" id="p1"></svg>
+ <div class="lg" id="lg1"></div>
+</div></section>
+
+<section class="st"><h2>2 · Colour the line by surface</h2><p class="why">A visible switch next to the profile: Grade / Surface. In Surface the line uses the same colours; no dashes needed.</p>
+<div class="card">
+ <div class="tog"><span data-m="grade">Grade</span><span class="on" data-m="surface">Surface</span></div>
+ <svg class="map" viewBox="0 0 400 120" id="m2"></svg>
+</div></section>
+
+<section class="st"><h2>6 · The summary in words</h2><p class="why">How much, in how many pieces, the longest; cobbles named apart. Answers "what will I ride on".</p>
+<div class="card">
+ <div class="bar"><i style="flex:55;background:var(--s-paved)"></i><i style="flex:15;background:var(--s-compact)"></i><i style="flex:18;background:var(--s-unpaved)"></i><i style="flex:7;background:var(--s-ground)"></i><i style="flex:5;background:var(--s-path)"></i></div>
+ <p class="words"><b>9.9 km asphalt</b>, then mostly off it: <b>3.2 km gravel</b> in 2 stretches (longest 2.1 km), <b>2.7 km compacted</b>, <b>1.3 km dirt</b>, <b>0.9 km trail</b>. <b>300 m cobbles</b> in Sintra.</p>
+ <p class="k" style="margin-top:6px">6 % has no surface tag in OpenStreetMap; it is guessed from the road type.</p>
+</div></section>
+
+<section class="st"><h2>3 · Casing: grade inside, surface on the edge</h2><p class="why">Both at once, no switch. Thin on a phone, and the line gets wide enough to hide the map under it.</p>
+<div class="card">
+ <svg class="map" viewBox="0 0 400 120" id="m3"></svg>
+</div></section>
+
+<section class="st"><h2>4 · Only what needs attention (Road)</h2><p class="why">For a road bike everything that is not asphalt is marked on the line and in the profile; the rest stays neutral. Gravel would mark sand, mud and trails; MTB, asphalt.</p>
+<div class="card">
+ <svg class="map" viewBox="0 0 400 120" id="m4"></svg>
+ <p class="words"><span class="tag">off asphalt</span> 5 stretches, 8.1 km; longest 2.1 km gravel at km 7</p>
+</div></section>
+
+</div>
+<script>
+const C={paved:'#141414',compact:'#7d8b99',unpaved:'#c99a1e',ground:'#9a5a2c',path:'#4e8a3a'};
+const NAMES={paved:'Asphalt',compact:'Compacted',unpaved:'Gravel',ground:'Dirt',path:'Trail'};
+const DASH={paved:'',compact:'9 6.6',unpaved:'6.6 6.6 0.01 6.6',ground:'0.01 6',path:'0.01 5.4 0.01 10.8'};
+// the route: points and the surface of each piece
+const seg=[['paved',6],['compact',2],['paved',4],['unpaved',3],['ground',1.5],['paved',3],['unpaved',2.5],['path',1],['compact',1.5],['paved',4],['ground',1]];
+const total=seg.reduce((s,x)=>s+x[1],0);
+function path(t){return {x:20+360*t,y:60+28*Math.sin(t*6.3)+14*Math.sin(t*17)};}
+function pieces(){let a=0;return seg.map(([c,l])=>{const t0=a/total;a+=l;return {c,t0,t1:a/total};});}
+function d(t0,t1){let s='';for(let k=0;k<=20;k++){const p=path(t0+(t1-t0)*k/20);s+=(k?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);}return s;}
+const GR=['#4fae63','#c8dc6a','#fdd049','#fd8d3c','#9fd3c7','#4fae63','#c8dc6a','#fd8d3c','#4fae63','#9fd3c7','#4fae63'];
+function bg(svg){svg.innerHTML='<path d="M0 30 C 80 10 160 50 400 20" stroke="#d6d2c6" stroke-width="5" fill="none"/><path d="M60 0 L 120 120 M 250 0 L 300 120" stroke="#ddd9ce" stroke-width="3" fill="none"/>';}
+const NS='http://www.w3.org/2000/svg';
+function line(svg,dd,attrs){const e=document.createElementNS(NS,'path');e.setAttribute('d',dd);e.setAttribute('fill','none');e.setAttribute('stroke-linecap','round');e.setAttribute('stroke-linejoin','round');for(const k in attrs)e.setAttribute(k,attrs[k]);svg.appendChild(e);return e;}
+// now: grade colour with dashes
+function now(svg){bg(svg);pieces().forEach((p,i)=>{line(svg,d(p.t0,p.t1),{stroke:'#fff','stroke-width':7});line(svg,d(p.t0,p.t1),{stroke:GR[i],'stroke-width':4,'stroke-dasharray':DASH[p.c]});});}
+now(document.getElementById('m0'));
+function profile(svg,mode){svg.innerHTML='';const H=svg.viewBox.baseVal.height;pieces().forEach((p,i)=>{const x0=20+360*p.t0,x1=20+360*p.t1;
+ const r=document.createElementNS(NS,'rect');r.setAttribute('x',x0);r.setAttribute('width',x1-x0+0.5);r.setAttribute('y',6);r.setAttribute('height',24);r.setAttribute('fill',GR[i]);svg.appendChild(r);
+ if(mode==='dash')line(svg,`M${x0} 40 L${x1} 40`,{stroke:'#141414','stroke-width':4,'stroke-dasharray':DASH[p.c]});
+ else {const b=document.createElementNS(NS,'rect');b.setAttribute('x',x0);b.setAttribute('width',Math.max(1,x1-x0-1.5));b.setAttribute('y',38);b.setAttribute('height',9);b.setAttribute('rx',2);b.setAttribute('fill',C[p.c]);svg.appendChild(b);
+  if(x1-x0>40){const t=document.createElementNS(NS,'text');t.setAttribute('x',(x0+x1)/2);t.setAttribute('y',62);t.setAttribute('text-anchor','middle');t.setAttribute('font-size','10');t.setAttribute('fill','#5f5f5c');t.textContent=NAMES[p.c];svg.appendChild(t);}}
+});}
+profile(document.getElementById('p0'),'dash');profile(document.getElementById('p1'),'colour');
+document.getElementById('lg1').innerHTML=Object.keys(C).map(k=>`<span><i class="sw" style="background:${C[k]}"></i>${NAMES[k]}</span>`).join('');
+function surf(svg){bg(svg);pieces().forEach(p=>{line(svg,d(p.t0,p.t1),{stroke:'#fff','stroke-width':8});line(svg,d(p.t0,p.t1),{stroke:C[p.c],'stroke-width':5});});}
+const m2=document.getElementById('m2');surf(m2);
+document.querySelectorAll('.tog span').forEach(s=>s.onclick=()=>{document.querySelectorAll('.tog span').forEach(x=>x.classList.toggle('on',x===s));s.dataset.m==='surface'?surf(m2):now(m2);});
+(function(svg){bg(svg);pieces().forEach((p,i)=>{line(svg,d(p.t0,p.t1),{stroke:C[p.c],'stroke-width':10});line(svg,d(p.t0,p.t1),{stroke:GR[i],'stroke-width':4.5});});})(document.getElementById('m3'));
+(function(svg){bg(svg);pieces().forEach((p,i)=>{const off=p.c!=='paved';line(svg,d(p.t0,p.t1),{stroke:'#fff','stroke-width':off?11:7});if(off)line(svg,d(p.t0,p.t1),{stroke:'#e2b400','stroke-width':11,'stroke-opacity':.55});line(svg,d(p.t0,p.t1),{stroke:GR[i],'stroke-width':4});});})(document.getElementById('m4'));
+</script>
+</body>
+</html>
