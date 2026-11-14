@@ -42,6 +42,11 @@ const en = {
   'sum.etaTip': 'Moving time without breaks, from the grade and surface of every piece of the route: {type} at {power} W, as in the router\'s own model',
   'sum.etaTipHike': 'Walking time without breaks, from the grade of every piece of the route (Tobler\'s hiking function): fastest on gentle descents, slow on steep ones',
   'sum.surface': 'Surface: {list}',
+  'sum.details': 'OSM tags',
+  'sum.detailsTip': 'What each surface is made of: the surface tags of OpenStreetMap along the route',
+  'sum.untagged': 'no surface tag, {hw}',
+  'sum.noWay': 'no way data',
+  'sum.handDrawn': 'drawn by hand',
 
   // surfaces (short names: timeline, legend; long: map colouring)
   'surf.paved': 'Asphalt',

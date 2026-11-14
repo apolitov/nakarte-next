@@ -17,6 +17,9 @@ export interface Profile {
   ele: (number | null)[];
   grade: (number | null)[]; // %, of the stretch ending at this point
   surface: SurfaceClass[];
+  /** OSM tag behind the surface of each segment: the surface value, 'route=ferry', '~highway[ tracktype]' when
+   *  the way has no surface tag (the class is guessed from the way type), '' with no way data */
+  osm: string[];
   length: number;
   ascent: number;
   descent: number;
@@ -197,14 +200,16 @@ export function buildProfile(points: LegPoint[], spans: WaySpan[] = [], win = 10
   }
 
   const surface: SurfaceClass[] = new Array(n).fill('unknown');
+  const osm: string[] = new Array(n).fill('');
   for (const s of spans) {
     // legs stored before the route tag was kept: a long stretch with no way tags at all is a ferry
     // (BRouter routes only on highways and ferry lines)
     const bare = !s.highway && !s.surface && !s.tracktype && !s.route && s.to < n && dist[s.to] - dist[s.from] > 300;
     const c = bare ? 'ferry' : surfaceClass(s);
-    for (let i = s.from + 1; i <= s.to && i < n; i++) surface[i] = c;
+    const tag = c === 'ferry' ? 'route=ferry' : s.surface ? s.surface : s.highway ? `~${s.highway}${s.highway === 'track' && s.tracktype ? ' ' + s.tracktype : ''}` : '';
+    for (let i = s.from + 1; i <= s.to && i < n; i++) { surface[i] = c; osm[i] = tag; }
   }
-  if (n > 1) surface[0] = surface[1];
+  if (n > 1) { surface[0] = surface[1]; osm[0] = osm[1]; }
   // on a boat the terrain model gives sea level and shore noise: no grade there
   for (let i = 0; i < n; i++) if (surface[i] === 'ferry') grade[i] = null;
 
@@ -220,7 +225,7 @@ export function buildProfile(points: LegPoint[], spans: WaySpan[] = [], win = 10
       else if (ref - e >= H) { descent += ref - e; ref = e; }
     }
   }
-  return { dist, ele, grade, surface, length: dist[n - 1] ?? 0, ascent, descent, minEle, maxEle };
+  return { dist, ele, grade, surface, osm, length: dist[n - 1] ?? 0, ascent, descent, minEle, maxEle };
 }
 
 export function formatKm(m: number) {

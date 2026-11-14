@@ -41,6 +41,7 @@
 - **Настройки маршрута:**
   - `setting_change` с параметрами `name` (surface, climbs, big_roads, max_grade, cycleways, heat, allow_*, sac, trails, nature, quiet) и `value` (положение ползунка или on/off);
   - `explain_open`: какие подсказки (?) открывают.
+  - `surface_details`: раскрыли таблицу тегов покрытия OSM в сводке.
 - **Карта:**
   - `layer_change`: базовая карта, параметр `id`;
   - `overlay_toggle`: оверлей, `id` и `on`;

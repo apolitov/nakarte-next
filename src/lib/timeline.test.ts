@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildProfile } from './profile';
-import { buildTimeline, climbThreshold, findClimbs, findSteep, limitEvents, nearestPoint, rails, segmentClasses, surfaceRuns, surfaceShares } from './timeline';
+import { buildTimeline, climbThreshold, findClimbs, findSteep, limitEvents, nearestPoint, rails, segmentClasses, surfaceRuns, surfaceShares, surfaceDetails } from './timeline';
 import { routeMinutes, formatDuration } from './eta';
 
 /** Straight line due north, a point every 50 m, with the given elevation function. */
@@ -142,5 +142,18 @@ describe('eta', () => {
     expect(formatDuration(191)).toBe('3 h 11 min');
     expect(formatDuration(45)).toBe('45 min');
     expect(formatDuration(120)).toBe('2 h');
+  });
+});
+
+describe('surfaceDetails', () => {
+  it('splits classes into OSM tags, longest first', () => {
+    const dist = [0, 100, 300, 600, 700, 1000];
+    const cls = ['paved', 'paved', 'paved', 'unpaved', 'unpaved', 'straight'] as const;
+    const osm = ['asphalt', 'asphalt', 'concrete', 'gravel', '~track grade3', ''];
+    const d = surfaceDetails(dist, [...cls], osm);
+    expect(d.map((x) => x.cls)).toEqual(['paved', 'unpaved', 'straight']);
+    expect(d[0].items).toEqual([{ tag: 'concrete', m: 200, share: 0.2 }, { tag: 'asphalt', m: 100, share: 0.1 }]);
+    expect(d[1].items.map((x) => x.tag)).toEqual(['gravel', '~track grade3']);
+    expect(d[2].m).toBe(300);
   });
 });

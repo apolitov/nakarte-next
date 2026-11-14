@@ -75,6 +75,33 @@ export function surfaceShares(dist: number[], cls: SegClass[]): { cls: SegClass;
   return SEG_ORDER.filter((c) => (acc.get(c) ?? 0) > 0).map((c) => ({ cls: c, m: acc.get(c)!, share: acc.get(c)! / total }));
 }
 
+export interface SurfaceDetail {
+  cls: SegClass;
+  m: number;
+  share: number;
+  /** OSM tags inside the class, longest first (Profile.osm keys; '' = no way data) */
+  items: { tag: string; m: number; share: number }[];
+}
+
+/** Surface shares with the OSM tags behind each class: what "Gravel 10%" is made of. */
+export function surfaceDetails(dist: number[], cls: SegClass[], osm: string[]): SurfaceDetail[] {
+  const acc = new Map<SegClass, Map<string, number>>();
+  for (let i = 1; i < dist.length; i++) {
+    const c = cls[i];
+    const tag = c === 'straight' ? '' : (osm[i] ?? '');
+    const m = acc.get(c) ?? new Map<string, number>();
+    m.set(tag, (m.get(tag) ?? 0) + dist[i] - dist[i - 1]);
+    acc.set(c, m);
+  }
+  const total = dist.at(-1) ?? 0;
+  if (!total) return [];
+  return SEG_ORDER.filter((c) => acc.has(c)).map((c) => {
+    const items = [...acc.get(c)!].filter(([, m]) => m > 0).map(([tag, m]) => ({ tag, m, share: m / total })).sort((a, b) => b.m - a.m);
+    const m = items.reduce((s, x) => s + x.m, 0);
+    return { cls: c, m, share: m / total, items };
+  }).filter((d) => d.m > 0);
+}
+
 /** Nearest route point to a location and the distance to it in metres. */
 export function nearestPoint(points: TLPoint[], lng: number, lat: number): { i: number; m: number } {
   const k = Math.cos((lat * Math.PI) / 180);
