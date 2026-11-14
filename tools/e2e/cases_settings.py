@@ -150,6 +150,15 @@ async def switch(pg: Page, text: str):
     await pg.locator('label.sw', has_text=text).click()
 
 
+async def cyc(pg: Page, text: str):
+    """Cycleways control: Ignore / Prefer / Stick to"""
+    await pg.get_by_role('radiogroup', name='Cycleways').locator('label', has_text=text).click()
+
+
+def cyc_on(pg: Page, text: str):
+    return pg.get_by_role('radiogroup', name='Cycleways').locator('label', has_text=text).locator('input').is_checked()
+
+
 async def allow_box(pg: Page, text: str):
     return pg.locator('ul.allow label', has_text=re.compile(rf'^\s*{text}'))
 
@@ -300,10 +309,15 @@ async def S5(ctx):
 async def S6(ctx):
     pg = await start(ctx, 'Gravel')
     await open_settings(pg)
-    check(await pg.locator('label.sw', has_text='Follow cycleways').locator('input').is_checked(), 'cycleways expected on by default')
+    check(await cyc_on(pg, 'Prefer'), 'cycleways expected on Prefer by default')
+    # Stick to: nk_cycle=2 and "cycleways only" in the summary
+    d = prm((await change(pg, lambda: cyc(pg, 'Stick to')))[-1])
+    has(d, nk_cycle=2)
+    check('cycleways only' in await summary(pg), f'summary: {await summary(pg)!r}')
+    await change(pg, lambda: cyc(pg, 'Prefer'), expect=False)
     # surface -1 sends nk_cycle_pen; cycleways off must replace it with nk_cycle=0
     await change(pg, lambda: set_range(pg, 'nk-surf', -1))
-    reqs = await change(pg, lambda: switch(pg, 'Follow cycleways'))
+    reqs = await change(pg, lambda: cyc(pg, 'Ignore'))
     d = prm(reqs[-1])
     has(d, nk_cycle=0, nk_surface=-1)
     lacks(d, 'nk_cycle_pen')
@@ -329,15 +343,15 @@ async def S6(ctx):
     reqs = await change(pg, lambda: box.click())
     lacks(prm(reqs[-1]), 'nk_allow_steps')
     # which switches and boxes each type offers
-    for prof, boxes, cyc in [('Road', 5, True), ('MTB', 3, False), ('Hike', 3, False)]:
+    for prof, boxes, want in [('Road', 5, True), ('MTB', 3, False), ('Hike', 3, False)]:
         await pick_profile(pg, prof)
         await open_settings(pg)
         n = await pg.locator('ul.allow li').count()
         check(n == boxes, f'{prof}: {boxes} "May use" boxes expected, got {n}')
-        c = await pg.locator('label.sw', has_text='Follow cycleways').count()
-        check(bool(c) == cyc, f'{prof}: cycleways switch present={bool(c)}, expected {cyc}')
+        c = await pg.get_by_role('radiogroup', name='Cycleways').count()
+        check(bool(c) == want, f'{prof}: cycleways control present={bool(c)}, expected {want}')
         h = await pg.locator('label.sw', has_text='Stick to the heatmap').count()
-        check(bool(h) == cyc, f'{prof}: heatmap switch present={bool(h)}, expected {cyc}')
+        check(bool(h) == want, f'{prof}: heatmap switch present={bool(h)}, expected {want}')
 
 
 async def S7(ctx):
@@ -472,7 +486,7 @@ async def S10(ctx):
     check(await summary(pg) == 'more asphalt', f'summary: {await summary(pg)!r}')
     await change(pg, lambda: set_range(pg, 'nk-climbs', 0))
     await change(pg, lambda: set_range(pg, 'nk-big', 0))
-    await change(pg, lambda: switch(pg, 'Follow cycleways'))
+    await change(pg, lambda: cyc(pg, 'Ignore'))
     box = await allow_box(pg, 'Steps')
     await change(pg, lambda: box.click())
     exp = 'more asphalt · avoid climbs · no big roads · cycleways off · no steps'
@@ -490,7 +504,7 @@ async def S10(ctx):
     await change(pg, lambda: set_range(pg, 'nk-surf', 0), expect=False)
     await change(pg, lambda: set_range(pg, 'nk-climbs', 2), expect=False)
     await change(pg, lambda: set_range(pg, 'nk-big', 2), expect=False)
-    await change(pg, lambda: switch(pg, 'Follow cycleways'), expect=False)
+    await change(pg, lambda: cyc(pg, 'Prefer'), expect=False)
     box = await allow_box(pg, 'Steps')
     await change(pg, lambda: box.click(), expect=False)
     check(await summary(pg) == 'Gravel defaults', f'after reset: {await summary(pg)!r}')
@@ -578,7 +592,7 @@ async def S12(ctx):
     await change(pg, lambda: set_range(pg, 'nk-climbs', 1))
     await change(pg, lambda: set_range(pg, 'nk-big', 3))
     await change(pg, lambda: set_range(pg, 'nk-steep', 0), expect=False)
-    await change(pg, lambda: switch(pg, 'Follow cycleways'))
+    await change(pg, lambda: cyc(pg, 'Stick to'))
     box = await allow_box(pg, 'Ferries')
     await change(pg, lambda: box.click())
     before = await summary(pg)
@@ -596,7 +610,7 @@ async def S12(ctx):
     for id_, lab in [('nk-surf', 'Mostly asphalt'), ('nk-climbs', 'Fewer climbs'), ('nk-big', 'Big roads OK')]:
         text, on = await out(pg, id_)
         check(text == lab and on, f'{id_} after reload: {text!r} on={on}, expected {lab!r}')
-    check(not await pg.locator('label.sw', has_text='Follow cycleways').locator('input').is_checked(), 'cycleways switch is on again after reload')
+    check(await cyc_on(pg, 'Stick to'), 'cycleways not on Stick to after reload')
     check(not await (await allow_box(pg, 'Ferries')).locator('input').is_checked(), 'Ferries box is ticked again after reload')
     check(await (await allow_box(pg, 'Steps')).locator('input').is_checked(), 'Steps box must stay ticked')
     # routing after reload uses the restored options
@@ -607,7 +621,7 @@ async def S12(ctx):
         await pg.wait_for_timeout(200)
     check(len(pg.route_urls) > n0, 'no request after changing a setting on the restored route')
     d = prm(pg.route_urls[-1])
-    has(d, nk_cycle=0, nk_surface=-1, nk_big=0.3, nk_allow_ferry=0, nk_uphillcutoff=6)
+    has(d, nk_cycle=2, nk_surface=-1, nk_big=0.3, nk_allow_ferry=0, nk_uphillcutoff=6)
 
 
 CASES = [

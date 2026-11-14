@@ -78,11 +78,12 @@
 <!-- the two switches people change most go first -->
 {#if cycle}
   <!-- road and gravel only: MTB and hiking route as their stock profiles -->
-  <label class="sw">
-    <input type="checkbox" role="switch" checked={options.cycleways} onchange={(e) => onchange({ cycleways: e.currentTarget.checked })} />
-    <span class="tr" aria-hidden="true"></span>
-    <span class="t">{t('set.cycleways')}<small>{t('set.cyclewaysHint')}</small></span>
-  </label>
+  {@const cyc = !options.cycleways ? 'off' : options.cycleStrict ? 'stick' : 'prefer'}
+  <div class="lbl first">{t('set.cycleways')}</div>
+  <Segmented name="cycleways" label={t('set.cycleways')} value={cyc}
+    items={[['off', t('set.cycleOff')], ['prefer', t('set.cyclePrefer')], ['stick', t('set.cycleStick')]] as const}
+    onchange={(v) => onchange({ cycleways: v !== 'off', cycleStrict: v === 'stick' })} />
+  <p class="hint">{t(cyc === 'off' ? 'set.cycleOffHint' : cyc === 'stick' ? 'set.cycleStickHint' : 'set.cyclePreferHint')}</p>
   <label class="sw">
     <input type="checkbox" role="switch" checked={options.heat} onchange={(e) => onchange({ heat: e.currentTarget.checked })} />
     <span class="tr" aria-hidden="true"></span>
@@ -251,6 +252,9 @@
     font-weight: 400;
     font-size: 12px;
     color: var(--soft);
+  }
+  .lbl.first {
+    margin-top: 2px;
   }
   .lbl {
     /* the (?) note opens under this row, across the panel */

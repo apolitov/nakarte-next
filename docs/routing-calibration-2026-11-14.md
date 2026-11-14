@@ -39,3 +39,14 @@ How often a leg gets much longer than now:
 - A stronger pull does follow the heatmap better: Gravel +3% heat at ×4, +6% at ×6; Road +2% and +3%.
 - It costs length, unevenly: on average +5–15%, but at ×6 one leg in five gets more than 25% longer and the worst nearly three times longer. Most of the extra infrastructure is not real infrastructure (real infra grows 0.43 → 0.51, all cycle infra 0.63 → 0.77).
 - Score of rounds 1–2 (heat − 0.5·cold − 0.5·detour over 5%): Road now 0.916, ×4 0.909, ×6 0.888; Gravel now 0.901, ×4 0.912, ×6 0.889. Gravel ×4 is a little ahead, Road stays.
+
+## The strong step ("Stick to", nk_cycle=2): ×4, real infrastructure only
+
+| Profile, variant | heat | cold | detour | cycle infra | real infra | score |
+|---|---|---|---|---|---|---|
+| Road, now | 0.942 | 0.018 | 1.067 | 0.61 | 0.44 | 0.924 |
+| Road, Stick to | 0.943 | 0.020 | 1.087 | 0.63 | 0.54 | 0.915 |
+| Gravel, now | 0.915 | 0.024 | 1.050 | 0.63 | 0.43 | 0.903 |
+| Gravel, Stick to | 0.900 | 0.027 | 1.083 | 0.63 | 0.56 | 0.869 |
+
+Against now: 13 of 80 road legs and 11 of 77 gravel legs over 10% longer, 3 and 4 over 25%, worst 1.37 and 1.61. It does what it says (the most real infrastructure of all variants) but follows the heatmap less than plain ×4: people ride sharrows and signed routes too. So it is an option ("Stick to"), not the default; the default stays "Prefer".

@@ -9,10 +9,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 src = open('gen_routes.py').read()
 exec(src[:src.index('VARIANTS = {')] + src[src.index('def enc('):src.index('def run(')])
-B = 'http://brouter:17777/brouter'
+import os
+B = os.environ.get('BROUTER', 'http://brouter:17777/brouter')
 VARIANTS = {
-    'nk-road': {'off': {'nk_cycle': 0}, 'x2.5 (now)': {}, 'x4': {'nk_cycle_pen': 2.4}, 'x6': {'nk_cycle_pen': 3.6}},
-    'nk-gravel': {'off': {'nk_cycle': 0}, 'x2 (now)': {}, 'x4': {'nk_cycle_pen': 4.0}, 'x6': {'nk_cycle_pen': 6.0}},
+    'nk-road': {'off': {'nk_cycle': 0}, 'x2.5 (now)': {}, 'x4': {'nk_cycle_pen': 2.4}, 'x6': {'nk_cycle_pen': 3.6}, 'stick': {'nk_cycle': 2}},
+    'nk-gravel': {'off': {'nk_cycle': 0}, 'x2 (now)': {}, 'x4': {'nk_cycle_pen': 4.0}, 'x6': {'nk_cycle_pen': 6.0}, 'stick': {'nk_cycle': 2}},
 }
 LANE = re.compile(r'^(lane|track|shared_lane|segregated|both|right|left|opposite_lane|opposite_track)$')
 def is_cycle(t):
@@ -36,11 +37,12 @@ def run(job):
         tot += d; cyc += d if is_cycle(t) else 0; real += d if real_infra(t) else 0
     pts = resample([c[:2] for c in f['geometry']['coordinates']], 30)
     return job, {'m': int(f['properties']['track-length']), 'cyc': cyc / max(tot, 1), 'real': real / max(tot, 1), 's': round(time.time() - t0, 1), 'poly': enc(pts)}
-jobs = [(leg, p, v) for leg in LEGS for p in VARIANTS for v in VARIANTS[p]]
+ONLY = os.environ.get('ONLY')  # run just these variants, comma separated
+jobs = [(leg, p, v) for leg in LEGS for p in VARIANTS for v in VARIANTS[p] if not ONLY or v in ONLY.split(',')]
 out = []
 with ThreadPoolExecutor(3) as ex:
     for n, (job, r) in enumerate(ex.map(run, jobs)):
         if r: out.append({'leg': job[0]['id'], 'mountain': bool(job[0].get('mountain')), 'prof': job[1], 'v': job[2], **r})
         if n % 100 == 0: print(n, len(jobs), flush=True)
-json.dump(out, open('cycle_routes.json', 'w'))
+json.dump(out, open(os.environ.get('OUT', 'cycle_routes.json'), 'w'))
 print('done', len(out), 'of', len(jobs))

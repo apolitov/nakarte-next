@@ -1446,6 +1446,7 @@
     if (o.maxGrade) parts.push(t('set.sumUpTo', { g: o.maxGrade }));
     if (route.profile !== 'nk-hike' && o.bigRoads !== 'normal') parts.push({ avoid: t('set.sumBigAvoid'), less: t('set.sumBigLess'), any: t('set.sumBigAny') }[o.bigRoads as 'avoid' | 'less' | 'any']);
     if (bike && !o.cycleways) parts.push(t('set.sumNoCycleways'));
+    if (bike && o.cycleways && o.cycleStrict) parts.push(t('set.sumCycleStick'));
     if (o.heat && bike) parts.push(t('set.sumHeat'));
     if (o.cobbles && route.profile !== 'nk-hike') parts.push(t('set.sumCobbles'));
     const never = ALLOW_KEYS.filter((k) => o.allow?.[k] === false && ALLOW_FOR[k].includes(route.profile));

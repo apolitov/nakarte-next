@@ -20,6 +20,7 @@ describe('route options', () => {
       { ...base, bigRoads: 'less', surface: -2, heat: true },
       { ...base, bigRoads: 'any' },
       { ...base, cobbles: true, heat: true },
+      { ...base, cycleStrict: true },
       { ...base, sac: 4, trails: true, nature: true, quiet: true },
       { ...base, sac: 6, quiet: true },
       { ...base, allow: { ...all, ferry: false, unpaved: false } },

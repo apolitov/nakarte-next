@@ -56,6 +56,8 @@ export interface RouteOptions {
   maxGrade: number;
   /** prefer cycleways, cycle lanes and signed cycle routes (on by default in the bike profiles) */
   cycleways: boolean;
+  /** with cycleways: stick to real cycle infrastructure (paths, lanes, tracks; not sharrows or signed routes), x4 (nk_cycle=2) */
+  cycleStrict: boolean;
   /** of the router's alternatives, take the one more people ride (Ride with GPS heatmap) */
   heat: boolean;
   /** bikes: avoid sett and cobblestones (nk_cobble); off by default, old town centres are often cobbled */
@@ -82,7 +84,7 @@ export const ALLOW_FOR: Record<AllowKey, string[]> = {
   paths: ['nk-road', 'nk-gravel'],
 };
 const ALLOW_ALL: Record<AllowKey, boolean> = { steps: true, ferry: true, busy: true, unpaved: true, paths: true };
-export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', bigRoads: 'normal', maxGrade: 0, cycleways: true, heat: false, cobbles: false, sac: 3, trails: false, nature: false, quiet: false, allow: { ...ALLOW_ALL } };
+export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', bigRoads: 'normal', maxGrade: 0, cycleways: true, cycleStrict: false, heat: false, cobbles: false, sac: 3, trails: false, nature: false, quiet: false, allow: { ...ALLOW_ALL } };
 /** SAC difficulty steps offered for hiking (OSM sac_scale: T1 hiking … T6 difficult alpine) */
 export const SAC_STEPS = [2, 3, 4, 6] as const;
 
@@ -94,7 +96,7 @@ export function optionsToParams(o: RouteOptions): Record<string, number> {
   if (!o.cycleways) {
     p.nk_cycle = 0;
     delete p.nk_cycle_pen;
-  }
+  } else if (o.cycleStrict) p.nk_cycle = 2;
   if (o.maxGrade > 0) {
     // climbing above the limit costs a lot; below it, as the climbs option says
     p.nk_uphillcutoff = o.maxGrade;
@@ -145,6 +147,7 @@ export function paramsToOptions(p: Record<string, string | number | boolean> = {
   return {
     surface: surfaceOf(n('nk_surface') ?? 0, n('nk_surf_k')),
     cycleways: n('nk_cycle') !== 0,
+    cycleStrict: n('nk_cycle') === 2,
     heat: n('nk_heat') === 1,
     cobbles: n('nk_cobble') === 1,
     maxGrade: cost != null && cost >= 600 && cutoff ? cutoff : 0,
