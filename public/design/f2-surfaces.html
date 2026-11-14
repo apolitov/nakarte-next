@@ -33,7 +33,7 @@ h1{font-size:22px;margin:0 0 4px}
 </head>
 <body>
 <h1>Surface, more explicit</h1>
-<p class="lead">The same 18 km route drawn several ways. Today surface is a colour in the summary, black dashes under the profile and dashes on the map line: three languages for one thing. Options 1, 2 and 6 together are the proposal; 3 and 4 are for comparison.</p>
+<p class="lead">The same 18 km route drawn several ways (shapes and surfaces drawn by hand, not real routing). Today surface is a colour in the summary, black dashes under the profile and dashes on the map line: three languages for one thing. Options 1, 2 and 6 together are the proposal; 3 and 4 are for comparison.</p>
 <div class="grid">
 
 <section class="st"><h2>Now</h2><p class="why">Summary in colour, profile and map in dashes. On a small map scale the dashes merge into a line.</p>
@@ -74,6 +74,18 @@ h1{font-size:22px;margin:0 0 4px}
  <p class="words"><span class="tag">off asphalt</span> 5 stretches, 8.1 km; longest 2.1 km gravel at km 7</p>
 </div></section>
 
+<section class="st"><h2>7a · Two-colour line: grade thick, surface thin on top</h2><p class="why">Grade 9 px, surface 3 px in the middle. Both read at once, no switch; asphalt shows as a dark core.</p>
+<div class="card"><svg class="map" viewBox="0 0 400 120" id="m7a"></svg></div></section>
+
+<section class="st"><h2>7b · Same, with a light gap between</h2><p class="why">A 1 px light seam around the core keeps dark grades (red, black) and dark surfaces (asphalt, dirt) apart.</p>
+<div class="card"><svg class="map" viewBox="0 0 400 120" id="m7b"></svg></div></section>
+
+<section class="st"><h2>7c · Asphalt without a core</h2><p class="why">Asphalt, the usual case, draws no core: only what is off asphalt gets the thin line, so it stands out.</p>
+<div class="card"><svg class="map" viewBox="0 0 400 120" id="m7c"></svg></div></section>
+
+<section class="st"><h2>7 · At a small scale (zoomed out, phone)</h2><p class="why">7a and 7c with the whole line at 5 px instead of 9: the core shrinks to 2 px.</p>
+<div class="card"><div class="cmp"><div><p class="k">7a</p><svg class="map" viewBox="0 0 400 120" id="m7as"></svg></div><div><p class="k">7c</p><svg class="map" viewBox="0 0 400 120" id="m7cs"></svg></div></div></div></section>
+
 </div>
 <script>
 const C={paved:'#141414',compact:'#7d8b99',unpaved:'#c99a1e',ground:'#9a5a2c',path:'#4e8a3a'};
@@ -105,6 +117,13 @@ const m2=document.getElementById('m2');surf(m2);
 document.querySelectorAll('.tog span').forEach(s=>s.onclick=()=>{document.querySelectorAll('.tog span').forEach(x=>x.classList.toggle('on',x===s));s.dataset.m==='surface'?surf(m2):now(m2);});
 (function(svg){bg(svg);pieces().forEach((p,i)=>{line(svg,d(p.t0,p.t1),{stroke:C[p.c],'stroke-width':10});line(svg,d(p.t0,p.t1),{stroke:GR[i],'stroke-width':4.5});});})(document.getElementById('m3'));
 (function(svg){bg(svg);pieces().forEach((p,i)=>{const off=p.c!=='paved';line(svg,d(p.t0,p.t1),{stroke:'#fff','stroke-width':off?11:7});if(off)line(svg,d(p.t0,p.t1),{stroke:'#e2b400','stroke-width':11,'stroke-opacity':.55});line(svg,d(p.t0,p.t1),{stroke:GR[i],'stroke-width':4});});})(document.getElementById('m4'));
+function dual(svg,w,core,gap,skipPaved){bg(svg);pieces().forEach((p,i)=>{const dd=d(p.t0,p.t1);line(svg,dd,{stroke:'#fff','stroke-width':w+3});line(svg,dd,{stroke:GR[i],'stroke-width':w});
+ if(skipPaved&&p.c==='paved')return; if(gap)line(svg,dd,{stroke:'#fff','stroke-width':core+2,'stroke-opacity':.85}); line(svg,dd,{stroke:C[p.c],'stroke-width':core});});}
+dual(document.getElementById('m7a'),9,3,false,false);
+dual(document.getElementById('m7b'),9,3,true,false);
+dual(document.getElementById('m7c'),9,3,true,true);
+dual(document.getElementById('m7as'),5,2,false,false);
+dual(document.getElementById('m7cs'),5,2,true,true);
 </script>
 </body>
 </html>
