@@ -572,7 +572,8 @@
     const got = hp.get('s') ? await loadShort(hp.get('s')!) : null;
     // a link that could not be opened says so instead of showing an empty route
     if (got) track('link_open', { kind: 'short', value: typeof got === 'object' ? 'ok' : got === 'missing' ? 'missing' : 'error' });
-    else if (hp.get('r')) track('link_open', { kind: 'long', value: 'ok' });
+    // a reload of a tab with its own route in the address is not a link someone opened
+    else if (hp.get('r') && !(fromLink && sameSaved(fromLink))) track('link_open', { kind: 'long', value: 'ok' });
     if (got === 'missing') say(t('toast.linkMissing'), true);
     else if (got === 'failed') {
       say(t('toast.linkFailed'), true);
@@ -588,6 +589,7 @@
         route.load({ ...short, id: newId('r'), updated: Date.now() });
         say(t('toast.fromLink'));
       }
+      openedShort = { id: hp.get('s')!, param: routeParam() };
       fitPoints(short.waypoints);
       fitWhenReady = true;
       if (hp.get('g') === '1') garminOpen = true;
@@ -1208,8 +1210,25 @@
       /* no storage */
     }
     // a short link that failed to open stays in the address, so a reload tries it again
-    history.replaceState(null, '', formatHash({ zoom: map.getZoom(), lat: c.lat, lng: c.lng, layers: [base, ...overlays] }) + (pendingShort ? `&s=${pendingShort}` : ''));
+    history.replaceState(null, '', formatHash({ zoom: map.getZoom(), lat: c.lat, lng: c.lng, layers: [base, ...overlays] }) + (pendingShort ? `&s=${pendingShort}` : routeInHash()));
   }
+
+  /** The address always holds the route on screen, so copying it from the browser shares the route:
+   *  the short link it was opened from while unchanged (it keeps the name and checkpoints), else r=. */
+  let openedShort: { id: string; param: string } | null = null;
+  const routeParam = () => routeToParam({ profile: route.profile, waypoints: route.waypoints, params: route.params });
+  function routeInHash(): string {
+    if (route.waypoints.length < 2) return '';
+    const p = routeParam();
+    if (openedShort && openedShort.param === p) return `&s=${openedShort.id}`;
+    return '&r=' + encodeURIComponent(p);
+  }
+  let hashTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    void route.version;
+    clearTimeout(hashTimer);
+    hashTimer = setTimeout(syncHash, 300);
+  });
 
   function refreshTracks() {
     (map?.getSource('tracks') as maplibregl.GeoJSONSource | undefined)?.setData(trackToGeoJSON(tracks));
