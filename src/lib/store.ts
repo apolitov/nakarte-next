@@ -15,6 +15,10 @@ export interface RouteDoc {
   id: string;
   /** what made the stored legs: ROUTING_VER of the router rules, or 'track' (the line of an imported track) */
   routing?: string;
+  /** last send to Garmin Connect (and the device, when sent to one) */
+  garmin?: { at: number; device?: string };
+  /** last GPX download */
+  gpxAt?: number;
   kind: 'route';
   name: string;
   profile: string;

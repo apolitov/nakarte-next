@@ -22,6 +22,7 @@
     onexporttrack,
     onremovetrack,
     onplace,
+    onall,
   }: {
     routes: RouteDoc[];
     tracks: Track[];
@@ -36,6 +37,7 @@
     onexporttrack: (t: Track) => void;
     onremovetrack: (t: Track) => void;
     onplace: (trackId: string) => void;
+    onall?: () => void;
   } = $props();
 
   /** id of the route or track whose deletion is being confirmed */
@@ -62,6 +64,9 @@
 </script>
 
 <div class="mine">
+  {#if onall && routes.length > 1}
+    <button class="allr" onclick={onall} data-tip={t('mine.allTip')}><Icon name="fit" size={14} />{t('mine.all')} <span>{routes.length}</span></button>
+  {/if}
   {#each groups as g (g.id)}
     <h3>{g.title} <span class="cnt">{g.items.length}</span></h3>
     <ul class="list">
@@ -113,6 +118,27 @@
 </div>
 
 <style>
+  .allr {
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 4px 10px;
+    margin: 4px 0 2px;
+    cursor: pointer;
+  }
+  .allr span {
+    color: var(--soft);
+  }
+  .allr:hover {
+    background: var(--tint);
+  }
   h3 {
     margin: 8px 0 2px;
     font-size: 12px;

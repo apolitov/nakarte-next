@@ -25,6 +25,7 @@
   import GarminDialog from './ui/GarminDialog.svelte';
   import AccountMenu from './ui/AccountMenu.svelte';
   import RouteSummary from './ui/RouteSummary.svelte';
+  import RoutesScreen from './ui/RoutesScreen.svelte';
   import RouteSettings from './ui/RouteSettings.svelte';
   import Segmented from './ui/Segmented.svelte';
   import Fold from './ui/Fold.svelte';
@@ -859,9 +860,12 @@
     };
     exportTrack(t);
     track('gpx_download', { profile: route.profile, km: kmBucket(route.profileData.length) });
+    route.gpxAt = Date.now();
+    saveRoute();
   }
 
   let garminOpen = $state(false);
+  let routesOpen = $state(false);
 
   /** Sign-in leaves the page: the open route goes to the server and comes back by its id. */
   async function signIn(reopenGarmin = false) {
@@ -1072,7 +1076,7 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (helpOpen || garminOpen || nameOpen || viewer != null) return; // dialogs handle their own keys
+    if (helpOpen || garminOpen || nameOpen || routesOpen || viewer != null) return; // dialogs handle their own keys
     const t = e.target as HTMLElement;
     const inField = !!t.closest?.('input:not([type=radio]):not([type=checkbox]):not([type=range]):not([type=file]), textarea, select, [contenteditable]');
     if (e.key === 'Escape') {
@@ -1559,7 +1563,7 @@
         <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
           onopen={openRoute} ondelete={deleteRoute} onnew={newRoute} onopenfile={() => fileInput.click()}
           onopentrack={openTrack} onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
-          onplace={(id) => (placing = placing === id ? null : id)} />
+          onplace={(id) => (placing = placing === id ? null : id)} onall={() => (routesOpen = true)} />
       </div>
     {/if}
 
@@ -1581,7 +1585,7 @@
           <MyRoutes routes={savedRoutes} {tracks} currentId={route.docId} {placing}
             onopen={openRoute} ondelete={deleteRoute} onnew={newRoute} onopenfile={() => fileInput.click()}
             onopentrack={openTrack} onzoomtrack={zoomTo} onexporttrack={exportTrack} onremovetrack={removeTrack}
-            onplace={(id) => (placing = placing === id ? null : id)} />
+            onplace={(id) => (placing = placing === id ? null : id)} onall={() => (routesOpen = true)} />
         </div>
       </Fold>
       {/if}
@@ -1655,7 +1659,10 @@
       onshow={(p) => map?.easeTo({ center: [p.lng, p.lat], duration: 400 })} />
   {/if}
   {#if consentOpen}<ConsentBanner onclose={() => (consentOpen = false)} />{/if}
-  <GarminDialog bind:open={garminOpen} loggedIn={!!user} getRoute={garminRoute} onlogin={() => signIn(true)} />
+  <RoutesScreen bind:open={routesOpen} routes={savedRoutes} currentId={route.docId} onopen={openRoute}
+    ondelete={(rs) => rs.forEach(deleteRoute)} />
+  <GarminDialog bind:open={garminOpen} loggedIn={!!user} getRoute={garminRoute} onlogin={() => signIn(true)}
+    onsent={(device) => { route.garmin = { at: Date.now(), ...(device ? { device } : {}) }; saveRoute(); }} />
   <HelpDialog bind:open={helpOpen} {shortcuts} />
   <KeyTip />
 </div>

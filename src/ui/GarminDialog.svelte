@@ -3,11 +3,12 @@
   import { t } from '../lib/i18n';
   // Send to Garmin (beta): connect a Garmin account once, then send routes as courses.
   // The Garmin password goes to our server once for the login and is not stored there.
-  let { open = $bindable(false), loggedIn, getRoute, onlogin }: {
+  let { open = $bindable(false), loggedIn, getRoute, onlogin, onsent }: {
     open: boolean;
     loggedIn: boolean;
     getRoute: () => { name: string; gpx: string; profile: string } | null;
     onlogin: () => void;
+    onsent?: (device?: string) => void;
   } = $props();
 
   const API = `${import.meta.env.BASE_URL}api/garmin`;
@@ -100,6 +101,7 @@
     try {
       result = await call('/send', json({ ...r, to_device: deviceId > 0, device_id: deviceId || null }));
       step = 'done';
+      onsent?.(result?.device || undefined);
       track('garmin_send', { kind: deviceId > 0 ? 'device' : 'connect' });
     } catch (err) {
       error = (err as Error).message;

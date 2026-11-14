@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { FERRY_COLOR } from '../lib/profile';
   import { t } from '../lib/i18n';
   import type { Profile } from '../lib/profile';
   import { routeMinutes, formatDuration, BIKES } from '../lib/eta';
-  import { surfaceShares, surfaceDetails, SEG_SHORT, STRAIGHT_COLOR, dec, type SegClass } from '../lib/timeline';
+  import { surfaceShares, surfaceDetails, segColor, SEG_SHORT, dec, type SegClass } from '../lib/timeline';
   import { track } from '../lib/analytics';
   import { PROFILES } from '../lib/brouter';
 
@@ -20,18 +19,7 @@
   const typeTitle = $derived(PROFILES.find((p) => p.id === profileId)?.title ?? '');
   const shares = $derived(surfaceShares(profile.dist, classes));
 
-  // colours instead of dash patterns: a dashed bar this thin cannot be read
-  const SURF_COLOR: Record<SegClass, string> = {
-    paved: 'var(--ink)',
-    compact: '#7d8b99',
-    unpaved: '#c99a1e',
-    ground: '#9a5a2c',
-    path: '#4e8a3a',
-    ferry: FERRY_COLOR,
-    straight: STRAIGHT_COLOR,
-    unknown: 'var(--line)',
-  } as Record<SegClass, string>;
-  const color = (c: SegClass) => SURF_COLOR[c] ?? 'var(--line)';
+  const color = segColor;
   const pct = (s: number) => Math.max(1, Math.round(s * 100));
 
   // the OSM tags behind each surface class, on request

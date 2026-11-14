@@ -24,6 +24,9 @@ export class RouteState {
   docId = $state(newId('r'));
   /** when the route was first made (0: not saved yet) */
   created = 0;
+  /** carried through as they are: last Garmin send, last GPX download (the routes screen shows them) */
+  garmin: RouteDoc['garmin'] = undefined;
+  gpxAt: number | undefined = undefined;
   name = $state('');
   waypoints = $state<Waypoint[]>([]);
   checkpoints = $state<Checkpoint[]>([]);
@@ -83,6 +86,8 @@ export class RouteState {
         ? this.legs.map((l) => packLeg((l as { leg: Leg }).leg))
         : undefined,
       created: this.created || (this.created = Date.now()),
+      ...(this.garmin ? { garmin: this.garmin } : {}),
+      ...(this.gpxAt ? { gpxAt: this.gpxAt } : {}),
       updated: Date.now(),
     };
   }
@@ -91,6 +96,8 @@ export class RouteState {
     this.docId = doc.id;
     this.legsFrom = doc.routing ?? '';
     this.created = doc.created ?? doc.updated ?? 0;
+    this.garmin = doc.garmin;
+    this.gpxAt = doc.gpxAt;
     // a made-up name stays a placeholder: the route still gets asked for a real one
     // (older routes carry no mark: a name of the "Route 12 km, 13 Nov" pattern counts as made up)
     this.name = doc.autoName || /^Route [\d.]+ km, /.test(doc.name) ? '' : doc.name;

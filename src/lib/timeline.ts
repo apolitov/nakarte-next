@@ -20,6 +20,18 @@ export const SEG_SHORT: Record<SegClass, string> = {
 };
 /** Dash pattern for straight legs (the rest come from SURFACE_DASH). */
 export const STRAIGHT_COLOR = '#6b7280';
+/** surface colours of the thin bars (summary, routes screen): a dashed bar this thin cannot be read */
+const SEG_COLOR: Record<SegClass, string> = {
+  paved: 'var(--ink)',
+  compact: '#7d8b99',
+  unpaved: '#c99a1e',
+  ground: '#9a5a2c',
+  path: '#4e8a3a',
+  ferry: '#2f7fc1',
+  straight: STRAIGHT_COLOR,
+  unknown: 'var(--line)',
+};
+export const segColor = (c: SegClass) => SEG_COLOR[c] ?? 'var(--line)';
 
 export interface TLPoint {
   lng: number;
