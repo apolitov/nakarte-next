@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { FERRY_COLOR, gradeColor, SURFACE_DASH, type Profile } from '../lib/profile';
+  import { FERRY_COLOR, gradeColor, SURFACE_STYLE, type Profile } from '../lib/profile';
   import { kindOf } from '../lib/checkpointKinds';
   import { SEG_SHORT, STRAIGHT_COLOR, dec, type SegClass } from '../lib/timeline';
 
@@ -172,17 +172,16 @@
     }
     ctx.restore();
 
-    // surface strip: the dash patterns of the map line
+    // surface strip: the surface colours of the summary bar and of the core of the map line
     const sy = bottom + 10;
-    ctx.lineCap = 'round';
-    ctx.lineWidth = 5;
+    ctx.lineCap = 'butt';
+    ctx.lineWidth = 6;
     for (let i0 = 1; i0 < n; ) {
       const c = classes[i0];
       let i1 = i0;
       while (i1 + 1 < n && classes[i1 + 1] === c) i1++;
-      const d = c === 'straight' ? [2, 2] : c === 'unknown' ? [1, 0] : SURFACE_DASH[c];
-      ctx.strokeStyle = c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? grid : c === 'ferry' ? FERRY_COLOR : ink;
-      ctx.setLineDash(d[1] === 0 ? [] : d.map((x) => x * 5));
+      ctx.strokeStyle = c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? grid : c === 'paved' ? ink : SURFACE_STYLE[c].color;
+      ctx.setLineDash(c === 'straight' ? [6, 4] : []);
       ctx.beginPath();
       ctx.moveTo(X(dist[i0 - 1]), sy);
       ctx.lineTo(X(dist[i1]), sy);

@@ -3,7 +3,7 @@
   import type { Profile } from '../lib/profile';
   import { FERRY_COLOR, SURFACE_DASH } from '../lib/profile';
   import { kindSvg } from '../lib/checkpointKinds';
-  import { limitEvents, rails, dec, STRAIGHT_COLOR, type SegClass, type TimelineEvent } from '../lib/timeline';
+  import { limitEvents, rails, dec, segColor, type SegClass, type TimelineEvent } from '../lib/timeline';
   import Icon from './Icon.svelte';
 
   let {
@@ -136,10 +136,8 @@
               <span class="eico poi" aria-hidden="true">{e.icon}</span>
             {:else}
               {@const c = e.surface ?? 'unknown'}
-              {@const d = c === 'straight' ? [2, 2] : c === 'unknown' ? [1, 0] : SURFACE_DASH[c]}
-              <span class="eico"><svg width="18" height="6" aria-hidden="true"><line x1="2" y1="3" x2="16" y2="3"
-                stroke={c === 'straight' ? STRAIGHT_COLOR : c === 'ferry' ? FERRY_COLOR : 'currentColor'} stroke-width="3" stroke-linecap="round"
-                stroke-dasharray={d[1] === 0 ? 'none' : d.map((v) => v * 3).join(' ')} /></svg></span>
+              <span class="eico"><svg width="18" height="6" aria-hidden="true"><line x1="1" y1="3" x2="17" y2="3"
+                stroke={segColor(c)} stroke-width="4" stroke-dasharray={c === 'straight' ? '4 3' : 'none'} /></svg></span>
             {/if}
             <span class="tx">{e.label}</span>
             <span class="km num">{kmText(e.d)}</span>

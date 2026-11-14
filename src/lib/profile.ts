@@ -56,11 +56,12 @@ export function surfaceClass(s: Pick<WaySpan, 'surface' | 'highway' | 'tracktype
 export const FERRY_COLOR = '#2f7fc1';
 
 export const SURFACE_STYLE: Record<SurfaceClass, { color: string; title: string }> = {
-  paved: { color: '#5b6b7a', title: t('surfLong.paved') },
-  compact: { color: '#c9a227', title: t('surfLong.compact') },
-  unpaved: { color: '#d4772c', title: t('surfLong.unpaved') },
-  ground: { color: '#8c5a2b', title: t('surfLong.ground') },
-  path: { color: '#3d9a46', title: t('surfLong.path') },
+  // the same colours as the summary bar, the profile strip and the surface core of the route line
+  paved: { color: '#26262b', title: t('surfLong.paved') },
+  compact: { color: '#7d8b99', title: t('surfLong.compact') },
+  unpaved: { color: '#c99a1e', title: t('surfLong.unpaved') },
+  ground: { color: '#9a5a2c', title: t('surfLong.ground') },
+  path: { color: '#4e8a3a', title: t('surfLong.path') },
   ferry: { color: FERRY_COLOR, title: t('surfLong.ferry') },
   unknown: { color: '#b3b3b8', title: t('surfLong.unknown') },
 };
