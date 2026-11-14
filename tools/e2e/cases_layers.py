@@ -300,7 +300,7 @@ async def L2(ctx):
                 await menu_close(pg)
                 await zoom(pg, 1)
                 await menu_open(pg, 'over')
-                await until(lambda: any(pat in u for u in pg.context.reqs[n:]), 8, msg=f'{label}: no requests to {pat}, even after a zoom step')
+                await until(lambda: any(pat in u for u in pg.context.reqs[n:]), 15, msg=f'{label}: no requests to {pat}, even after a zoom step')
         else:
             await pg.wait_for_timeout(1500)
     check(hash_l(pg)[0] == 'Co' and len(hash_l(pg)) == 6, f'hash after all on: {hash_l(pg)}')

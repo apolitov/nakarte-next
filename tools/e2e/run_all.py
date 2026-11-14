@@ -22,9 +22,12 @@ for name in pick:
     t0 = time.time()
     env = dict(os.environ, BASE=BASE, VIEWPORT=os.environ.get('VIEWPORT', 'all'), OUT=f'/tmp/nk-e2e-{name}',
                REPORT=f'/tmp/nk-e2e-{name}/report.md')
+    pathlib.Path(env['REPORT']).unlink(missing_ok=True)  # a stale report must not stand in for a crashed run
     r = subprocess.run([sys.executable, '-u', str(ROOT / 'tools/e2e' / SUITES[name])], cwd=ROOT, env=env, capture_output=True, text=True)
     table = [l for l in r.stdout.splitlines() if l.startswith('|')]
-    fails = sum(l.count('FAIL') + l.count('ERROR') for l in table)
+    if not table and os.path.exists(env['REPORT']):  # base prints plain lines; its table is in the report file
+        table = [l for l in open(env['REPORT'], encoding='utf-8').read().splitlines() if l.startswith('|')]
+    fails = sum(l.count('FAIL') + l.count('ERROR') for l in table) if table else 1  # a crashed suite is a failure
     total_fail += fails
     out += [f'## {name} ({SUITES[name]}), {round((time.time() - t0) / 60)} min, {fails} failing cells', ''] + (table or ['(no table printed)', '', '```', r.stdout[-2000:], r.stderr[-2000:], '```']) + ['']
     print(f'{name}: {fails} failing cells, {round(time.time() - t0)} s', flush=True)
