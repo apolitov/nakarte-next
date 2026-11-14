@@ -121,7 +121,7 @@
     if (!route.waypoints.length) return;
     saveRoute();
     const doc = route.toDoc();
-    route.load({ ...doc, id: newId('r'), name: `${doc.name} · ${t('copy.suffix')}`, created: Date.now(), updated: Date.now() });
+    route.load({ ...doc, id: newId('r'), name: `${doc.name} · ${t('route.copySuffix')}`, created: Date.now(), updated: Date.now() });
     saveRoute();
     say(t('route.copied'));
   }
@@ -1646,7 +1646,8 @@
 
 <svelte:window onkeydown={onKey} />
 <NameDialog bind:open={nameOpen} profile={route.profileData} profileId={route.profile} typeTitle={profileTitle}
-  suggestion={route.autoName()} suggestions={nameSuggestions} onsave={nameGiven} onback={backToEditing} />
+  suggestion={route.autoName()} suggestions={nameSuggestions} onsave={nameGiven} onback={backToEditing}
+  ondiscard={() => { afterName = null; deleteCurrent(); }} />
 <div class="app" role="application" ondragover={(e) => e.preventDefault()} ondrop={onDrop}>
   <aside class="side" class:sheet-open={sheetOpen} class:editing aria-label={t('route.panel')}>
     {#if mobile}
@@ -1670,6 +1671,11 @@
       <div class="pview">
         <button class="back" onclick={() => (panelView = 'main')}><Icon name="chevron" size={14} stroke={2.4} />{route.name || (route.waypoints.length ? route.autoName() : t('route.newName'))}</button>
         <div class="pvh"><h2>{t('ss.all')}</h2><button class="reset" onclick={() => setOpt({ ...DEFAULT_OPTIONS, allow: { ...DEFAULT_OPTIONS.allow } })}>{t('ss.reset')}</button></div>
+        <!-- settings belong to the route type: switch it here too; the line says what differs from its defaults -->
+        <Segmented name="kind2" label={t('route.typeLabel')} value={route.profile}
+          items={PROFILES.map((p) => [p.id, p.title] as const)}
+          onchange={(v) => changeProfile(v as ProfileId)} />
+        <p class="pvs">{optSummary}</p>
         <RouteSettings options={route.options} profile={route.profile} hike={route.profile === 'nk-hike'} cycle={route.profile === 'nk-road' || route.profile === 'nk-gravel'} onchange={setOpt} />
       </div>
     {:else if panelView === 'loop'}
@@ -1756,6 +1762,7 @@
             <button class="start" onclick={() => fileInput.click()}><Icon name="file" size={18} /><span>{t('start.file')}</span></button>
           </div>
           {#if !savedRoutes.length}<p>{mobile ? t('start.hintTouch') : t('start.hint')}</p>{/if}
+        <button class="setl" onclick={() => (panelView = 'settings')}><span>{t('set.title')}</span> {optSummary}</button>
         </div>
         <!-- no route open: the panel is the list of my routes and tracks -->
         <div class="browse">
@@ -2098,6 +2105,30 @@
     font-size: 18px;
     font-weight: 650;
     letter-spacing: -0.01em;
+  }
+  .pvs {
+    margin: 2px 0 4px;
+    font-size: 12.5px;
+    color: var(--soft);
+  }
+  .setl {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font: 400 13px/1.4 var(--sans);
+    color: var(--soft);
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--tint);
+    margin-bottom: 6px;
+  }
+  .setl span {
+    color: var(--ink);
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .setl:hover {
+    background: var(--tint2);
   }
   .reset {
     font: 500 12.5px/1 var(--sans);

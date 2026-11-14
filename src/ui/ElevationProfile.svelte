@@ -174,7 +174,7 @@
 
     // surface strip: the dash patterns of the map line
     const sy = bottom + 10;
-    ctx.lineCap = 'butt';
+    ctx.lineCap = 'round';
     ctx.lineWidth = 5;
     for (let i0 = 1; i0 < n; ) {
       const c = classes[i0];
@@ -182,7 +182,7 @@
       while (i1 + 1 < n && classes[i1 + 1] === c) i1++;
       const d = c === 'straight' ? [2, 2] : c === 'unknown' ? [1, 0] : SURFACE_DASH[c];
       ctx.strokeStyle = c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? grid : c === 'ferry' ? FERRY_COLOR : ink;
-      ctx.setLineDash(d[1] === 0 ? [] : d.map((x) => Math.max(1, x * 5)));
+      ctx.setLineDash(d[1] === 0 ? [] : d.map((x) => x * 5));
       ctx.beginPath();
       ctx.moveTo(X(dist[i0 - 1]), sy);
       ctx.lineTo(X(dist[i1]), sy);

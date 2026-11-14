@@ -156,13 +156,19 @@ export function gradeColor(g: number | null, routeType = 'nk-road'): string {
   return c;
 }
 /** Dash pattern per surface, in line widths (MapLibre) — the profile strip reuses it. */
+/**
+ * Surface patterns, in line widths, drawn with round caps everywhere (map line, profile strip,
+ * legends): a 0 dash is a dot, and every dash grows by one width, so gaps are wider than they read.
+ * Told apart by shape, not only by dash length (14.11.2026): asphalt solid, compacted long dashes,
+ * gravel dash and dot, dirt dots, trail pairs of dots.
+ */
 export const SURFACE_DASH: Record<SurfaceClass, number[]> = {
   paved: [1, 0],
-  compact: [4, 1.5],
-  unpaved: [2, 1.5],
-  ground: [1, 1.2],
-  path: [0.3, 1.2],
-  ferry: [1.5, 1.5],
+  compact: [3, 2.2],
+  unpaved: [2.2, 2.2, 0, 2.2],
+  ground: [0, 2],
+  path: [0, 1.8, 0, 3.6],
+  ferry: [1.5, 2.5],
   unknown: [1, 0],
 };
 

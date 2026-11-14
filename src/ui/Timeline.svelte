@@ -137,9 +137,9 @@
             {:else}
               {@const c = e.surface ?? 'unknown'}
               {@const d = c === 'straight' ? [2, 2] : c === 'unknown' ? [1, 0] : SURFACE_DASH[c]}
-              <span class="eico"><svg width="18" height="6" aria-hidden="true"><line x1="0" y1="3" x2="18" y2="3"
-                stroke={c === 'straight' ? STRAIGHT_COLOR : c === 'ferry' ? FERRY_COLOR : 'currentColor'} stroke-width="3"
-                stroke-dasharray={d[1] === 0 ? 'none' : d.map((v) => v * 3.5).join(' ')} /></svg></span>
+              <span class="eico"><svg width="18" height="6" aria-hidden="true"><line x1="2" y1="3" x2="16" y2="3"
+                stroke={c === 'straight' ? STRAIGHT_COLOR : c === 'ferry' ? FERRY_COLOR : 'currentColor'} stroke-width="3" stroke-linecap="round"
+                stroke-dasharray={d[1] === 0 ? 'none' : d.map((v) => v * 3).join(' ')} /></svg></span>
             {/if}
             <span class="tx">{e.label}</span>
             <span class="km num">{kmText(e.d)}</span>

@@ -82,9 +82,9 @@
       <span class="sp"></span>
       {#each present as c (c)}
         {@const d = dash(c)}
-        <span class="lg"><svg width="24" height="8" aria-hidden="true"><line x1="0" y1="4" x2="24" y2="4"
-          stroke={c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? 'var(--line)' : c === 'ferry' ? FERRY_COLOR : 'currentColor'} stroke-width="3"
-          stroke-dasharray={d[1] === 0 ? 'none' : d.map((v) => v * 3.5).join(' ')} /></svg>{SEG_SHORT[c]}</span>
+        <span class="lg"><svg width="26" height="8" aria-hidden="true"><line x1="2" y1="4" x2="24" y2="4"
+          stroke={c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? 'var(--line)' : c === 'ferry' ? FERRY_COLOR : 'currentColor'} stroke-width="3" stroke-linecap="round"
+          stroke-dasharray={d[1] === 0 ? 'none' : d.map((v) => v * 3).join(' ')} /></svg>{SEG_SHORT[c]}</span>
       {/each}
       {#if maxGrade}
         <span class="lg"><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" rx="2" fill="#e4e2dc" /><path

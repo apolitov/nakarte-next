@@ -17,6 +17,7 @@
     suggestions = [],
     onsave,
     onback,
+    ondiscard,
   }: {
     open: boolean;
     profile: Profile;
@@ -26,16 +27,20 @@
     suggestions?: string[];
     onsave: (name: string) => void;
     onback: () => void;
+    /** throw the route away instead of naming it (asks once more first) */
+    ondiscard?: () => void;
   } = $props();
 
   let dlg: HTMLDialogElement;
   let input: HTMLInputElement | undefined = $state();
   let name = $state('');
+  let sure = $state(false);
   const ok = $derived(name.trim().length > 0);
 
   $effect(() => {
     if (open) {
       name = '';
+      sure = false;
       dlg?.showModal();
       queueMicrotask(() => input?.focus());
     } else dlg?.close();
@@ -47,6 +52,12 @@
     open = false;
     track('route_named', { kind: suggestions.includes(name.trim()) ? 'suggested' : 'own' });
     onsave(name.trim());
+  }
+  function discard() {
+    if (!sure) return void (sure = true);
+    open = false;
+    track('route_discarded');
+    ondiscard?.();
   }
   function back() {
     open = false;
@@ -73,6 +84,7 @@
       <div class="btns">
         <button type="submit" class="pri" aria-disabled={!ok}>{t('name.save')}</button>
         <button type="button" class="sec" onclick={back}>{t('name.back')}</button>
+        {#if ondiscard}<button type="button" class="disc" class:sure onclick={discard}>{sure ? t('name.discardSure') : t('name.discard')}</button>{/if}
       </div>
     </div>
     <aside class="facts" aria-label={t('name.facts')}>
@@ -168,6 +180,23 @@
   }
   .sec:hover {
     background: var(--tint);
+  }
+  .disc {
+    margin-left: auto;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font: 500 14px/1 var(--sans);
+    color: var(--danger);
+    cursor: pointer;
+  }
+  .disc:hover {
+    background: var(--tint);
+  }
+  .disc.sure {
+    background: var(--danger);
+    color: #fff;
+    font-weight: 600;
   }
   .facts {
     padding: 18px 16px;
