@@ -340,7 +340,7 @@ const en = {
   'layer.rwgpsHeat': 'Heatmap (Ride with GPS)',
   'help.guide': 'How routing works, line colours and pass grades',
   'layerGroup.satellite': 'Satellite',
-  'layerGroup.yandex': 'Yandex',
+  'layerGroup.maps': 'Other maps',
   'layerGroup.routes': 'Routes',
   'layer.yandexAttr': '© Yandex',
 
