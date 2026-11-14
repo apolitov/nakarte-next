@@ -58,6 +58,8 @@ export interface RouteOptions {
   cycleways: boolean;
   /** of the router's alternatives, take the one more people ride (Ride with GPS heatmap) */
   heat: boolean;
+  /** bikes: avoid sett and cobblestones (nk_cobble); off by default, old town centres are often cobbled */
+  cobbles: boolean;
   /** hiking: hardest path allowed on the SAC scale (T2…T6); 3 is the profile default */
   sac: number;
   /** hiking: keep to signed hiking routes */
@@ -80,7 +82,7 @@ export const ALLOW_FOR: Record<AllowKey, string[]> = {
   paths: ['nk-road', 'nk-gravel'],
 };
 const ALLOW_ALL: Record<AllowKey, boolean> = { steps: true, ferry: true, busy: true, unpaved: true, paths: true };
-export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', bigRoads: 'normal', maxGrade: 0, cycleways: true, heat: false, sac: 3, trails: false, nature: false, quiet: false, allow: { ...ALLOW_ALL } };
+export const DEFAULT_OPTIONS: RouteOptions = { surface: 0, climbs: 'normal', bigRoads: 'normal', maxGrade: 0, cycleways: true, heat: false, cobbles: false, sac: 3, trails: false, nature: false, quiet: false, allow: { ...ALLOW_ALL } };
 /** SAC difficulty steps offered for hiking (OSM sac_scale: T1 hiking … T6 difficult alpine) */
 export const SAC_STEPS = [2, 3, 4, 6] as const;
 
@@ -113,6 +115,7 @@ export function optionsToParams(o: RouteOptions): Record<string, number> {
   if (o.bigRoads && o.bigRoads !== 'normal') p.nk_big = BIG_K[o.bigRoads];
   // not a profile parameter either: fetchLeg picks among alternatives by the heatmap
   if (o.heat) p.nk_heat = 1;
+  if (o.cobbles) p.nk_cobble = 1;
   // hiking only (variables of the stock hiking-mountain profile); defaults are not sent
   if (o.sac !== 3) p.SAC_scale_limit = o.sac;
   if (o.trails) p.hiking_routes_preference = 1;
@@ -143,6 +146,7 @@ export function paramsToOptions(p: Record<string, string | number | boolean> = {
     surface: surfaceOf(n('nk_surface') ?? 0, n('nk_surf_k')),
     cycleways: n('nk_cycle') !== 0,
     heat: n('nk_heat') === 1,
+    cobbles: n('nk_cobble') === 1,
     maxGrade: cost != null && cost >= 600 && cutoff ? cutoff : 0,
     bigRoads: (BIG_STEPS.find((k) => BIG_K[k] === (n('nk_big') ?? 1)) ?? 'normal'),
     climbs: n('nk_seek') === 1 ? 'seek' : cost == null ? 'normal' : cost === 0 ? 'any' : cost >= 600 ? 'normal' : cost >= 250 ? 'avoid' : 'less',
@@ -391,9 +395,9 @@ export function seedLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params
 /**
  * Version of the routing rules the stored legs were computed with. Legs of an older version are
  * routed again on open (the waypoints stay). Bump together with ROUTE_CACHE_VER in maps-api when the
- * nk-* profiles change the lines (w1: 14.11.2026, oneway penalty no longer cut by the cost caps; w2: cobblestone penalty).
+ * nk-* profiles change the lines (w1: 14.11.2026, oneway penalty no longer cut by the cost caps; w2: cobblestone penalty; w3: the penalty only with "Avoid cobblestones").
  */
-export const ROUTING_VER = 'w2';
+export const ROUTING_VER = 'w3';
 
 /** Compact form of a leg for storage: [lng, lat, ele] with 6 and 1 decimals. */
 export type StoredLeg = { p: [number, number, number | null][]; s: WaySpan[] };

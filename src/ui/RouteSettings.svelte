@@ -89,6 +89,13 @@
     <span class="t">{t('set.heat')}<small>{t('set.heatHint')}</small></span>
   </label>
 {/if}
+{#if !hike}
+  <label class="sw">
+    <input type="checkbox" role="switch" checked={options.cobbles} onchange={(e) => onchange({ cobbles: e.currentTarget.checked })} />
+    <span class="tr" aria-hidden="true"></span>
+    <span class="t">{t('set.cobbles')}<small>{t('set.cobblesHint')}</small></span>
+  </label>
+{/if}
 <div class="lbl"><span><label for="nk-surf">{t('set.surface')}</label><Explain label={t('set.surface')} text={t('ex.surfaceSet')} /></span><output for="nk-surf" class:on={surf !== 0}>{SURF_LABEL[surf]}</output></div>
 <input id="nk-surf" class="surf" type="range" min="-2" max="2" step="1" value={options.surface}
   aria-valuetext={SURF_LABEL[surf]}
