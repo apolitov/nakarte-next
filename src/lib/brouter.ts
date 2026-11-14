@@ -423,9 +423,9 @@ export function seedLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params
 /**
  * Version of the routing rules the stored legs were computed with. Legs of an older version are
  * routed again on open (the waypoints stay). Bump together with ROUTE_CACHE_VER in maps-api when the
- * nk-* profiles change the lines (w1: 14.11.2026, oneway penalty no longer cut by the cost caps; w2: cobblestone penalty; w3: the penalty only with "Avoid cobblestones"; w4: heatmap ties go to the shortest; w5: to the most cycle infrastructure).
+ * nk-* profiles change the lines (w1: 14.11.2026, oneway penalty no longer cut by the cost caps; w2: cobblestone penalty; w3: the penalty only with "Avoid cobblestones"; w4: heatmap ties go to the shortest; w5: to the most cycle infrastructure; w6: wood and designated paths capped like cycleways).
  */
-export const ROUTING_VER = 'w5';
+export const ROUTING_VER = 'w6';
 
 /** Compact form of a leg for storage: [lng, lat, ele] with 6 and 1 decimals. */
 export type StoredLeg = { p: [number, number, number | null][]; s: WaySpan[] };
