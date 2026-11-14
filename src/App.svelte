@@ -690,6 +690,7 @@
   function openRoute(r: RouteDoc) {
     track('routes_open');
     saveRoute();
+    panelView = 'main';
     route.load(ownDoc(r));
     fitPoints(r.waypoints);
     fitWhenReady = true;
@@ -829,6 +830,7 @@
     if (needName(newRoute)) return;
     saveRoute();
     route.reset();
+    panelView = 'main';
     editing = true;
   }
 
