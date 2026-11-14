@@ -160,9 +160,10 @@ async def finish_with_name(pg: Page, name: str):
 
 async def open_settings(pg: Page):
     await open_sheet(pg)
-    s = pg.locator('button', has_text=re.compile(r'^Settings'))
-    if await s.get_attribute('aria-expanded') != 'true':
-        await s.click()
+    if await pg.locator('.pview').count():
+        return
+    s = pg.locator('.ss .all')
+    await (s if await s.count() else pg.locator('button.setl')).first.click()
     await pg.wait_for_timeout(250)
 
 
@@ -226,6 +227,10 @@ async def make_link(pg: Page, ctx, name, click=True):
     """Draws and names a routed route; copies its short link when `click` (this makes one on the server)."""
     await draw(pg, TWO)
     await finish_with_name(pg, name)
+    await open_sheet(pg)
+    if await pg.locator('.pview').count():  # back from All settings: the summary and Copy link are in the main view
+        await pg.locator('.pview .back').click()
+        await pg.wait_for_timeout(200)
     one = await km(pg)
     await open_sheet(pg)
     btn = pg.locator('button:has-text("Copy link")')
@@ -270,7 +275,9 @@ async def V2(ctx):
     check('V2 gravel' in mine and 'V2 hike' in mine, f'names: {mine[:200]!r}')
     for nm in ('V2 gravel', 'V2 hike'):
         await reach(pg, pg.locator('.mine .name', has_text=nm), f'list item {nm}')
-    await reach(pg, pg.locator('.mine .newr').first, '+ New route button')
+    # the empty panel starts from its tiles; with a route open, the list keeps its New route button
+    nb = pg.locator('.mine .newr')
+    await reach(pg, nb.first if await nb.count() else pg.locator('.starts .start').first, 'a way to start a new route')
     await pg.locator('.mine .name', has_text='V2 gravel').click()
     await pg.wait_for_timeout(800)
     await settle(pg)

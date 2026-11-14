@@ -294,6 +294,7 @@ async def scenario(ctx):
     await pg.wait_for_timeout(500)
     await pg.click('button[aria-label="Reverse route"]')  # route_tool reverse
     await U.settle(pg)
+    await U.close_settings(pg)  # back from All settings: the route actions are in the main view
     await U.finish_with_name(pg, SECRET_NAME)  # route_named
     async with pg.expect_download(timeout=15000) as dlw:
         await pg.click('button:has-text("Download GPX")')  # gpx_download

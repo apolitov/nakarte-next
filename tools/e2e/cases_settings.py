@@ -133,7 +133,15 @@ async def out(pg: Page, id_: str):
 
 
 async def summary(pg: Page) -> str:
-    return (await pg.locator('.fh', has_text=re.compile(r'^\s*Settings')).locator('.fs').inner_text()).strip()
+    """What differs from the type's defaults: the line under the All settings title."""
+    await open_settings(pg)
+    return (await pg.locator('.pvs').inner_text()).strip()
+
+
+async def sentence(pg: Page) -> str:
+    await U.close_settings(pg)
+    await sheet(pg)
+    return (await pg.locator('.ss p').inner_text()).strip()
 
 
 def has(d: dict, **kv):
@@ -440,7 +448,7 @@ async def S8(ctx):
     await pg.wait_for_timeout(200)
     check(await pop.count() == 0, 'outside click did not close the note')
     await q['Big roads'].click()
-    await pg.locator('aside.side .fh', has_text=re.compile(r'^\s*Settings')).locator('.fl').click()  # fold header, outside the box
+    await pg.locator('.pvh h2').click()  # the view title, outside the box
     await pg.wait_for_timeout(200)
     check(await pop.count() == 0, 'note stayed after clicking elsewhere in the panel')
 
@@ -494,11 +502,11 @@ async def S10(ctx):
     check(s == exp, f'summary {s!r}, expected {exp!r}')
     for forbid in ('default', 'Gravel'):
         check(forbid not in s, f'summary still mentions {forbid!r}')
-    # collapsed: the same text stays in the fold header
-    await pg.locator('.fh', has_text=re.compile(r'^\s*Settings')).click()
-    await pg.wait_for_timeout(200)
-    check(await pg.locator('#nk-surf').count() == 0, 'Settings did not collapse')
-    check(await summary(pg) == exp, f'collapsed summary: {await summary(pg)!r}')
+    # back on the route: the sentence says the same in words
+    sent = await sentence(pg)
+    for w in ('mostly asphalt', 'as flat as possible', 'quiet roads only', 'ignoring cycleways', 'no steps'):
+        check(w in sent, f'sentence {sent!r} lacks {w!r}')
+    check(await pg.locator('#nk-surf').count() == 0, 'All settings still open after Back')
     # all changes undone: back to defaults
     await open_settings(pg)
     await change(pg, lambda: set_range(pg, 'nk-surf', 0), expect=False)
@@ -512,12 +520,12 @@ async def S10(ctx):
 
 async def S11(ctx):
     pg = await start(ctx, 'Gravel')
-    await open_settings(pg)
+    await sheet(pg)
     tl = pg.locator('section.tl')
     check(await tl.count() == 1, 'no timeline for the route')
     h = (await tl.bounding_box())['height']
     need = 200 if CUR['vp'] == 'desktop' else 150
-    check(h >= need, f'timeline squeezed to {h:.0f}px with Settings open (need {need}, viewport {CUR["vp"]})')
+    check(h >= need, f'timeline squeezed to {h:.0f}px under the settings sentence (need {need}, viewport {CUR["vp"]})')
     # it must be usable: its first row is reachable by scrolling the panel
     await tl.scroll_into_view_if_needed()
     row = pg.locator('section.tl ul li').first
@@ -527,19 +535,19 @@ async def S11(ctx):
         bb = await tl.bounding_box()
         check(bb['y'] + bb['height'] <= side['y'] + side['height'] + 1, 'timeline spills out of the panel')
     # empty state: save a route, start a new one, open Settings: hint and list must not overlap
+    await U.close_settings(pg)
     await U.finish_with_name(pg, 'E2E layout')
     await pg.wait_for_timeout(500)
     await pg.locator('.newb').first.click()
     await pg.wait_for_selector('.empty', timeout=10000)
-    await open_settings(pg)
+    await sheet(pg)
     await pg.wait_for_timeout(300)
     check(await pg.locator('.browse').count() == 1, 'routes list missing in the empty state')
     e = await pg.locator('.empty').bounding_box()
     b = await pg.locator('.browse').bounding_box()
-    f = await pg.locator('.fold').first.bounding_box()
-    check(e['height'] > 10, f'empty hint has no height: {e}')
-    check(e['y'] + e['height'] <= b['y'] + 1 or b['y'] + b['height'] <= e['y'], f'hint overlaps the routes list: hint {e}, list {b}')
-    check(e['y'] + e['height'] <= f['y'] + 1 or f['y'] + f['height'] <= e['y'], f'hint overlaps Settings: hint {e}, fold {f}')
+    check(e['height'] > 10, f'start tiles have no height: {e}')
+    check(e['y'] + e['height'] <= b['y'] + 1 or b['y'] + b['height'] <= e['y'], f'start tiles overlap the routes list: tiles {e}, list {b}')
+    check(await pg.locator('.starts .start').count() == 3, 'three start tiles expected')
 
 
 LAYOUT_JS = """() => {
@@ -561,28 +569,35 @@ LAYOUT_JS = """() => {
 
 
 async def S13(ctx):
-    """Whole panel with Settings open: nothing overlaps, content taller than the screen scrolls, the last button is reachable."""
+    """Panel in both views: nothing overlaps and taller content scrolls; in All settings the last control is
+    reachable, on the route the last action button is."""
     pg = await start(ctx, 'Gravel')
-    await open_settings(pg)
-    for step in ('route', 'hike'):
-        if step == 'hike':
-            await pick_profile(pg, 'Hike')
-            await open_settings(pg)
+
+    async def layout(step):
         r = await pg.evaluate(LAYOUT_JS)
         check(not r['over'], f'{step}: overlapping blocks in the panel: {r["over"]}')
         if r['overflow'] > 2 or r['scrollers']:
             check(r['scrollers'], f'{step}: content is {r["overflow"]}px taller than the panel and nothing scrolls (overflow-y {r["hidden"]})')
-        # the last block (route actions) can be brought into view and ends inside the screen
+
+    for step in ('gravel', 'hike'):
+        if step == 'hike':
+            await pick_profile(pg, 'Hike')
+        # All settings: the last control scrolls into view and is not covered
+        await open_settings(pg)
+        await layout(f'{step}, All settings')
+        await pg.evaluate("() => document.getElementById('nk-steep').scrollIntoView({block: 'center'})")
+        cv = await pg.evaluate("() => { const e = document.getElementById('nk-steep'); const r = e.getBoundingClientRect(); const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !(t === e || e.contains(t)); }")
+        check(not cv, f'{step}: steepness slider is covered by another element')
+        # the route: the last block (route actions) can be brought into view and ends inside the screen
+        await U.close_settings(pg)
+        await sheet(pg)
+        await layout(f'{step}, route')
         await pg.evaluate("() => { const a = document.querySelector('aside.side'); const l = [...a.querySelectorAll('.acts button')].pop(); l && l.scrollIntoView({block: 'end'}); }")
         await pg.wait_for_timeout(300)
         b = await pg.evaluate("() => { const l = [...document.querySelectorAll('aside.side .acts button')].filter(e => e.getBoundingClientRect().height).pop(); if (!l) return null; const r = l.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { bottom: r.bottom, h: innerHeight, covered: !(e === l || l.contains(e)), t: l.textContent.trim() }; }")
         check(b is not None, f'{step}: no route action buttons')
         check(b['bottom'] <= b['h'] + 1, f'{step}: last button "{b["t"]}" ends at {b["bottom"]:.0f}px, below the screen ({b["h"]}px)')
         check(not b['covered'], f'{step}: last button "{b["t"]}" is covered by another element')
-    # settings controls reachable: the last one scrolls into view and is not covered
-    await pg.evaluate("() => document.getElementById('nk-steep').scrollIntoView({block: 'center'})")
-    cv = await pg.evaluate("() => { const e = document.getElementById('nk-steep'); const r = e.getBoundingClientRect(); const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !(t === e || e.contains(t)); }")
-    check(not cv, 'steepness slider is covered by another element')
 
 
 async def S12(ctx):

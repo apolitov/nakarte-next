@@ -5,14 +5,14 @@
   python3 tools/e2e/run_all.py settings saving                      # some of them
 
 Suites: base (usecases.py, docs/use-cases.md), settings, layers, saving, mobile (sizes incl.
-tiny phones and landscape), consent (cookies, analytics privacy, legal pages). Profiles come from
+tiny phones and landscape), consent (cookies, analytics privacy, legal pages), panel (start tiles, settings sentence, route menu, loop planner). Profiles come from
 usecases.PROFILES: desktop 1440x780, desktop-short 1366x650, phone 390x664, phone-small 375x553.
 Writes docs/e2e-run.md; screenshots of failures go to /tmp/nk-e2e-<suite>."""
 import os, pathlib, re, subprocess, sys, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SUITES = {'base': 'usecases.py', 'settings': 'cases_settings.py', 'layers': 'cases_layers.py',
-          'saving': 'cases_saving.py', 'mobile': 'cases_mobile.py', 'consent': 'cases_consent.py'}
+          'saving': 'cases_saving.py', 'mobile': 'cases_mobile.py', 'consent': 'cases_consent.py', 'panel': 'cases_panel.py'}
 BASE = os.environ.get('BASE', 'https://alexe.pt/maps/')
 
 pick = [a for a in sys.argv[1:] if a in SUITES] or list(SUITES)

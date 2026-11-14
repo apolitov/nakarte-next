@@ -180,11 +180,27 @@ async def finish_with_name(pg: Page, name: str):
 
 
 async def open_settings(pg: Page):
+    """All settings, a view of the panel: from the settings sentence, or the Settings line of the empty panel."""
     await side(pg)
-    s = pg.locator('button', has_text=re.compile(r'^Settings'))
-    if await s.get_attribute('aria-expanded') != 'true':
-        await s.click()
-    await pg.wait_for_timeout(200)
+    if await pg.locator('.pview').count():
+        return
+    s = pg.locator('.ss .all')
+    await (s if await s.count() else pg.locator('button.setl')).first.click()
+    await pg.wait_for_timeout(250)
+
+
+async def close_settings(pg: Page):
+    """Back from All settings to the route."""
+    if await pg.locator('.pview').count():
+        await side(pg)
+        await pg.locator('.pview .back').click()
+        await pg.wait_for_timeout(200)
+
+
+async def settings_summary(pg: Page) -> str:
+    """What differs from the route type's defaults, as All settings says it under its title."""
+    await open_settings(pg)
+    return (await pg.locator('.pvs').inner_text()).strip()
 
 
 async def open_mine(pg: Page):
@@ -416,7 +432,7 @@ async def B2(ctx):
     await open_settings(pg)
     out = lambda id_: pg.locator(f'output[for={id_}]')
     check('default' in await out('nk-surf').inner_text() and 'on' not in (await out('nk-surf').get_attribute('class') or '').split(), 'default position not shown as "<Type> default"')
-    check('Gravel defaults' in await pg.locator('button', has_text=re.compile(r'^Settings')).inner_text(), 'summary does not say "Gravel defaults"')
+    check('Gravel defaults' in await settings_summary(pg), 'summary does not say "Gravel defaults"')
     await slide(pg, 'nk-surf', 'ArrowRight')
     await settle(pg)
     check(routed_with(pg, 'profile:nk_surface=1'), 'surface parameter not sent')
@@ -427,7 +443,7 @@ async def B2(ctx):
     await slide(pg, 'nk-big', 'ArrowLeft')
     await settle(pg)
     check(routed_with(pg, 'profile:nk_big='), 'big roads parameter not sent')
-    summ = await pg.locator('button', has_text=re.compile(r'^Settings')).inner_text()
+    summ = await settings_summary(pg)
     check('more dirt' in summ and 'fewer climbs' in summ and 'big roads' in summ, f'settings summary: {summ!r}')
     await pick(pg, 'Hike')
     check('Big roads' not in await pg.locator('.side').inner_text(), 'Big roads offered for hiking')
@@ -455,7 +471,7 @@ async def B4(ctx):
     await pg.locator('.allow label', has_text='Ferries').click()
     await settle(pg)
     check(routed_with(pg, 'profile:nk_allow_ferry=0'), 'nk_allow_ferry=0 not sent')
-    summ = await pg.locator('button', has_text=re.compile(r'^Settings')).inner_text()
+    summ = await settings_summary(pg)
     check('no ferries' in summ, f'summary: {summ!r}')
     await pick(pg, 'Hike')
     check('Unpaved' not in await pg.locator('.allow').inner_text(), 'Unpaved offered for hiking')
