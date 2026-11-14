@@ -177,11 +177,20 @@ export interface WaySpan {
   tracktype?: string;
   /** 'ferry' on a boat crossing (route=ferry, no highway tag) */
   route?: string;
+  /** cycle infrastructure: a cycleway, a way designated for bikes, a lane or a signed cycle route */
+  cycle?: true;
 }
 
 export interface Leg {
   points: LegPoint[];
   spans: WaySpan[];
+}
+
+const LANE = /^(lane|track|shared_lane|segregated|both|right|left|opposite_lane|opposite_track)$/;
+/** the profiles' nk_is_cycle (gen.py), from BRouter's way tags */
+function isCycle(t: Record<string, string>): boolean {
+  return t.highway === 'cycleway' || t.bicycle === 'designated' || LANE.test(t.cycleway ?? '') || LANE.test(t['cycleway:right'] ?? '') ||
+    LANE.test(t['cycleway:left'] ?? '') || LANE.test(t['cycleway:both'] ?? '') || Object.keys(t).some((k) => k.startsWith('route_bicycle_'));
 }
 
 function parseTags(s: string): Record<string, string> {
@@ -223,7 +232,7 @@ export function parseBrouter(json: any): Leg {
       }
       if (to < 0) continue;
       const tags = parseTags(row[iTags] ?? '');
-      spans.push({ from, to, highway: tags.highway, surface: tags.surface, tracktype: tags.tracktype, ...(tags.route === 'ferry' ? { route: 'ferry' } : {}) });
+      spans.push({ from, to, highway: tags.highway, surface: tags.surface, tracktype: tags.tracktype, ...(tags.route === 'ferry' ? { route: 'ferry' } : {}), ...(isCycle(tags) ? { cycle: true as const } : {}) });
       from = to;
       cursor = to;
     }
@@ -327,7 +336,9 @@ export function fetchLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Param
     // nk_heat_cap) and the hottest of all wins; the first plain one stays the reference
     const capped = (alt: number) => url(alt).replace('&alternativeidx', `&profile:nk_heat_cap=${HEAT_CAP}&alternativeidx`);
     const urls = heat ? [url(0), url(1), ...(seek ? [url(2), url(3)] : []), capped(0), capped(1)] : seek ? [0, 1, 2, 3].map(url) : [url(0)];
-    p = seek || heat ? pickAlternative(urls.map((u) => slot(() => requestLeg(u))), !!seek, !!heat) : slot(() => requestLeg(urls[0]));
+    // with cycleways followed (the default in road and gravel), ties go to the variant with more cycle infrastructure
+    const preferCycle = (profile === 'nk-road' || profile === 'nk-gravel') && Number(sent.nk_cycle ?? 1) !== 0;
+    p = seek || heat ? pickAlternative(urls.map((u) => slot(() => requestLeg(u))), !!seek, !!heat, preferCycle) : slot(() => requestLeg(urls[0]));
     p.catch(() => cache.delete(key));
     cache.set(key, p);
   }
@@ -351,7 +362,7 @@ export function legAscent(points: LegPoint[]): number {
  * one that climbs most and/or that more people ride (Ride with GPS heatmap), among those at most
  * 30% longer than the first. With both, each counts relative to the first alternative.
  */
-async function pickAlternative(alts: Promise<Leg>[], seek: boolean, heat: boolean): Promise<Leg> {
+async function pickAlternative(alts: Promise<Leg>[], seek: boolean, heat: boolean, preferCycle = false): Promise<Leg> {
   const got = await Promise.allSettled(alts);
   const legs = got.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
   if (!legs.length) throw (got[0] as PromiseRejectedResult).reason;
@@ -362,11 +373,25 @@ async function pickAlternative(alts: Promise<Leg>[], seek: boolean, heat: boolea
   const hot = heat ? await Promise.all(ok.map((l) => heatAlong(l.points).catch(() => 0))) : ok.map(() => 0);
   const score = (i: number) => (seek ? up[i] / Math.max(1, up[0]) : 0) + (heat ? hot[i] / Math.max(0.01, hot[0]) : 0);
   // within 3% of the top score the scores are noise (in a city centre the heatmap is hot almost
-  // everywhere): of those, the shortest wins. Before, the first to lead by 3% kept the lead, and a
-  // detour through Baixa beat the shorter, as hot riverside past Praça do Comercio (14.11.2026).
+  // everywhere). Of those, the one with the largest share of cycle infrastructure wins (cycleways
+  // followed), else the shortest. Before, the first to lead by 3% kept the lead: a detour through
+  // Baixa beat the riverside past Praça do Comercio; "shortest" alone then took a promenade over
+  // the cycleway in Parque das Nacoes (14.11.2026).
   const top = Math.max(...ok.map((_, i) => score(i)));
-  const near = ok.map((l, i) => ({ l, i, km: len(l) })).filter((x) => score(x.i) >= top / 1.03);
-  return near.reduce((a, x) => (x.km < a.km ? x : a)).l;
+  const near = ok.map((l, i) => ({ l, i, km: len(l), cyc: preferCycle ? cycleShare(l) : 0 })).filter((x) => score(x.i) >= top / 1.03);
+  return near.reduce((a, x) => (x.cyc > a.cyc + 0.005 || (Math.abs(x.cyc - a.cyc) <= 0.005 && x.km < a.km) ? x : a)).l;
+}
+
+/** share of the leg's length on cycle infrastructure (WaySpan.cycle) */
+export function cycleShare(l: Leg): number {
+  let all = 0, cyc = 0;
+  for (const s of l.spans)
+    for (let i = s.from + 1; i <= s.to && i < l.points.length; i++) {
+      const d = straightKm(l.points[i - 1], l.points[i]);
+      all += d;
+      if (s.cycle) cyc += d;
+    }
+  return all ? cyc / all : 0;
 }
 
 // profile parameters go as profile:<name>=<value>; booleans as 1/0
@@ -398,9 +423,9 @@ export function seedLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params
 /**
  * Version of the routing rules the stored legs were computed with. Legs of an older version are
  * routed again on open (the waypoints stay). Bump together with ROUTE_CACHE_VER in maps-api when the
- * nk-* profiles change the lines (w1: 14.11.2026, oneway penalty no longer cut by the cost caps; w2: cobblestone penalty; w3: the penalty only with "Avoid cobblestones"; w4: heatmap ties go to the shortest).
+ * nk-* profiles change the lines (w1: 14.11.2026, oneway penalty no longer cut by the cost caps; w2: cobblestone penalty; w3: the penalty only with "Avoid cobblestones"; w4: heatmap ties go to the shortest; w5: to the most cycle infrastructure).
  */
-export const ROUTING_VER = 'w4';
+export const ROUTING_VER = 'w5';
 
 /** Compact form of a leg for storage: [lng, lat, ele] with 6 and 1 decimals. */
 export type StoredLeg = { p: [number, number, number | null][]; s: WaySpan[] };
