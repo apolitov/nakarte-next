@@ -26,6 +26,8 @@
   import AccountMenu from './ui/AccountMenu.svelte';
   import RouteSummary from './ui/RouteSummary.svelte';
   import RoutesScreen from './ui/RoutesScreen.svelte';
+  import LoopPanel from './ui/LoopPanel.svelte';
+  import { findLoops, type LoopCandidate } from './lib/loops';
   import RouteSettings from './ui/RouteSettings.svelte';
   import Segmented from './ui/Segmented.svelte';
   import Fold from './ui/Fold.svelte';
@@ -417,6 +419,8 @@
     return [0, (64 - bottom) / 2];
   }
   function padding() {
+    // the loop card covers the left of the map on a desktop and the bottom on a phone
+    if (loopOpen) return { top: 76, bottom: 40, left: 30, right: 70 }; // on top of the map padding the loop card sets
     return { top: 76, bottom: (mobile ? 0 : profH + 12) + 30, left: 50, right: 70 };
   }
 
@@ -866,6 +870,133 @@
 
   let garminOpen = $state(false);
   let routesOpen = $state(false);
+
+  // ---- the loop generator: "a loop of N km from here" (lib/loops.ts) ----
+  const LOOP_COLORS = ['#e4572e', '#2e86de', '#8e44ad'];
+  let loopOpen = $state(false);
+  let loopKm = $state(30);
+  let loopBearing = $state<number | null>(null);
+  let loopBusy = $state(false);
+  let loopProgress = $state<[number, number]>([0, 0]);
+  let loopError = $state('');
+  let loopCands = $state<LoopCandidate[]>([]);
+  let loopActive = $state<number | null>(null);
+  let loopAbort: AbortController | null = null;
+  /** where the found loops start (drawn on the map; the crosshair shows where the next search starts) */
+  let loopStart = $state<{ lng: number; lat: number } | null>(null);
+  /** height of the loop card on a phone: the map is padded so its centre stays in the visible part */
+  let loopCardH = $state(0);
+  const loopPad = $derived(loopOpen ? (mobile ? { top: 60, bottom: loopCardH + 90, left: 0, right: 0 } : { top: 0, bottom: 0, left: 320, right: 0 }) : { top: 0, bottom: 0, left: 0, right: 0 });
+  $effect(() => {
+    const pad = loopPad;
+    map?.setPadding(pad);
+  });
+  function openLoop() {
+    if (editing) toggleEdit();
+    loopOpen = true;
+    layersMenu = null;
+    if (mobile) sheetOpen = false;
+    track('loop_open');
+  }
+  function closeLoop() {
+    loopAbort?.abort();
+    loopOpen = false;
+    loopBusy = false;
+    loopCands = [];
+    loopActive = null;
+    loopError = '';
+    loopStart = null;
+    drawLoops();
+  }
+  function drawLoops() {
+    if (!map) return;
+    const data = {
+      type: 'FeatureCollection' as const,
+      features: [
+        ...loopCands.map((c, i) => ({
+          type: 'Feature' as const,
+          properties: { i, color: LOOP_COLORS[i] },
+          geometry: { type: 'LineString' as const, coordinates: c.points.map((p) => [p.lng, p.lat]) as [number, number][] },
+        })),
+        ...(loopStart && loopCands.length
+          ? [{ type: 'Feature' as const, properties: { i: -1, color: '#141414' }, geometry: { type: 'Point' as const, coordinates: [loopStart.lng, loopStart.lat] as [number, number] } }]
+          : []),
+      ],
+    };
+    const src = map.getSource('loops') as maplibregl.GeoJSONSource | undefined;
+    if (src) src.setData(data);
+    else if (data.features.length) {
+      map.addSource('loops', { type: 'geojson', data });
+      map.addLayer({
+        id: 'loops-line',
+        type: 'line',
+        source: 'loops',
+        filter: ['==', ['geometry-type'], 'LineString'],
+        paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-opacity': 0.75 },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+      map.addLayer({
+        id: 'loops-start',
+        type: 'circle',
+        source: 'loops',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: { 'circle-radius': 8, 'circle-color': '#ffd83d', 'circle-stroke-color': '#141414', 'circle-stroke-width': 3 },
+      });
+    }
+    if (map.getLayer('loops-line')) {
+      const a = loopActive;
+      map.setPaintProperty('loops-line', 'line-opacity', a == null ? 0.75 : ['case', ['==', ['get', 'i'], a], 1, 0.25]);
+      map.setPaintProperty('loops-line', 'line-width', a == null ? 4 : ['case', ['==', ['get', 'i'], a], 6, 3]);
+    }
+  }
+  async function findLoopsHere() {
+    if (!map || loopBusy) return;
+    loopAbort?.abort();
+    loopAbort = new AbortController();
+    const c = map.getCenter();
+    loopStart = { lng: c.lng, lat: c.lat };
+    const { nk_heat: _h, nk_seek: _s, ...params } = route.params;
+    loopBusy = true;
+    loopError = '';
+    loopCands = [];
+    loopActive = null;
+    drawLoops();
+    loopProgress = [0, 0];
+    track('loop_find', { km: loopKm, value: loopBearing == null ? 'any' : String(loopBearing), profile: route.profile });
+    try {
+      loopCands = await findLoops({
+        start: { lng: c.lng, lat: c.lat }, km: loopKm, profile: route.profile, params, bearing: loopBearing,
+        signal: loopAbort.signal, onprogress: (d, t) => (loopProgress = [d, t]),
+      });
+      if (!loopCands.length) loopError = t('loop.none');
+      // after the card has folded (phone) and the map padding follows it
+      else setTimeout(() => fitPoints(loopCands.flatMap((x) => x.points.filter((_, i) => i % 20 === 0)), 14), 120);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') loopError = t('loop.failed');
+    } finally {
+      loopBusy = false;
+      drawLoops();
+    }
+  }
+  function pickLoop(i: number) {
+    const c = loopCands[i];
+    if (!c) return;
+    track('loop_pick', { km: Math.round(c.km), value: String(i) });
+    if (route.waypoints.length) saveRoute();
+    route.load({
+      id: newId('r'), kind: 'route', name: '', profile: route.profile, params: { ...route.params },
+      waypoints: c.waypoints.map(({ lng, lat }) => ({ lng, lat })), checkpoints: [], updated: Date.now(), created: Date.now(),
+    });
+    closeLoop();
+    fitPoints(c.points.filter((_, k) => k % 20 === 0));
+  }
+  function locateForLoop() {
+    navigator.geolocation?.getCurrentPosition(
+      (p) => map?.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: Math.max(map.getZoom(), 12) }),
+      () => say(t('orbit.locateDenied'), true),
+      { enableHighAccuracy: false, timeout: 10000 },
+    );
+  }
 
   /** Sign-in leaves the page: the open route goes to the server and comes back by its id. */
   async function signIn(reopenGarmin = false) {
@@ -1557,6 +1688,7 @@
             <button class="inl" onclick={toggleEdit}><Icon name="edit" size={14} /></button>
             (<kbd>D</kbd>) {t('route.empty2')} {t('route.emptyFiles')}</p>
         {/if}
+        <button class="loopbtn" onclick={openLoop}><Icon name="locate" size={16} />{t('loop.empty')}</button>
       </div>
       <!-- no route open: the panel is the list of my routes and tracks -->
       <div class="browse">
@@ -1596,11 +1728,18 @@
 
   <main class="mapcol" class:t3d={terrain3d} style="--prof-h:{mobile || !hasRoute ? 0 : profH + 12}px; --ctl-top:{ctlTop}px">
     <div class="map" bind:this={container}></div>
+    {#if loopOpen}
+      <!-- the loop starts at the map centre -->
+      <div class="loopstart" aria-hidden="true" style="left:calc(50% + {(loopPad.left - loopPad.right) / 2}px);top:calc(50% + {(loopPad.top - loopPad.bottom) / 2}px)"></div>
+      <LoopPanel bind:height={loopCardH} bind:km={loopKm} bind:bearing={loopBearing} typeTitle={profileTitle} busy={loopBusy} progress={loopProgress}
+        error={loopError} candidates={loopCands} active={loopActive} colors={LOOP_COLORS} {mobile}
+        onfind={findLoopsHere} onpick={pickLoop} onhover={(i) => { loopActive = i; drawLoops(); }} onlocate={locateForLoop} onclose={closeLoop} />
+    {/if}
     <Toolbar {editing} canUndo={route.canUndo} canRedo={route.canRedo} hasRoute={route.waypoints.length > 0} canLoop={hasLegs}
       {straightOn} placing={placing === 'route'} {layersOpen}
       onedit={toggleEdit} onundo={undo} onredo={redo} onreverse={reverse} onoutback={outAndBack} onbacktostart={backToStart}
       onstraight={() => toggleStraight(false)} oncheckpoint={toggleCheckpoint} onlayers={() => openMenu('base')}
-      onfit={fitRoute} onhelp={() => (helpOpen = true)} />
+      onfit={fitRoute} onhelp={() => (helpOpen = true)} onloopgen={openLoop} />
     <div class="layersbtns">
       <button class="layersbtn" aria-expanded={layersMenu === 'base'} aria-controls="nk-layers" aria-label={t('lay.base')}
         title="{t('lay.base')} (L)" onclick={() => openMenu('base')}><Icon name="layers" size={20} /></button>
@@ -1769,6 +1908,38 @@
   }
   /* neither the hint nor the list may shrink under their content: squeezed, the hint's text ran
      over the list; when space is short the whole panel scrolls */
+  .loopbtn {
+    margin-top: 8px;
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+  .loopbtn:hover {
+    background: var(--tint);
+  }
+  .loopstart {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    border-radius: 50%;
+    border: 3px solid #141414;
+    box-shadow: 0 0 0 3px #ffd83d;
+    background: rgb(255 216 61 / 0.35);
+    z-index: 3;
+    pointer-events: none;
+  }
   .empty {
     flex: none;
     font-size: 13px;

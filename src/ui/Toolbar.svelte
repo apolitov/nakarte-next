@@ -23,6 +23,7 @@
     onlayers,
     onfit,
     onhelp,
+    onloopgen,
   }: {
     editing: boolean;
     canUndo: boolean;
@@ -43,6 +44,8 @@
     onlayers: () => void;
     onfit: () => void;
     onhelp: () => void;
+    /** the loop generator ("a loop of N km from here") */
+    onloopgen?: () => void;
   } = $props();
 
   let menuOpen = $state(false);
@@ -97,6 +100,11 @@
         <button role="menuitem" disabled={!canLoop} onclick={() => { menuOpen = false; onbacktostart(); }}>
           <Icon name="loop" size={18} /><span>{t('tb.backToStart')}</span>
         </button>
+        {#if onloopgen}
+          <button role="menuitem" onclick={() => { menuOpen = false; onloopgen(); }}>
+            <Icon name="locate" size={18} /><span>{t('tb.loopGen')}</span>
+          </button>
+        {/if}
       </div>
     {/if}
 </div>
