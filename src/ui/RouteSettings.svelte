@@ -75,6 +75,20 @@
   <div class="tk" aria-hidden="true">{#each { length: n } as _, i (i)}<i class:d={i === def}></i>{/each}</div>
 {/snippet}
 
+<!-- the two switches people change most go first -->
+{#if cycle}
+  <!-- road and gravel only: MTB and hiking route as their stock profiles -->
+  <label class="sw">
+    <input type="checkbox" role="switch" checked={options.cycleways} onchange={(e) => onchange({ cycleways: e.currentTarget.checked })} />
+    <span class="tr" aria-hidden="true"></span>
+    <span class="t">{t('set.cycleways')}<small>{t('set.cyclewaysHint')}</small></span>
+  </label>
+  <label class="sw">
+    <input type="checkbox" role="switch" checked={options.heat} onchange={(e) => onchange({ heat: e.currentTarget.checked })} />
+    <span class="tr" aria-hidden="true"></span>
+    <span class="t">{t('set.heat')}<small>{t('set.heatHint')}</small></span>
+  </label>
+{/if}
 <div class="lbl"><span><label for="nk-surf">{t('set.surface')}</label><Explain label={t('set.surface')} text={t('ex.surfaceSet')} /></span><output for="nk-surf" class:on={surf !== 0}>{SURF_LABEL[surf]}</output></div>
 <input id="nk-surf" class="surf" type="range" min="-2" max="2" step="1" value={options.surface}
   aria-valuetext={SURF_LABEL[surf]}
@@ -136,21 +150,6 @@
   </ul>
 {/if}
 
-{#if cycle}
-  <!-- road and gravel only: MTB and hiking route as their stock profiles -->
-  <label class="sw">
-    <input type="checkbox" role="switch" checked={options.cycleways} onchange={(e) => onchange({ cycleways: e.currentTarget.checked })} />
-    <span class="tr" aria-hidden="true"></span>
-    <span class="t">{t('set.cycleways')}<small>{t('set.cyclewaysHint')}</small></span>
-  </label>
-{/if}
-{#if cycle}
-  <label class="sw">
-    <input type="checkbox" role="switch" checked={options.heat} onchange={(e) => onchange({ heat: e.currentTarget.checked })} />
-    <span class="tr" aria-hidden="true"></span>
-    <span class="t">{t('set.heat')}<small>{t('set.heatHint')}</small></span>
-  </label>
-{/if}
 
 <style>
   .allow {
