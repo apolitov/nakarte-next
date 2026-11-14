@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { gradeClasses, type Profile } from '../lib/profile';
-  import { SEG_ORDER, SEG_SHORT, segColor, dec, type SegClass } from '../lib/timeline';
+  import { FERRY_COLOR, gradeClasses, SURFACE_DASH, type Profile } from '../lib/profile';
+  import { SEG_ORDER, SEG_SHORT, STRAIGHT_COLOR, dec, type SegClass } from '../lib/timeline';
   import ElevationProfile from './ElevationProfile.svelte';
   import Icon from './Icon.svelte';
 
@@ -48,6 +48,7 @@
   });
   const present = $derived(SEG_ORDER.filter((c) => classes.slice(1).includes(c)));
   const plural = (n: number) => (n === 1 ? t('prof.stretch1') : t('prof.stretchN'));
+  const dash = (c: SegClass) => (c === 'straight' ? [2, 2] : c === 'unknown' ? [1, 0] : SURFACE_DASH[c]);
 </script>
 
 <section class="prof" class:shut={!open} class:mobile aria-label={t('prof.title')}>
@@ -80,9 +81,10 @@
       {/each}
       <span class="sp"></span>
       {#each present as c (c)}
-        <!-- the strip under the profile and the core of the map line use these colours -->
-        <span class="lg"><svg width="22" height="8" aria-hidden="true"><line x1="0" y1="4" x2="22" y2="4"
-          stroke={segColor(c)} stroke-width="5" stroke-dasharray={c === 'straight' ? '5 3' : 'none'} /></svg>{SEG_SHORT[c]}</span>
+        {@const d = dash(c)}
+        <span class="lg"><svg width="26" height="8" aria-hidden="true"><line x1="2" y1="4" x2="24" y2="4"
+          stroke={c === 'straight' ? STRAIGHT_COLOR : c === 'unknown' ? 'var(--line)' : c === 'ferry' ? FERRY_COLOR : 'currentColor'} stroke-width="3" stroke-linecap="round"
+          stroke-dasharray={d[1] === 0 ? 'none' : d.map((v) => v * 3).join(' ')} /></svg>{SEG_SHORT[c]}</span>
       {/each}
       {#if maxGrade}
         <span class="lg"><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" rx="2" fill="#e4e2dc" /><path

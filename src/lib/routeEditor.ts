@@ -4,20 +4,24 @@
 import * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { RouteState } from './route.svelte';
-import { gradeColor, haversine, FERRY_COLOR, SURFACE_STYLE, type SurfaceClass } from './profile';
+import { gradeColor, haversine, FERRY_COLOR, SURFACE_STYLE, SURFACE_DASH, type SurfaceClass } from './profile';
 import { track } from './analytics';
 import { t } from './i18n';
 
 export type ColorMode = 'grade' | 'surface' | 'plain';
 
+const DASH_EXPR = [
+  'match',
+  ['get', 'surf'],
+  ...(Object.entries(SURFACE_DASH) as [SurfaceClass, number[]][]).flatMap(([k, v]) => [k, ['literal', v]]),
+  ['literal', [1, 0]],
+] as unknown as maplibregl.ExpressionSpecification;
 const PLAIN = '#2a6df4';
-/** surfaces that get the core line: everything off asphalt but the ferry (its own colour) and no data */
-const CORE = new Set<SurfaceClass>(['compact', 'unpaved', 'ground', 'path']);
 
 export class RouteEditor {
   private markers = new Map<number, maplibregl.Marker>();
   editing = false;
-  /** grade: colour = grade, a thin core of the surface colour off asphalt; surface: colour = surface; plain: one colour */
+  /** grade: colour = grade, dashes = surface; surface: colour and dashes = surface; plain: one colour */
   colorMode: ColorMode = 'grade';
   private dragInsert: { index: number; marker: maplibregl.Marker } | null = null;
   /** Returns true when it handled the click (e.g. placing a checkpoint). */
@@ -39,7 +43,7 @@ export class RouteEditor {
       source: 'route',
       filter: ['!', ['has', 'connector']],
       // dark casing: the light "flat" colour and the gaps of dashes stay readable on any base map
-      paint: { 'line-color': '#26262b', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 6.5, 14, 10], 'line-opacity': 0.75 },
+      paint: { 'line-color': '#26262b', 'line-width': 8, 'line-opacity': 0.75 },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
     });
     map.addLayer({
@@ -49,29 +53,11 @@ export class RouteEditor {
       filter: ['!', ['has', 'connector']],
       paint: {
         'line-color': ['get', 'color'],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 9, 4, 14, 7],
-        // straight legs dashed; the surface is the core below, not dashes (design 7c, 14.11.2026)
-        'line-dasharray': ['case', ['==', ['get', 'straight'], true], ['literal', [1.2, 1.2]], ['literal', [1, 0]]],
+        'line-width': 5,
+        // data-driven dasharray needs MapLibre GL JS >= 5.8
+        'line-dasharray': ['case', ['==', ['get', 'straight'], true], ['literal', [1.2, 1.2]], DASH_EXPR],
       },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-    });
-    // surface core: a thin line of the surface colour inside the grade line, only off asphalt, so
-    // gravel, dirt and trails stand out; a light seam keeps it apart from dark grades
-    map.addLayer({
-      id: 'route-core-seam',
-      type: 'line',
-      source: 'route',
-      filter: ['has', 'scol'],
-      paint: { 'line-color': '#ffffff', 'line-opacity': 0.9, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 3, 14, 5] },
-      layout: { 'line-cap': 'butt', 'line-join': 'round' },
-    });
-    map.addLayer({
-      id: 'route-core',
-      type: 'line',
-      source: 'route',
-      filter: ['has', 'scol'],
-      paint: { 'line-color': ['get', 'scol'], 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.6, 14, 3] },
-      layout: { 'line-cap': 'butt', 'line-join': 'round' },
     });
     // legs being routed: yellow dashes running along the straight placeholder
     map.addLayer({
@@ -377,9 +363,7 @@ export class RouteEditor {
     let runStraight = false;
     let runSurf: SurfaceClass = 'unknown';
     const flush = () => {
-      // the surface core: grade colouring only, off asphalt, on routed (not straight) legs
-      const core = this.colorMode === 'grade' && !runStraight && CORE.has(runSurf) ? { scol: SURFACE_STYLE[runSurf].color } : {};
-      if (run.length > 1) features.push({ type: 'Feature', properties: { color: runColor, leg: runLeg, straight: runStraight, surf: this.colorMode === 'plain' ? 'paved' : runSurf, ...core }, geometry: { type: 'LineString', coordinates: run } });
+      if (run.length > 1) features.push({ type: 'Feature', properties: { color: runColor, leg: runLeg, straight: runStraight, surf: this.colorMode === 'plain' ? 'paved' : runSurf }, geometry: { type: 'LineString', coordinates: run } });
     };
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
