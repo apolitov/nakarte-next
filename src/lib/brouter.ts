@@ -361,9 +361,12 @@ async function pickAlternative(alts: Promise<Leg>[], seek: boolean, heat: boolea
   const up = ok.map((l) => legAscent(l.points));
   const hot = heat ? await Promise.all(ok.map((l) => heatAlong(l.points).catch(() => 0))) : ok.map(() => 0);
   const score = (i: number) => (seek ? up[i] / Math.max(1, up[0]) : 0) + (heat ? hot[i] / Math.max(0.01, hot[0]) : 0);
-  let best = 0;
-  for (let i = 1; i < ok.length; i++) if (score(i) > score(best) * 1.03) best = i; // 3%: not for noise
-  return ok[best];
+  // within 3% of the top score the scores are noise (in a city centre the heatmap is hot almost
+  // everywhere): of those, the shortest wins. Before, the first to lead by 3% kept the lead, and a
+  // detour through Baixa beat the shorter, as hot riverside past Praça do Comercio (14.11.2026).
+  const top = Math.max(...ok.map((_, i) => score(i)));
+  const near = ok.map((l, i) => ({ l, i, km: len(l) })).filter((x) => score(x.i) >= top / 1.03);
+  return near.reduce((a, x) => (x.km < a.km ? x : a)).l;
 }
 
 // profile parameters go as profile:<name>=<value>; booleans as 1/0
@@ -395,9 +398,9 @@ export function seedLeg(a: LngLat, b: LngLat, profile: ProfileId, params: Params
 /**
  * Version of the routing rules the stored legs were computed with. Legs of an older version are
  * routed again on open (the waypoints stay). Bump together with ROUTE_CACHE_VER in maps-api when the
- * nk-* profiles change the lines (w1: 14.11.2026, oneway penalty no longer cut by the cost caps; w2: cobblestone penalty; w3: the penalty only with "Avoid cobblestones").
+ * nk-* profiles change the lines (w1: 14.11.2026, oneway penalty no longer cut by the cost caps; w2: cobblestone penalty; w3: the penalty only with "Avoid cobblestones"; w4: heatmap ties go to the shortest).
  */
-export const ROUTING_VER = 'w3';
+export const ROUTING_VER = 'w4';
 
 /** Compact form of a leg for storage: [lng, lat, ele] with 6 and 1 decimals. */
 export type StoredLeg = { p: [number, number, number | null][]; s: WaySpan[] };
